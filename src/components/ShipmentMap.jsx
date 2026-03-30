@@ -316,8 +316,10 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
                 pathCoords.push(currentInfo.coords);
             }
 
-            // Calculate bounds from key points only (not waypoints to avoid distortion)
-            const boundsCoords = [originInfo.coords, destInfo.coords, currentInfo.coords].filter(Boolean);
+            // Calculate bounds from the wrapped path so camera centers on Pacific instead of Africa!
+            const boundsCoords = pathCoords.length > 0 
+                ? pathCoords 
+                : [originInfo.coords, destInfo.coords, currentInfo.coords].filter(Boolean);
 
             map.on('load', () => {
                 // Add route line (all modes get a path)
@@ -364,10 +366,17 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
                     });
                 }
 
-                // Fit bounds AFTER adding layers (prevents shake)
+                // Fit bounds AFTER adding layers using dateline-fixed points
                 if (boundsCoords.length > 0) {
                     const bounds = new window.maplibregl.LngLatBounds();
-                    boundsCoords.forEach(c => bounds.extend(c));
+                    
+                    // Only use a subset of points for the bounding box to avoid heavy computation
+                    const step = Math.max(1, Math.floor(boundsCoords.length / 50));
+                    for (let i = 0; i < boundsCoords.length; i += step) {
+                        bounds.extend(boundsCoords[i]);
+                    }
+                    if (boundsCoords.length > 0) bounds.extend(boundsCoords[boundsCoords.length - 1]);
+
                     map.fitBounds(bounds, {
                         padding: { top: 80, bottom: 80, left: 80, right: 80 },
                         duration: 1200,
