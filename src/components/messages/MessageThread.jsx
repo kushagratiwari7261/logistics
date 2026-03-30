@@ -127,16 +127,25 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
 
   /* ── Load messages ── */
   useEffect(() => {
-    if (isGroup && conversation?.id) {
-      setLoadingChat(true);
-      fetchConversationMessages(conversation.id).then(msgs => {
-        setChatMessages(msgs);
+    const loadData = async () => {
+      // Only show top-level loading if we have no messages yet (prevents flickering during sends)
+      if (chatMessages.length === 0) {
+        setLoadingChat(true);
+      }
+      
+      try {
+        if (isGroup && conversation?.id) {
+          const msgs = await fetchConversationMessages(conversation.id);
+          setChatMessages(msgs);
+        } else if (message) {
+          await fetchDmHistory();
+        }
+      } finally {
         setLoadingChat(false);
-      });
-    } else if (message) {
-      setLoadingChat(true);
-      fetchDmHistory().then(() => setLoadingChat(false));
-    }
+      }
+    };
+    
+    loadData();
   }, [isGroup, conversation?.id, message?.id]);
 
   /* ── WebSocket Real-time: live message arrival ── */
@@ -155,42 +164,42 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       socket.emit('join_group', conversation.id);
     }
 
-    const handleNewMessage = async (payload) => {
-      // Check if message belongs to this thread
+    const handleNewMessage = (payload) => {
+      // 1. Better otherUserId check: rely on the props passed once
+      const currentOtherId = isGroup ? null : (message?.sender_id === currentUser?.id ? message?.receiver_id : message?.sender_id);
+      
+      // 2. CHECK IF MESSAGE BELONGS TO THIS THREAD
       if (isGroup && payload.isGroup && payload.conversation_id === conversation?.id) {
         // Group message matches
       } else if (!isGroup && !payload.isGroup) {
         // DM message matches if between these two users
         const involvesMe = payload.sender_id === currentUser.id || payload.receiver_id === currentUser.id;
-        const involvesThem = payload.sender_id === otherUserId || payload.receiver_id === otherUserId;
+        const involvesThem = payload.sender_id === currentOtherId || payload.receiver_id === currentOtherId;
         if (!(involvesMe && involvesThem)) return;
       } else {
         return; // Doesn't match
       }
 
-      // 1. INSTANT UPDATE: Add the message to the UI immediately if it's not from us
-      if (payload.sender_id !== currentUser?.id) {
-        setChatMessages(prev => {
-          if (prev.some(m => m.id === payload.id)) return prev;
-          
-          const newMsg = {
-            ...payload,
-            sender: payload.sender || { id: payload.sender_id }, // Basic fallback
-            attachments: payload.attachments || []
-          };
-          return [...prev, newMsg];
-        });
-      }
+      // INSTANT UPDATE: Add to UI immediately if not already present
+      setChatMessages(prev => {
+        if (prev.some(m => m.id === payload.id)) return prev;
+        
+        const newMsg = {
+          ...payload,
+          sender: payload.sender || { id: payload.sender_id }, // Fallback
+          attachments: payload.attachments || []
+        };
+        return [...prev, newMsg];
+      });
 
-      // 2. BACKGROUND SYNC: Slight delay to ensure attachments/metadata are fully written to DB
-      setTimeout(async () => {
+      // BACKGOUND SYNC: Sync with DB a moment later for attachments
+      setTimeout(() => {
         if (isGroup && conversation?.id) {
-          const msgs = await fetchConversationMessages(conversation.id);
-          setChatMessages(msgs);
+          fetchConversationMessages(conversation.id).then(setChatMessages);
         } else {
           fetchDmHistory();
         }
-      }, 1000); 
+      }, 2000); 
     };
 
     socket.on('receive_message', handleNewMessage);
