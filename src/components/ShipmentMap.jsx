@@ -1,18 +1,183 @@
 import { useEffect, useRef } from 'react';
-import { Map, Anchor, ShieldCheck, Flag, Ship, Truck, CheckCircle, Navigation, MapPin } from 'lucide-react';
+import { Anchor, Flag, Ship, Truck, CheckCircle, Navigation, MapPin } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
 import { STATUS_COLORS, getCoords } from '../constants/shipment';
 
-// Global Maritime Waypoints for "Smart" Routing
-const MARITIME_WAYPOINTS = {
-    SUEZ: [32.3, 29.9],
-    PANAMA: [-79.9, 9.1],
-    MALACCA: [101.3, 2.5],
-    GIBRALTAR: [-5.3, 36.0],
-    BAB_EL_MANDEB: [43.3, 12.6],
-    HORMUZ: [56.2, 26.5],
-    CAPE_COMORIN: [77.5, 8.0], // South of India to avoid land crossing
+// ── Maritime Key Waypoints [lng, lat] ──────────────────────────────────────────
+// All coordinates are [longitude, latitude] for MapLibre
+const WP = {
+    // Straits & Canals
+    STRAIT_MALACCA_W: [98.0, 5.5],      // West entrance Malacca Strait
+    STRAIT_MALACCA_E: [104.2, 1.3],     // East entrance (Singapore side)
+    STRAIT_HORMUZ:    [56.5, 24.5],     // Strait of Hormuz
+    BAB_EL_MANDEB:    [43.3, 11.6],     // Red Sea entrance
+    SUEZ_S:           [32.6, 29.9],     // Suez Canal - South
+    SUEZ_N:           [32.3, 31.3],     // Suez Canal - North
+    STRAIT_GIBRALTAR: [-5.5, 35.9],     // Gibraltar
+    CAPE_GOOD_HOPE:   [18.4, -34.4],    // Cape of Good Hope
+    PANAMA_ATL:       [-79.5, 9.4],     // Panama - Atlantic entrance
+    PANAMA_PAC:       [-79.5, 8.9],     // Panama - Pacific entrance
+    CAPE_HORN:        [-67.3, -55.9],   // Cape Horn
+
+    // Ocean Mid-points (to ensure routes go through open water)
+    MED_SEA:          [15.0, 35.5],     // Mediterranean center
+    RED_SEA_MID:      [38.5, 20.0],     // Red Sea middle
+    ARABIAN_SEA:      [65.0, 15.0],     // Arabian Sea center
+    BAY_OF_BENGAL:    [88.0, 10.0],     // Bay of Bengal
+    INDIAN_OCEAN:     [75.0, -10.0],    // Indian Ocean center
+    SOUTH_ATLANT:     [-20.0, -15.0],   // South Atlantic
+    NORTH_ATLANT:     [-35.0, 45.0],    // North Atlantic
+    PACIFIC_NORTH:    [-170.0, 40.0],   // North Pacific
+    PACIFIC_SOUTH:    [-140.0, -20.0],  // South Pacific
 };
+
+// ── Compute maritime route waypoints ─────────────────────────────────────────
+function getMaritimeRoute(origin, dest) {
+    const [oLng, oLat] = origin;
+    const [dLng, dLat] = dest;
+    const waypoints = [];
+
+    // Helper: is a point in a rough "region"
+    const inRegion = (lng, lat, lngMin, lngMax, latMin, latMax) =>
+        lng >= lngMin && lng <= lngMax && lat >= latMin && lat <= latMax;
+
+    const isEurope   = (lng, lat) => inRegion(lng, lat, -10, 40, 35, 72);
+    const isRedSea   = (lng, lat) => inRegion(lng, lat, 32, 50, 10, 30);
+    const isMidEast  = (lng, lat) => inRegion(lng, lat, 35, 65, 10, 35);
+    const isIndian   = (lng, lat) => inRegion(lng, lat, 65, 90, 5, 30); // India subcontinent
+    const isSEAsia   = (lng, lat) => inRegion(lng, lat, 95, 140, -10, 25);
+    const isEAsia    = (lng, lat) => inRegion(lng, lat, 100, 150, 20, 50);
+    const isAfrica   = (lng, lat) => inRegion(lng, lat, -20, 52, -40, 38);
+    const isAtlantic  = (lng, lat) => lng < -10 && lng > -80 && lat > -60;
+    const isPacificW = (lng, lat) => lng > 140 || lng < -120;
+    const isAmerica  = (lng, lat) => lng < -50;
+    const isNAmerica = (lng, lat) => lng < -50 && lat > 15;
+    const isSAmerica = (lng, lat) => lng < -34 && lat < 15;
+
+    // ── Route Decision Logic ───────────────────────────────────────────────
+
+    // 1. Indian subcontinent ↔ Middle East / Persian Gulf
+    if ((isIndian(oLng, oLat) && isMidEast(dLng, dLat)) ||
+        (isMidEast(oLng, oLat) && isIndian(dLng, dLat))) {
+        waypoints.push(WP.STRAIT_HORMUZ);
+        waypoints.push(WP.ARABIAN_SEA);
+    }
+
+    // 2. Indian subcontinent / Middle East → Europe (via Suez)
+    if ((isIndian(oLng, oLat) || isMidEast(oLng, oLat)) && isEurope(dLng, dLat)) {
+        if (isIndian(oLng, oLat)) waypoints.push(WP.ARABIAN_SEA);
+        waypoints.push(WP.BAB_EL_MANDEB);
+        waypoints.push(WP.RED_SEA_MID);
+        waypoints.push(WP.SUEZ_S);
+        waypoints.push(WP.SUEZ_N);
+        waypoints.push(WP.MED_SEA);
+        waypoints.push(WP.STRAIT_GIBRALTAR);
+    }
+
+    // 3. Europe → Indian Subcontinent / Middle East (reverse Suez)
+    if (isEurope(oLng, oLat) && (isIndian(dLng, dLat) || isMidEast(dLng, dLat))) {
+        waypoints.push(WP.STRAIT_GIBRALTAR);
+        waypoints.push(WP.MED_SEA);
+        waypoints.push(WP.SUEZ_N);
+        waypoints.push(WP.SUEZ_S);
+        waypoints.push(WP.RED_SEA_MID);
+        waypoints.push(WP.BAB_EL_MANDEB);
+        if (isIndian(dLng, dLat)) waypoints.push(WP.ARABIAN_SEA);
+    }
+
+    // 4. Indian subcontinent / Middle East → SE Asia (via Cape Comorin + Malacca)
+    if ((isIndian(oLng, oLat) || isMidEast(oLng, oLat)) && isSEAsia(dLng, dLat)) {
+        if (isMidEast(oLng, oLat)) {
+            waypoints.push(WP.STRAIT_HORMUZ);
+            waypoints.push(WP.ARABIAN_SEA);
+        }
+        // Go south of India
+        waypoints.push([80.0, 5.0]); // South of Sri Lanka
+        waypoints.push(WP.STRAIT_MALACCA_W);
+        waypoints.push(WP.STRAIT_MALACCA_E);
+    }
+
+    // 5. SE Asia → Indian / Middle East (reverse Malacca)
+    if (isSEAsia(oLng, oLat) && (isIndian(dLng, dLat) || isMidEast(dLng, dLat))) {
+        waypoints.push(WP.STRAIT_MALACCA_E);
+        waypoints.push(WP.STRAIT_MALACCA_W);
+        waypoints.push([80.0, 5.0]); // South of Sri Lanka
+        if (isMidEast(dLng, dLat)) {
+            waypoints.push(WP.ARABIAN_SEA);
+            waypoints.push(WP.STRAIT_HORMUZ);
+        }
+    }
+
+    // 6. SE Asia / East Asia → Europe (via Malacca + Suez)
+    if ((isSEAsia(oLng, oLat) || isEAsia(oLng, oLat)) && isEurope(dLng, dLat)) {
+        if (isEAsia(oLng, oLat)) {
+            waypoints.push([125.0, 15.0]); // Philippine Sea
+        }
+        waypoints.push(WP.STRAIT_MALACCA_E);
+        waypoints.push(WP.STRAIT_MALACCA_W);
+        waypoints.push([80.0, 5.0]);
+        waypoints.push(WP.ARABIAN_SEA);
+        waypoints.push(WP.BAB_EL_MANDEB);
+        waypoints.push(WP.RED_SEA_MID);
+        waypoints.push(WP.SUEZ_S);
+        waypoints.push(WP.SUEZ_N);
+        waypoints.push(WP.MED_SEA);
+        waypoints.push(WP.STRAIT_GIBRALTAR);
+    }
+
+    // 7. Europe → SE Asia / East Asia (reverse)
+    if (isEurope(oLng, oLat) && (isSEAsia(dLng, dLat) || isEAsia(dLng, dLat))) {
+        waypoints.push(WP.STRAIT_GIBRALTAR);
+        waypoints.push(WP.MED_SEA);
+        waypoints.push(WP.SUEZ_N);
+        waypoints.push(WP.SUEZ_S);
+        waypoints.push(WP.RED_SEA_MID);
+        waypoints.push(WP.BAB_EL_MANDEB);
+        waypoints.push(WP.ARABIAN_SEA);
+        waypoints.push([80.0, 5.0]);
+        waypoints.push(WP.STRAIT_MALACCA_W);
+        waypoints.push(WP.STRAIT_MALACCA_E);
+        if (isEAsia(dLng, dLat)) {
+            waypoints.push([125.0, 15.0]);
+        }
+    }
+
+    // 8. East Asia → Americas West Coast (Pacific route)
+    if (isEAsia(oLng, oLat) && isAmerica(dLng, dLat) && dLng > -120) {
+        waypoints.push(WP.PACIFIC_NORTH);
+    }
+
+    // 9. Americas → East Asia (Pacific reverse)
+    if (isAmerica(oLng, oLat) && isEAsia(dLng, dLat) && oLng > -120) {
+        waypoints.push(WP.PACIFIC_NORTH);
+    }
+
+    // 10. Americas (Atlantic) ↔ Europe (Atlantic crossing)
+    if (isNAmerica(oLng, oLat) && isEurope(dLng, dLat)) {
+        waypoints.push(WP.NORTH_ATLANT);
+    }
+    if (isEurope(oLng, oLat) && isNAmerica(dLng, dLat)) {
+        waypoints.push(WP.NORTH_ATLANT);
+    }
+
+    // 11. Americas East Coast ↔ SE Asia / India (via Panama + Pacific or Suez)
+    if (isNAmerica(oLng, oLat) && (isSEAsia(dLng, dLat) || isIndian(dLng, dLat))) {
+        waypoints.push(WP.PANAMA_ATL);
+        waypoints.push(WP.PANAMA_PAC);
+        waypoints.push(WP.PACIFIC_NORTH);
+    }
+
+    // 12. Africa routes (if both points cross Africa, route via Cape of Good Hope)
+    if (oLng < 52 && dLng < 52 && ((oLat < -10 && dLat > 10) || (oLat > 10 && dLat < -10))) {
+        if (oLat > dLat) {
+            waypoints.push(WP.CAPE_GOOD_HOPE);
+        } else {
+            waypoints.unshift(WP.CAPE_GOOD_HOPE);
+        }
+    }
+
+    return waypoints;
+}
 
 // Helper to parse the custom "Address || lat,lng" format
 const parseLocation = (loc) => {
@@ -20,7 +185,7 @@ const parseLocation = (loc) => {
     if (loc.includes(' || ')) {
         const [name, coordsStr] = loc.split(' || ');
         const [lat, lng] = coordsStr.split(',').map(Number);
-        return { name, coords: [lng, lat] }; // MapLibre uses [lng, lat] for coordinates
+        return { name, coords: [lng, lat] }; // MapLibre uses [lng, lat]
     }
     // Fallback to existing coordinate map
     const coords = getCoords(loc);
@@ -36,170 +201,221 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
     const currentInfo = parseLocation(currentLocation);
 
     useEffect(() => {
-        if (!window.maplibregl || !mapRef.current) return;
-        
-        if (mapInstanceRef.current) {
-            mapInstanceRef.current.remove();
-            mapInstanceRef.current = null;
-        }
+        let retryTimer = null;
 
-        const center = currentInfo.coords || destInfo.coords || originInfo.coords || [78.9629, 20.5937];
-        
-        // Custom Theme for MapLibre
-        const map = new window.maplibregl.Map({
-            container: mapRef.current,
-            style: {
-                version: 8,
-                sources: {
-                    osm: {
-                        type: 'raster',
-                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                        tileSize: 256,
-                        attribution: '© OpenStreetMap',
+        const initMap = () => {
+            if (!window.maplibregl || !mapRef.current) {
+                // Retry until maplibre-gl is loaded
+                retryTimer = setTimeout(initMap, 300);
+                return;
+            }
+
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
+
+            const center = currentInfo.coords || destInfo.coords || originInfo.coords || [78.9629, 20.5937];
+            const mode = (shipmentType || '').toUpperCase();
+
+            const map = new window.maplibregl.Map({
+                container: mapRef.current,
+                style: {
+                    version: 8,
+                    sources: {
+                        osm: {
+                            type: 'raster',
+                            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                            tileSize: 256,
+                            attribution: '© OpenStreetMap',
+                        },
                     },
+                    layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
                 },
-                layers: [
-                    { id: 'osm', type: 'raster', source: 'osm' }
-                ],
-            },
-            center: center,
-            zoom: 4,
-        });
+                center: center,
+                zoom: 3,
+                pitchWithRotate: false,
+                dragRotate: false,
+                touchZoomRotate: false,
+            });
 
-        mapInstanceRef.current = map;
+            mapInstanceRef.current = map;
 
-        const bounds = new window.maplibregl.LngLatBounds();
-
-        const addMarker = (coords, IconComp, color, label) => {
-            if (!coords) return;
-            
-            const el = document.createElement('div');
-            el.className = 'st-map-marker';
-            el.style.cssText = `
-                width: 32px; height: 32px; 
-                background: ${color}; 
-                border-radius: 50%; 
-                border: 2px solid #fff;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-                display: flex; align-items: center; justify-content: center;
-                cursor: pointer;
-                color: #fff;
-                transition: transform 0.2s;
-            `;
-            
-            el.innerHTML = renderToString(<IconComp size={18} strokeWidth={2.5} />);
-
-            new window.maplibregl.Marker({ element: el })
-                .setLngLat(coords)
-                .setPopup(new window.maplibregl.Popup({ offset: 25 }).setHTML(`<b>${label}</b>`))
-                .addTo(map);
-            
-            bounds.extend(coords);
-        };
-
-        // Origin Marker
-        if (originInfo.coords) addMarker(originInfo.coords, MapPin, '#3b82f6', `Origin: ${originInfo.name}`);
-        
-        // Destination Marker
-        if (destInfo.coords) addMarker(destInfo.coords, Flag, STATUS_COLORS[status] || '#6366f1', `Destination: ${destInfo.name}`);
-        
-        // Current/Shipment Marker
-        if (currentInfo.coords) {
-            let Icon = Ship;
-            const mode = (shipmentType || '').toUpperCase();
-            
-            if (status === 'At Port') Icon = Anchor;
-            else if (mode === 'AIR FREIGHT') Icon = Navigation;
-            else if (mode === 'TRANSPORT') Icon = Truck;
-            else if (status === 'Delivered') Icon = CheckCircle;
-            
-            addMarker(currentInfo.coords, Icon, STATUS_COLORS[status] || '#f59e0b', `Current: ${currentInfo.name}`);
-        }
-
-        map.on('load', () => {
+            // Build route coordinates
             let pathCoords = [];
-            const mode = (shipmentType || '').toUpperCase();
-
             if (originInfo.coords && destInfo.coords) {
                 pathCoords.push(originInfo.coords);
 
-                // Smart Maritime Routing Waypoints
                 if (mode === 'SEA FREIGHT') {
-                    const [oLng, oLat] = originInfo.coords;
-                    const [dLng, dLat] = destInfo.coords;
-
-                    // 1. India to UAE/Persian Gulf (avoid land crossing)
-                    if (oLng > 68 && dLng < 60 && oLng < 90) {
-                        pathCoords.push(MARITIME_WAYPOINTS.HORMUZ);
-                    }
-                    // 2. India/Middle East to Europe (Suez Canal)
-                    if (oLng > 35 && dLng < 10) {
-                        pathCoords.push(MARITIME_WAYPOINTS.BAB_EL_MANDEB);
-                        pathCoords.push(MARITIME_WAYPOINTS.SUEZ);
-                        pathCoords.push(MARITIME_WAYPOINTS.GIBRALTAR);
-                    }
-                    // 3. Indian Ocean to SE Asia (Malacca Strait)
-                    if (oLng < 90 && dLng > 100) {
-                        pathCoords.push(MARITIME_WAYPOINTS.CAPE_COMORIN);
-                        pathCoords.push(MARITIME_WAYPOINTS.MALACCA);
-                    }
-                    // 4. UAE to India/Singapore (avoid land crossing South India)
-                    if (oLng < 60 && dLng > 75) {
-                        pathCoords.push(MARITIME_WAYPOINTS.CAPE_COMORIN);
-                        if (dLng > 95) pathCoords.push(MARITIME_WAYPOINTS.MALACCA);
-                    }
-                    // 5. Asia to US East Coast (Panama)
-                    if (oLng > 100 && dLng < -70) {
-                        pathCoords.push(MARITIME_WAYPOINTS.PANAMA);
-                    }
+                    const smartWaypoints = getMaritimeRoute(originInfo.coords, destInfo.coords);
+                    pathCoords = pathCoords.concat(smartWaypoints);
                 }
 
-                if (currentInfo.coords) pathCoords.push(currentInfo.coords);
+                if (currentInfo.coords) {
+                    // Only add current location as intermediate if it's between origin & dest
+                    pathCoords.push(currentInfo.coords);
+                }
                 pathCoords.push(destInfo.coords);
             }
 
-            if (pathCoords.length > 1) {
-                map.addSource('route', {
-                    type: 'geojson',
-                    data: {
-                        type: 'Feature',
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: pathCoords
-                        }
-                    }
-                });
+            // Calculate bounds from key points only (not waypoints to avoid distortion)
+            const boundsCoords = [originInfo.coords, destInfo.coords, currentInfo.coords].filter(Boolean);
 
-                map.addLayer({
-                    id: 'route-line',
-                    type: 'line',
-                    source: 'route',
-                    layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: {
-                        'line-color': STATUS_COLORS[status] || '#6366f1',
-                        'line-width': 4,
-                        'line-dasharray': (mode === 'SEA FREIGHT' || mode === 'AIR FREIGHT') ? [3, 1.5] : [1, 0]
-                    }
-                });
-            }
+            map.on('load', () => {
+                // Add route line (all modes get a path)
+                if (pathCoords.length > 1) {
+                    map.addSource('route', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'LineString',
+                                coordinates: pathCoords,
+                            },
+                        },
+                    });
 
-            if (!bounds.isEmpty()) {
-                map.fitBounds(bounds, { padding: 80, duration: 2000 });
+                    // Shadow / glow line underneath
+                    map.addLayer({
+                        id: 'route-glow',
+                        type: 'line',
+                        source: 'route',
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: {
+                            'line-color': STATUS_COLORS[status] || '#6366f1',
+                            'line-width': 8,
+                            'line-opacity': 0.2,
+                        },
+                    });
+
+                    // Main route line
+                    map.addLayer({
+                        id: 'route-line',
+                        type: 'line',
+                        source: 'route',
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: {
+                            'line-color': STATUS_COLORS[status] || '#6366f1',
+                            'line-width': 3,
+                            'line-dasharray': mode === 'SEA FREIGHT' ? [4, 2] :
+                                              mode === 'AIR FREIGHT' ? [2, 2] : [1, 0],
+                        },
+                    });
+                }
+
+                // Fit bounds AFTER adding layers (prevents shake)
+                if (boundsCoords.length > 0) {
+                    const bounds = new window.maplibregl.LngLatBounds();
+                    boundsCoords.forEach(c => bounds.extend(c));
+                    map.fitBounds(bounds, {
+                        padding: { top: 80, bottom: 80, left: 80, right: 80 },
+                        duration: 1200,
+                        maxZoom: 8,
+                    });
+                }
+            });
+
+            // Add markers AFTER map is initialised (but they don't need 'load')
+            const addMarker = (coords, IconComp, color, label) => {
+                if (!coords) return;
+                const el = document.createElement('div');
+                el.className = 'st-map-marker';
+                el.style.cssText = `
+                    width: 34px; height: 34px;
+                    background: ${color};
+                    border-radius: 50%;
+                    border: 2.5px solid #fff;
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+                    display: flex; align-items: center; justify-content: center;
+                    cursor: pointer;
+                    color: #fff;
+                    flex-shrink: 0;
+                    will-change: transform;
+                `;
+                el.innerHTML = renderToString(<IconComp size={17} strokeWidth={2.5} />);
+
+                new window.maplibregl.Marker({ element: el, anchor: 'center' })
+                    .setLngLat(coords)
+                    .setPopup(new window.maplibregl.Popup({ offset: 20 }).setHTML(`<b>${label}</b>`))
+                    .addTo(map);
+            };
+
+            if (originInfo.coords)  addMarker(originInfo.coords, MapPin, '#3b82f6', `Origin: ${originInfo.name}`);
+            if (destInfo.coords)    addMarker(destInfo.coords, Flag, STATUS_COLORS[status] || '#6366f1', `Destination: ${destInfo.name}`);
+
+            if (currentInfo.coords) {
+                let Icon = Ship;
+                if (status === 'At Port') Icon = Anchor;
+                else if (mode === 'AIR FREIGHT') Icon = Navigation;
+                else if (mode === 'TRANSPORT') Icon = Truck;
+                else if (status === 'Delivered') Icon = CheckCircle;
+                addMarker(currentInfo.coords, Icon, STATUS_COLORS[status] || '#f59e0b', `Current: ${currentInfo.name}`);
             }
-        });
+        };
+
+        initMap();
 
         return () => {
-            map.remove();
-            mapInstanceRef.current = null;
+            if (retryTimer) clearTimeout(retryTimer);
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
         };
-    }, [origin, destination, currentLocation, status, shipmentType]); // Fix: Added shipmentType to dependencies
+    }, [origin, destination, currentLocation, status, shipmentType]);
+
+    const mode = (shipmentType || '').toUpperCase();
 
     return (
-        <div className="st-map-container" style={{ position: 'relative' }}>
-            <div ref={mapRef} style={{ height: '500px', width: '100%', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }} />
-            <div className="map-badge" style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(10px)', color: '#fff', padding: '10px 18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600', zIndex: 10 }}>
-                {shipmentType === 'SEA FREIGHT' ? <Ship size={16} color="#0ea5e9" /> : shipmentType === 'AIR FREIGHT' ? <Navigation size={16} color="#c084fc" /> : <Truck size={16} color="#fbbf24" />}
-                <span>SMART MARINER TRACKING</span>
+        <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div
+                ref={mapRef}
+                style={{ height: '420px', width: '100%' }}
+            />
+            {/* Mode badge */}
+            <div style={{
+                position: 'absolute', top: '14px', left: '14px',
+                background: 'rgba(10,15,30,0.85)', backdropFilter: 'blur(8px)',
+                color: '#fff', padding: '8px 16px', borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                fontSize: '12px', fontWeight: 700, zIndex: 10,
+                letterSpacing: '0.5px',
+            }}>
+                {mode === 'SEA FREIGHT'
+                    ? <Ship size={15} color="#38bdf8" />
+                    : mode === 'AIR FREIGHT'
+                    ? <Navigation size={15} color="#c084fc" />
+                    : <Truck size={15} color="#fbbf24" />}
+                <span>
+                    {mode === 'SEA FREIGHT' ? 'SEA ROUTE' :
+                     mode === 'AIR FREIGHT' ? 'AIR ROUTE' : 'GROUND ROUTE'}
+                </span>
+            </div>
+
+            {/* Legend */}
+            <div style={{
+                position: 'absolute', bottom: '14px', right: '14px',
+                background: 'rgba(10,15,30,0.82)', backdropFilter: 'blur(8px)',
+                color: '#fff', padding: '8px 14px', borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                display: 'flex', flexDirection: 'column', gap: '5px',
+                fontSize: '11px', zIndex: 10,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                    Origin
+                </div>
+                {currentInfo.coords && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[status] || '#f59e0b', display: 'inline-block' }} />
+                        Current
+                    </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[status] || '#6366f1', display: 'inline-block' }} />
+                    Destination
+                </div>
             </div>
         </div>
     );
