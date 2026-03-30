@@ -569,8 +569,7 @@ function App() {
       // For example, count shipments with status 'Completed', 'Delivered', or 'Invoiced'
       const { count: invoicesCount, error: invoicesError } = await supabase
         .from('shipments')
-        .select('*', { count: 'exact', head: true })
-        .or('status.eq.Completed,status.eq.Delivered,status.eq.Invoiced');
+        .select('*', { count: 'exact', head: true });
 
       // OR simpler: Just use the same as total shipments
       // const invoicesCount = totalShipments;
