@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
+import { 
+    Check, 
+    User, 
+    Lock, 
+    Moon, 
+    Sun, 
+    Monitor, 
+    Bell, 
+    Shield, 
+    AlertTriangle, 
+    Trash2 
+} from 'lucide-react'
 
 import './Settings.css'
 
@@ -118,12 +130,12 @@ const Settings = ({ user }) => {
                     <p className="settings-subtitle">Manage your workspace and preferences</p>
                 </div>
                 <button className="settings-save-btn" onClick={savePrefs} disabled={saving}>
-                    {saving ? <><span className="settings-btn-spinner" />Saving…</> : <><CheckIcon />Save</>}
+                    {saving ? <><span className="settings-btn-spinner" />Saving…</> : <><Check size={18} />Save</>}
                 </button>
             </div>
 
             {savedMsg && (
-                <div className="settings-toast"><CheckIcon /> {savedMsg}</div>
+                <div className="settings-toast"><Check size={18} /> {savedMsg}</div>
             )}
 
             <div className="settings-layout">
@@ -134,7 +146,7 @@ const Settings = ({ user }) => {
                     {/* Profile */}
                     <div className="s-card">
                         <div className="s-card-head">
-                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#4f46e5,#818cf8)' }}><UserIcon /></span>
+                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#4f46e5,#818cf8)' }}><User size={18} /></span>
                             <div><h3 className="s-card-title">Profile</h3><p className="s-card-desc">Your account information</p></div>
                         </div>
                         <div className="s-profile-row">
@@ -144,14 +156,14 @@ const Settings = ({ user }) => {
                                 <p className="s-profile-role">Freight Administrator</p>
                             </div>
                         </div>
-                        <Link to="/change-password" className="s-link-btn"><LockIcon /> Change Password</Link>
+                        <Link to="/change-password" className="s-link-btn"><Lock size={16} /> Change Password</Link>
 
                     </div>
 
                     {/* Appearance */}
                     <div className="s-card">
                         <div className="s-card-head">
-                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#0891b2,#22d3ee)' }}><MoonIcon /></span>
+                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#0891b2,#22d3ee)' }}><Moon size={18} /></span>
                             <div><h3 className="s-card-title">Appearance</h3><p className="s-card-desc">Theme and display settings</p></div>
                         </div>
 
@@ -159,12 +171,12 @@ const Settings = ({ user }) => {
                         <p className="s-field-label">Color Mode</p>
                         <div className="s-mode-row">
                             {[
-                                { id: 'dark', label: 'Dark', emoji: '🌙', desc: 'Easy on eyes' },
-                                { id: 'light', label: 'Light', emoji: '☀️', desc: 'Bright & clean' },
-                                { id: 'system', label: 'System', emoji: '💻', desc: 'Auto-detect' },
+                                { id: 'dark', label: 'Dark', icon: Moon, desc: 'Easy on eyes' },
+                                { id: 'light', label: 'Light', icon: Sun, desc: 'Bright & clean' },
+                                { id: 'system', label: 'System', icon: Monitor, desc: 'Auto-detect' },
                             ].map(m => (
                                 <button key={m.id} className={`s-mode-btn ${colorMode === m.id ? 'active' : ''}`} onClick={() => handleMode(m.id)}>
-                                    <span className="s-mode-emoji">{m.emoji}</span>
+                                    <span className="s-mode-emoji"><m.icon size={20} /></span>
                                     <span className="s-mode-label">{m.label}</span>
                                     <span className="s-mode-desc">{m.desc}</span>
                                 </button>
@@ -183,7 +195,7 @@ const Settings = ({ user }) => {
                                 >
                                     <span className="s-accent-dot" style={{ background: a.gradient }} />
                                     <span className="s-accent-label">{a.label}</span>
-                                    {accentColor === a.id && <span className="s-accent-check"><CheckIcon /></span>}
+                                    {accentColor === a.id && <span className="s-accent-check"><Check size={14} /></span>}
                                 </button>
                             ))}
                         </div>
@@ -205,7 +217,7 @@ const Settings = ({ user }) => {
                     {/* Notifications */}
                     <div className="s-card">
                         <div className="s-card-head">
-                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#d97706,#fbbf24)' }}><BellIcon /></span>
+                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#d97706,#fbbf24)' }}><Bell size={18} /></span>
                             <div><h3 className="s-card-title">Notifications</h3><p className="s-card-desc">Control how we reach you</p></div>
                         </div>
                         <div className="s-toggle-row">
@@ -221,7 +233,7 @@ const Settings = ({ user }) => {
                     {/* Account & Security */}
                     <div className="s-card">
                         <div className="s-card-head">
-                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#059669,#34d399)' }}><ShieldIcon /></span>
+                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#059669,#34d399)' }}><Shield size={18} /></span>
                             <div><h3 className="s-card-title">Account & Security</h3><p className="s-card-desc">Manage your account settings</p></div>
                         </div>
                         <div className="s-info-row">
@@ -241,10 +253,10 @@ const Settings = ({ user }) => {
                     {/* Danger */}
                     <div className="s-card s-card-danger">
                         <div className="s-card-head">
-                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#991b1b,#f87171)' }}><WarnIcon /></span>
+                            <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#991b1b,#f87171)' }}><AlertTriangle size={18} /></span>
                             <div><h3 className="s-card-title" style={{ color: 'var(--danger)' }}>Danger Zone</h3><p className="s-card-desc">These actions cannot be undone</p></div>
                         </div>
-                        <button className="s-danger-btn"><TrashIcon /> Delete Account</button>
+                        <button className="s-danger-btn"><Trash2 size={16} /> Delete Account</button>
                     </div>
                 </div>
             </div>
@@ -257,14 +269,5 @@ const Toggle = ({ on, onToggle }) => (
         <span className="s-toggle-thumb" />
     </button>
 )
-
-const CheckIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-const UserIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" /></svg>
-const LockIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-const MoonIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" /></svg>
-const BellIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg>
-const ShieldIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
-const WarnIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" /></svg>
-const TrashIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
 
 export default Settings

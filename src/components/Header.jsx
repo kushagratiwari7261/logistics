@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Plus, Briefcase, Clock } from 'lucide-react'
 
 const Header = ({ createNewShipment, creatActiveJob, user }) => {
   const [now, setNow] = useState(new Date())
@@ -32,14 +33,11 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
           {firstName && (
             <span className="header-title-gradient">, {firstName}</span>
           )}
-          <span style={{ fontSize: '22px', marginLeft: 6 }}>👋</span>
         </h1>
         <p className="header-subtitle">
           <span>{dateStr}</span>
           <span className="header-time-badge">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-            </svg>
+            <Clock size={12} style={{ marginRight: 4, opacity: 0.8 }} />
             {timeStr}
           </span>
           <span style={{ color: 'var(--text-muted)' }}>· Freight Overview</span>
@@ -48,9 +46,7 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
 
       <div className="header-actions">
         <button className="primary-button" onClick={createNewShipment} id="new-shipment-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="14" height="14">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <Plus size={16} />
           New Shipment
         </button>
         <button
@@ -59,9 +55,7 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
           id="new-job-btn"
           style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)', boxShadow: '0 3px 16px rgba(8,145,178,0.3)' }}
         >
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-          </svg>
+          <Briefcase size={16} />
           New Job
         </button>
         <div style={{

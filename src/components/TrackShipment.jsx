@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import ShipmentMap from './ShipmentMap';
 import StatusTimeline from './StatusTimeline';
 import { STATUS_COLORS } from '../constants/shipment';
+import { Map, Clock, Package } from 'lucide-react';
 import './ShipmentTracking.css'; // Reuse styles
 
 export default function TrackShipment() {
@@ -139,19 +140,26 @@ export default function TrackShipment() {
                         destination={shipment.pod || shipment.destination}
                         currentLocation={shipment.current_location}
                         status={shipment.status}
+                        shipmentType={shipment.shipment_type}
                     />
                 </div>
 
                 <div className="st-detail-body">
                     {/* Timeline */}
                     <div className="st-detail-left">
-                        <h3 className="st-section-title">📍 Tracking Timeline</h3>
+                        <h3 className="st-section-title">
+                            <Clock size={18} style={{ marginRight: '8px' }} />
+                            Tracking Timeline
+                        </h3>
                         <StatusTimeline currentStatus={shipment.status} updates={updates} />
                     </div>
 
                     {/* Details */}
                     <div className="st-detail-right">
-                        <h3 className="st-section-title">📦 Shipment Details</h3>
+                        <h3 className="st-section-title">
+                            <Package size={18} style={{ marginRight: '8px' }} />
+                            Shipment Details
+                        </h3>
                         <div className="st-info-grid">
                             {fields.map(([label, value]) => (
                                 <div key={label} className="st-info-row">

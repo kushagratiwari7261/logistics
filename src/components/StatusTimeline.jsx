@@ -1,4 +1,14 @@
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
+import { FileText, Ship, Anchor, ShieldCheck, Truck, CheckCircle } from 'lucide-react';
+
+const IconMap = {
+    FileText,
+    Ship,
+    Anchor,
+    ShieldCheck,
+    Truck,
+    CheckCircle
+};
 
 export default function StatusTimeline({ currentStatus, updates }) {
     const currentIdx = STATUS_STEPS.findIndex(s => s.key === currentStatus);
@@ -9,10 +19,12 @@ export default function StatusTimeline({ currentStatus, updates }) {
                 const isCompleted = idx < currentIdx;
                 const isCurrent = idx === currentIdx;
                 const isPending = idx > currentIdx;
+                const IconComp = IconMap[step.icon] || FileText;
+
                 return (
                     <div key={step.key} className={`st-timeline-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isPending ? 'pending' : ''}`}>
                         <div className="st-timeline-icon">
-                            <span>{step.icon}</span>
+                            <IconComp size={16} />
                         </div>
                         <div className="st-timeline-content">
                             <span className="st-timeline-label">{step.label}</span>

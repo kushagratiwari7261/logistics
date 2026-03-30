@@ -1,10 +1,10 @@
 export const STATUS_STEPS = [
-    { key: 'Booked', label: 'Booked', icon: '📋' },
-    { key: 'In Transit', label: 'In Transit', icon: '🚢' },
-    { key: 'At Port', label: 'At Port', icon: '⚓' },
-    { key: 'Customs', label: 'Customs Clearance', icon: '🛃' },
-    { key: 'Out for Delivery', label: 'Out for Delivery', icon: '🚛' },
-    { key: 'Delivered', label: 'Delivered', icon: '✅' },
+    { key: 'Booked', label: 'Booked', icon: 'FileText' },
+    { key: 'In Transit', label: 'In Transit', icon: 'Ship' },
+    { key: 'At Port', label: 'At Port', icon: 'Anchor' },
+    { key: 'Customs', label: 'Customs Clearance', icon: 'ShieldCheck' },
+    { key: 'Out for Delivery', label: 'Out for Delivery', icon: 'Truck' },
+    { key: 'Delivered', label: 'Delivered', icon: 'CheckCircle' },
 ];
 
 export const STATUS_COLORS = {

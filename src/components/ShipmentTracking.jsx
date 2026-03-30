@@ -1,7 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import './ShipmentTracking.css';
-
+import { 
+  Radio, 
+  Save, 
+  ArrowLeft, 
+  MessageCircle, 
+  Trash2, 
+  Link, 
+  RefreshCw, 
+  Search, 
+  Ship, 
+  Map, 
+  Clock, 
+  Package 
+} from 'lucide-react';
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
 import StatusTimeline from './StatusTimeline';
@@ -64,7 +76,10 @@ function StatusUpdateForm({ shipment, onUpdated }) {
 
     return (
         <form className="st-update-form" onSubmit={handleSubmit}>
-            <h3 className="st-section-title">📡 Update Shipment Status</h3>
+            <h3 className="st-section-title">
+                <Radio size={18} style={{ marginRight: '8px' }} />
+                Update Shipment Status
+            </h3>
             <div className="st-form-grid">
                 <div className="st-form-group">
                     <label>New Status *</label>
@@ -95,9 +110,14 @@ function StatusUpdateForm({ shipment, onUpdated }) {
                         rows={2} placeholder="Add tracking notes or comments…" />
                 </div>
             </div>
-            {msg && <div className={`st-msg ${msg.startsWith('✅') ? 'st-msg--ok' : 'st-msg--err'}`}>{msg}</div>}
-            <button type="submit" className="st-btn-update" disabled={saving}>
-                {saving ? 'Saving…' : '✅ Save Update'}
+            {msg && <div className={`st-msg ${msg.startsWith('✅') || msg.toLowerCase().includes('success') ? 'st-msg--ok' : 'st-msg--err'}`}>{msg}</div>}
+            <button className="st-submit-btn" disabled={saving} type="submit">
+                {saving ? 'Saving…' : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <Save size={18} />
+                        Save Update
+                    </div>
+                )}
             </button>
         </form>
     );
@@ -208,7 +228,10 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
         <div className="st-detail">
             {/* Header */}
             <div className="st-detail-header">
-                <button className="st-back-btn" onClick={onBack}>← Back</button>
+                <button className="st-back-btn" onClick={onBack}>
+                    <ArrowLeft size={16} style={{ marginRight: '6px' }} />
+                    Back
+                </button>
                 <div className="st-detail-title">
                     <h2>{shipment.shipment_no || `SHP-${String(shipment.id).padStart(6, '0')}`}</h2>
                     <span className="st-status-chip" style={{ background: statusColor }}>
@@ -219,36 +242,49 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
                     {activeToken ? (
                         <>
                             <button className="st-refresh-btn" style={{ background: '#25D366', color: '#fff', border: 'none' }} onClick={handleShare}>
-                                🟢 Share WhatsApp
+                                <MessageCircle size={16} />
+                                Share WhatsApp
                             </button>
                             <button className="st-refresh-btn" style={{ background: '#ef4444', color: '#fff', border: 'none' }} onClick={handleDestroyLink}>
-                                🔴 Destroy Link
+                                <Trash2 size={16} />
+                                Destroy Link
                             </button>
                         </>
                     ) : (
                         <button className="st-refresh-btn" style={{ background: '#6366f1', color: '#fff', border: 'none' }} onClick={handleGenerateLink}>
-                            🔗 Generate Share Link
+                            <Link size={16} />
+                            Generate Share Link
                         </button>
                     )}
-                    <button className="st-refresh-btn" onClick={() => { fetchUpdates(); onRefresh(); }}>↻ Refresh</button>
+                    <button className="st-refresh-btn" onClick={() => { fetchUpdates(); onRefresh(); }}>
+                        <RefreshCw size={16} />
+                        Refresh
+                    </button>
                 </div>
             </div>
 
             {/* Map */}
             <div className="st-map-wrapper">
-                <h3 className="st-section-title">🗺️ Route Map</h3>
+                <h3 className="st-section-title">
+                    <Map size={18} style={{ marginRight: '8px' }} />
+                    Route Map
+                </h3>
                 <ShipmentMap
                     origin={shipment.por || shipment.pol}
                     destination={shipment.pod || shipment.destination}
                     currentLocation={shipment.current_location}
                     status={shipment.status}
+                    shipmentType={shipment.shipment_type}
                 />
             </div>
 
             <div className="st-detail-body">
                 {/* Timeline */}
                 <div className="st-detail-left">
-                    <h3 className="st-section-title">📍 Tracking Timeline</h3>
+                    <h3 className="st-section-title">
+                        <Clock size={18} style={{ marginRight: '8px' }} />
+                        Tracking Timeline
+                    </h3>
                     {loadingUpdates ? (
                         <div className="st-loading">Loading updates…</div>
                     ) : (
@@ -258,7 +294,10 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
 
                 {/* Info + Update Form */}
                 <div className="st-detail-right">
-                    <h3 className="st-section-title">📦 Shipment Details</h3>
+                    <h3 className="st-section-title">
+                        <Package size={18} style={{ marginRight: '8px' }} />
+                        Shipment Details
+                    </h3>
                     <div className="st-info-grid">
                         {fields.map(([label, value]) => (
                             <div key={label} className="st-info-row">
@@ -323,12 +362,15 @@ function ShipmentList({ onSelect }) {
         <div className="st-list">
             {/* Filters */}
             <div className="st-filters">
-                <input
-                    className="st-search"
-                    placeholder="🔍 Search shipment, AWB, HBL, client, route…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
+                <div className="st-search-bar">
+                    <Search size={18} className="st-search-icon" />
+                    <input
+                        className="st-search"
+                        placeholder="Search shipment, AWB, HBL, client, route…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
                 <select className="st-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                     <option value="">All Statuses</option>
                     {STATUS_STEPS.map(s => <option key={s.key}>{s.key}</option>)}
@@ -341,7 +383,9 @@ function ShipmentList({ onSelect }) {
                     <option>TRANSPORT</option>
                     <option>OTHERS</option>
                 </select>
-                <button className="st-refresh-btn-sm" onClick={fetchShipments}>↻</button>
+                <button className="st-refresh-btn-sm" onClick={fetchShipments}>
+                    <RefreshCw size={14} />
+                </button>
             </div>
 
             {/* Stats row */}
@@ -440,7 +484,10 @@ export default function ShipmentTracking() {
         <div className="st-root">
             <div className="st-page-header">
                 <div className="st-page-header-left">
-                    <h1>🚢 Shipment Tracking</h1>
+                <h1>
+                    <Ship size={32} style={{ marginRight: '12px' }} />
+                    Shipment Tracking
+                </h1>
                     <p>Real-time shipment monitoring, status updates &amp; route visualization</p>
                 </div>
             </div>
