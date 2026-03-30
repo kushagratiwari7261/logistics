@@ -1,3 +1,6 @@
+import { Link, useLocation } from 'react-router-dom'
+import sealLogo from '../seal.png'
+import './Sidebar.css'
 import { 
   LayoutDashboard, 
   Users, 
