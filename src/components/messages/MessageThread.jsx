@@ -128,8 +128,10 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
   /* ── Load messages ── */
   useEffect(() => {
     const loadData = async () => {
-      // Only show top-level loading if we have no messages yet (prevents flickering during sends)
-      if (chatMessages.length === 0) {
+      // Only show top-level loading if we have no messages yet (prevents flickering)
+      // If we already have messages, we update in the background silently
+      const shouldShowSpinner = chatMessages.length === 0;
+      if (shouldShowSpinner) {
         setLoadingChat(true);
       }
       
@@ -141,7 +143,9 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
           await fetchDmHistory();
         }
       } finally {
-        setLoadingChat(false);
+        if (shouldShowSpinner) {
+          setLoadingChat(false);
+        }
       }
     };
     

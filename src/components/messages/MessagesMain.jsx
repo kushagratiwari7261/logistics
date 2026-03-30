@@ -49,10 +49,24 @@ const MessagesMain = ({ user }) => {
   }, [messages, loading]);
 
   // Real-time subscription for new messages
-  useMessageSubscription(user?.id, (payload) => {
-    console.log('New message received:', payload);
-    refetch(); // Refresh messages when new message arrives
-  });
+  // Using a stable callback to prevent the infinite re-render loop
+  useEffect(() => {
+    if (!user?.id) return;
+
+    socket.emit('join', user.id);
+
+    const onNewMsg = (payload) => {
+      console.log('New message received:', payload);
+      // Update global unread count or refresh list silently
+      refetch(); 
+    };
+
+    socket.on('receive_message', onNewMsg);
+    
+    return () => {
+      socket.off('receive_message', onNewMsg);
+    };
+  }, [user?.id]); // Only re-bind if the user changes, NOT on every render
 
   // Track online presence
   usePresence(user?.id);

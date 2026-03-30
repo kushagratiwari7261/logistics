@@ -1,12 +1,23 @@
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 
-// Connect to the backend (assumes backend runs on same host or uses Vite proxy/env var)
-// We default to port 3001 if locally developing
-const SOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001';
-export const socket = io(SOCKET_URL, {
+// Intelligent URL detection
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_WEBSOCKET_URL) return import.meta.env.VITE_WEBSOCKET_URL;
+  
+  // Default fallbacks based on environment
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  return isLocal 
+    ? 'http://localhost:3001' 
+    : 'https://noida-production.up.railway.app';
+};
+
+export const socket = io(getSocketUrl(), {
   autoConnect: true,
   reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  transports: ['websocket'],
 });
 
 export const useMessageSubscription = (userId, callback) => {
@@ -19,17 +30,18 @@ export const useMessageSubscription = (userId, callback) => {
 
     const handleNewMessage = (payload) => {
       console.log('📨 New message received via WebSocket:', payload);
-      callback(payload);
+      if (typeof callback === 'function') {
+        callback(payload);
+      }
     };
 
     socket.on('receive_message', handleNewMessage);
 
-    // Cleanup function
+    // Cleanup function: only unbind the listener, don't close the entire socket
     return () => {
-      console.log('Cleaning up WebSocket message subscription');
       socket.off('receive_message', handleNewMessage);
     };
-  }, [userId, callback]);
+  }, [userId]); // Remove callback from dependencies to prevent the infinite reconnect loop
 };
 
 export default useMessageSubscription;
