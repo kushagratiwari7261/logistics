@@ -3,203 +3,183 @@ import { Anchor, Flag, Ship, Truck, CheckCircle, Navigation, MapPin } from 'luci
 import { renderToString } from 'react-dom/server';
 import { STATUS_COLORS, getCoords } from '../constants/shipment';
 
-// ── Maritime Key Waypoints [lng, lat] ──────────────────────────────────────────
-// All coordinates are [longitude, latitude] for MapLibre
-const WP = {
-    // Straits & Canals
-    STRAIT_MALACCA_W: [98.0, 5.5],      // West entrance Malacca Strait
-    STRAIT_MALACCA_E: [104.2, 1.3],     // East entrance (Singapore side)
-    STRAIT_HORMUZ:    [56.5, 24.5],     // Strait of Hormuz
-    BAB_EL_MANDEB:    [43.3, 11.6],     // Red Sea entrance
-    SUEZ_S:           [32.6, 29.9],     // Suez Canal - South
-    SUEZ_N:           [32.3, 31.3],     // Suez Canal - North
-    STRAIT_GIBRALTAR: [-5.5, 35.9],     // Gibraltar
-    CAPE_GOOD_HOPE:   [18.4, -34.4],    // Cape of Good Hope
-    PANAMA_ATL:       [-79.5, 9.4],     // Panama - Atlantic entrance
-    PANAMA_PAC:       [-79.5, 8.9],     // Panama - Pacific entrance
-    CAPE_HORN:        [-67.3, -55.9],   // Cape Horn
+const MARITIME_GRAPH = {
+    // Port mappings and key maritime waypoints
+    nodes: {
+        // Straits & Canals
+        'MALACCA_W': [98.0, 5.5],
+        'MALACCA_E': [104.2, 1.3],
+        'HORMUZ': [56.5, 24.5],
+        'BAB_EL_MANDEB': [43.3, 11.6],
+        'SUEZ_S': [32.6, 29.9],
+        'SUEZ_N': [32.3, 31.3],
+        'GIBRALTAR': [-5.5, 35.9],
+        'CAPE_GOOD_HOPE': [18.4, -34.4],
+        'PANAMA_ATL': [-79.5, 9.4],
+        'PANAMA_PAC': [-79.5, 8.9],
+        'CAPE_HORN': [-67.3, -55.9],
 
-    // Ocean Mid-points (to ensure routes go through open water)
-    MED_SEA:          [15.0, 35.5],     // Mediterranean center
-    RED_SEA_MID:      [38.5, 20.0],     // Red Sea middle
-    ARABIAN_SEA:      [65.0, 15.0],     // Arabian Sea center
-    BAY_OF_BENGAL:    [88.0, 10.0],     // Bay of Bengal
-    INDIAN_OCEAN:     [75.0, -10.0],    // Indian Ocean center
-    SOUTH_ATLANT:     [-20.0, -15.0],   // South Atlantic
-    NORTH_ATLANT:     [-35.0, 45.0],    // North Atlantic
-    PACIFIC_NORTH:    [-170.0, 40.0],   // North Pacific
-    PACIFIC_SOUTH:    [-140.0, -20.0],  // South Pacific
+        // Open Water Nodes
+        'MED_SEA': [15.0, 35.5],
+        'RED_SEA_MID': [38.5, 20.0],
+        'ARABIAN_SEA': [65.0, 15.0],
+        'INDIAN_OCEAN': [75.0, -10.0],
+        'SRI_LANKA_S': [80.0, 5.0],
+        'BAY_OF_BENGAL': [88.0, 10.0],
+        'PHILIPPINE_SEA': [125.0, 15.0],
+        'PACIFIC_N': [-170.0, 40.0],
+        'PACIFIC_S': [-140.0, -20.0],
+        'ATLANTIC_N': [-35.0, 45.0],
+        'ATLANTIC_S': [-20.0, -15.0],
+
+        // Regional Anchor Regions (for origin/dest snapping)
+        'INDIA_W': [71.0, 18.0],
+        'INDIA_E': [82.0, 15.0],
+        'MID_EAST': [52.0, 25.0],
+        'EUROPE_N': [5.0, 50.0],
+        'EUROPE_S': [10.0, 40.0],
+        'US_EAST': [-75.0, 35.0],
+        'US_WEST': [-125.0, 35.0],
+        'SE_ASIA': [110.0, 10.0],
+        'EAST_ASIA': [125.0, 30.0],
+        'AFRICA_W': [-15.0, 0.0],
+        'AFRICA_E': [45.0, -5.0]
+    },
+    // Connections
+    edges: [
+        ['MALACCA_W', 'MALACCA_E'],
+        ['MALACCA_W', 'SRI_LANKA_S'],
+        ['MALACCA_W', 'BAY_OF_BENGAL'],
+        ['MALACCA_E', 'SE_ASIA'],
+        ['SE_ASIA', 'PHILIPPINE_SEA'],
+        ['SE_ASIA', 'EAST_ASIA'],
+        ['PHILIPPINE_SEA', 'EAST_ASIA'],
+        ['PHILIPPINE_SEA', 'PACIFIC_N'],
+        ['PHILIPPINE_SEA', 'PACIFIC_S'],
+        
+        ['SRI_LANKA_S', 'INDIA_E'],
+        ['SRI_LANKA_S', 'INDIA_W'],
+        ['SRI_LANKA_S', 'INDIAN_OCEAN'],
+        ['SRI_LANKA_S', 'ARABIAN_SEA'],
+        ['BAY_OF_BENGAL', 'INDIA_E'],
+        
+        ['INDIA_W', 'ARABIAN_SEA'],
+        ['ARABIAN_SEA', 'HORMUZ'],
+        ['ARABIAN_SEA', 'BAB_EL_MANDEB'],
+        ['ARABIAN_SEA', 'INDIAN_OCEAN'],
+        ['HORMUZ', 'MID_EAST'],
+        
+        ['BAB_EL_MANDEB', 'RED_SEA_MID'],
+        ['RED_SEA_MID', 'SUEZ_S'],
+        ['SUEZ_S', 'SUEZ_N'],
+        ['SUEZ_N', 'MED_SEA'],
+        ['MED_SEA', 'EUROPE_S'],
+        ['MED_SEA', 'GIBRALTAR'],
+        
+        ['GIBRALTAR', 'ATLANTIC_N'],
+        ['GIBRALTAR', 'AFRICA_W'],
+        ['GIBRALTAR', 'EUROPE_N'],
+        
+        ['ATLANTIC_N', 'EUROPE_N'],
+        ['ATLANTIC_N', 'US_EAST'],
+        ['ATLANTIC_N', 'PANAMA_ATL'],
+        ['ATLANTIC_N', 'ATLANTIC_S'],
+        
+        ['ATLANTIC_S', 'AFRICA_W'],
+        ['ATLANTIC_S', 'CAPE_GOOD_HOPE'],
+        ['ATLANTIC_S', 'CAPE_HORN'],
+        
+        ['PANAMA_ATL', 'PANAMA_PAC'],
+        ['PANAMA_ATL', 'US_EAST'],
+        ['PANAMA_PAC', 'PACIFIC_N'],
+        ['PANAMA_PAC', 'PACIFIC_S'],
+        ['PANAMA_PAC', 'US_WEST'],
+        
+        ['PACIFIC_N', 'US_WEST'],
+        ['PACIFIC_N', 'EAST_ASIA'],
+        ['PACIFIC_S', 'CAPE_HORN'],
+        
+        ['INDIAN_OCEAN', 'CAPE_GOOD_HOPE'],
+        ['INDIAN_OCEAN', 'AFRICA_E'],
+        ['AFRICA_E', 'BAB_EL_MANDEB'],
+        ['AFRICA_W', 'CAPE_GOOD_HOPE']
+    ]
 };
 
-// ── Compute maritime route waypoints ─────────────────────────────────────────
+// MapLibre shortest path dateline helper
+function distWrap(p1, p2) {
+    let dx = p2[0] - p1[0];
+    while (dx > 180) dx -= 360;
+    while (dx < -180) dx += 360;
+    const dy = p2[1] - p1[1];
+    return Math.sqrt(dx*dx + dy*dy);
+}
+
+// Compute shortest maritime route using Dijkstra's Algorithm
 function getMaritimeRoute(origin, dest) {
-    const [oLng, oLat] = origin;
-    const [dLng, dLat] = dest;
-    const waypoints = [];
-
-    // Helper: is a point in a rough "region"
-    const inRegion = (lng, lat, lngMin, lngMax, latMin, latMax) =>
-        lng >= lngMin && lng <= lngMax && lat >= latMin && lat <= latMax;
-
-    const isEurope   = (lng, lat) => inRegion(lng, lat, -10, 40, 35, 72);
-    const isRedSea   = (lng, lat) => inRegion(lng, lat, 32, 50, 10, 30);
-    const isMidEast  = (lng, lat) => inRegion(lng, lat, 35, 65, 10, 35);
-    const isIndian   = (lng, lat) => inRegion(lng, lat, 65, 90, 5, 30); // India subcontinent
-    const isSEAsia   = (lng, lat) => inRegion(lng, lat, 95, 140, -10, 25);
-    const isEAsia    = (lng, lat) => inRegion(lng, lat, 100, 150, 20, 50);
-    const isAfrica   = (lng, lat) => inRegion(lng, lat, -20, 52, -40, 38);
-    const isAtlantic  = (lng, lat) => lng < -10 && lng > -80 && lat > -60;
-    const isPacificW = (lng, lat) => lng > 140 || lng < -120;
-    const isAmerica  = (lng, lat) => lng < -50;
-    const isNAmerica = (lng, lat) => lng < -50 && lat > 15;
-    const isSAmerica = (lng, lat) => lng < -34 && lat < 15;
-
-    // ── Route Decision Logic ───────────────────────────────────────────────
-
-    // 1. Indian subcontinent ↔ Middle East / Persian Gulf
-    if ((isIndian(oLng, oLat) && isMidEast(dLng, dLat)) ||
-        (isMidEast(oLng, oLat) && isIndian(dLng, dLat))) {
-        waypoints.push(WP.STRAIT_HORMUZ);
-        waypoints.push(WP.ARABIAN_SEA);
-    }
-
-    // 2. Indian subcontinent / Middle East → Europe (via Suez)
-    if ((isIndian(oLng, oLat) || isMidEast(oLng, oLat)) && isEurope(dLng, dLat)) {
-        if (isIndian(oLng, oLat)) waypoints.push(WP.ARABIAN_SEA);
-        waypoints.push(WP.BAB_EL_MANDEB);
-        waypoints.push(WP.RED_SEA_MID);
-        waypoints.push(WP.SUEZ_S);
-        waypoints.push(WP.SUEZ_N);
-        waypoints.push(WP.MED_SEA);
-        waypoints.push(WP.STRAIT_GIBRALTAR);
-    }
-
-    // 3. Europe → Indian Subcontinent / Middle East (reverse Suez)
-    if (isEurope(oLng, oLat) && (isIndian(dLng, dLat) || isMidEast(dLng, dLat))) {
-        waypoints.push(WP.STRAIT_GIBRALTAR);
-        waypoints.push(WP.MED_SEA);
-        waypoints.push(WP.SUEZ_N);
-        waypoints.push(WP.SUEZ_S);
-        waypoints.push(WP.RED_SEA_MID);
-        waypoints.push(WP.BAB_EL_MANDEB);
-        if (isIndian(dLng, dLat)) waypoints.push(WP.ARABIAN_SEA);
-    }
-
-    // 4. Indian subcontinent / Middle East → SE Asia (via Cape Comorin + Malacca)
-    if ((isIndian(oLng, oLat) || isMidEast(oLng, oLat)) && isSEAsia(dLng, dLat)) {
-        if (isMidEast(oLng, oLat)) {
-            waypoints.push(WP.STRAIT_HORMUZ);
-            waypoints.push(WP.ARABIAN_SEA);
-        }
-        // Go south of India
-        waypoints.push([80.0, 5.0]); // South of Sri Lanka
-        waypoints.push(WP.STRAIT_MALACCA_W);
-        waypoints.push(WP.STRAIT_MALACCA_E);
-    }
-
-    // 5. SE Asia → Indian / Middle East (reverse Malacca)
-    if (isSEAsia(oLng, oLat) && (isIndian(dLng, dLat) || isMidEast(dLng, dLat))) {
-        waypoints.push(WP.STRAIT_MALACCA_E);
-        waypoints.push(WP.STRAIT_MALACCA_W);
-        waypoints.push([80.0, 5.0]); // South of Sri Lanka
-        if (isMidEast(dLng, dLat)) {
-            waypoints.push(WP.ARABIAN_SEA);
-            waypoints.push(WP.STRAIT_HORMUZ);
-        }
-    }
-
-    // 6. SE Asia / East Asia → Europe (via Malacca + Suez)
-    if ((isSEAsia(oLng, oLat) || isEAsia(oLng, oLat)) && isEurope(dLng, dLat)) {
-        if (isEAsia(oLng, oLat)) {
-            waypoints.push([125.0, 15.0]); // Philippine Sea
-        }
-        waypoints.push(WP.STRAIT_MALACCA_E);
-        waypoints.push(WP.STRAIT_MALACCA_W);
-        waypoints.push([80.0, 5.0]);
-        waypoints.push(WP.ARABIAN_SEA);
-        waypoints.push(WP.BAB_EL_MANDEB);
-        waypoints.push(WP.RED_SEA_MID);
-        waypoints.push(WP.SUEZ_S);
-        waypoints.push(WP.SUEZ_N);
-        waypoints.push(WP.MED_SEA);
-        waypoints.push(WP.STRAIT_GIBRALTAR);
-    }
-
-    // 7. Europe → SE Asia / East Asia (reverse)
-    if (isEurope(oLng, oLat) && (isSEAsia(dLng, dLat) || isEAsia(dLng, dLat))) {
-        waypoints.push(WP.STRAIT_GIBRALTAR);
-        waypoints.push(WP.MED_SEA);
-        waypoints.push(WP.SUEZ_N);
-        waypoints.push(WP.SUEZ_S);
-        waypoints.push(WP.RED_SEA_MID);
-        waypoints.push(WP.BAB_EL_MANDEB);
-        waypoints.push(WP.ARABIAN_SEA);
-        waypoints.push([80.0, 5.0]);
-        waypoints.push(WP.STRAIT_MALACCA_W);
-        waypoints.push(WP.STRAIT_MALACCA_E);
-        if (isEAsia(dLng, dLat)) {
-            waypoints.push([125.0, 15.0]);
-        }
-    }
-
-    // 8. East Asia → Americas West Coast (Pacific route)
-    if (isEAsia(oLng, oLat) && isAmerica(dLng, dLat) && dLng > -120) {
-        waypoints.push(WP.PACIFIC_NORTH);
-    }
-
-    // 9. Americas → East Asia (Pacific reverse)
-    if (isAmerica(oLng, oLat) && isEAsia(dLng, dLat) && oLng > -120) {
-        waypoints.push(WP.PACIFIC_NORTH);
-    }
-
-    // 10. Americas (Atlantic) ↔ Europe (Atlantic crossing)
-    if (isNAmerica(oLng, oLat) && isEurope(dLng, dLat)) {
-        waypoints.push(WP.NORTH_ATLANT);
-    }
-    if (isEurope(oLng, oLat) && isNAmerica(dLng, dLat)) {
-        waypoints.push(WP.NORTH_ATLANT);
-    }
-
-    // 11. Americas East Coast ↔ SE Asia / India (via Panama + Pacific or Suez)
-    if (isNAmerica(oLng, oLat) && oLng >= -110 && (isSEAsia(dLng, dLat) || isIndian(dLng, dLat))) {
-        waypoints.push(WP.PANAMA_ATL);
-        waypoints.push(WP.PANAMA_PAC);
-        waypoints.push(WP.PACIFIC_NORTH);
-    }
-
-    // 12. Americas West Coast ↔ SE Asia / India (Pacific crossing)
-    const isUSWestCoast = (lng, lat) => lng < -110 && lat > 15;
+    const nodes = Object.keys(MARITIME_GRAPH.nodes);
     
-    if ((isIndian(oLng, oLat) || isSEAsia(oLng, oLat)) && isUSWestCoast(dLng, dLat)) {
-        if (isIndian(oLng, oLat)) {
-            waypoints.push([80.0, 5.0]); // South of Sri Lanka
-            waypoints.push(WP.STRAIT_MALACCA_W);
-            waypoints.push(WP.STRAIT_MALACCA_E);
+    // Find closest anchor nodes to origin and dest
+    let startNode = nodes[0], endNode = nodes[0];
+    let minDistO = Infinity, minDistD = Infinity;
+
+    nodes.forEach(n => {
+        const coords = MARITIME_GRAPH.nodes[n];
+        const doP = distWrap(origin, coords);
+        if (doP < minDistO) { minDistO = doP; startNode = n; }
+        const ddP = distWrap(dest, coords);
+        if (ddP < minDistD) { minDistD = ddP; endNode = n; }
+    });
+
+    // If extremely close, straight line is fine
+    if (distWrap(origin, dest) < 20 && startNode === endNode) {
+        return [];
+    }
+
+    // Build Adjacency List
+    const adj = {};
+    nodes.forEach(n => adj[n] = []);
+    MARITIME_GRAPH.edges.forEach(([u, v]) => {
+        const d = distWrap(MARITIME_GRAPH.nodes[u], MARITIME_GRAPH.nodes[v]);
+        adj[u].push({ node: v, weight: d });
+        adj[v].push({ node: u, weight: d });
+    });
+
+    // Dijkstra
+    const dists = {};
+    const prev = {};
+    const unvisited = new Set(nodes);
+    
+    nodes.forEach(n => { dists[n] = Infinity; prev[n] = null; });
+    dists[startNode] = 0;
+
+    while (unvisited.size > 0) {
+        let u = null;
+        for (const n of unvisited) {
+            if (u === null || dists[n] < dists[u]) u = n;
         }
-        waypoints.push([125.0, 15.0]); // Philippine Sea
-        waypoints.push(WP.PACIFIC_NORTH);
+        
+        if (dists[u] === Infinity || u === endNode) break;
+        unvisited.delete(u);
+
+        for (const neighbor of adj[u]) {
+            const alt = dists[u] + neighbor.weight;
+            if (alt < dists[neighbor.node]) {
+                dists[neighbor.node] = alt;
+                prev[neighbor.node] = u;
+            }
+        }
+    }
+
+    // Reconstruct path
+    const path = [];
+    let curr = endNode;
+    while (curr) {
+        path.unshift(MARITIME_GRAPH.nodes[curr]);
+        curr = prev[curr];
     }
     
-    if (isUSWestCoast(oLng, oLat) && (isIndian(dLng, dLat) || isSEAsia(dLng, dLat))) {
-        waypoints.push(WP.PACIFIC_NORTH);
-        waypoints.push([125.0, 15.0]);
-        if (isIndian(dLng, dLat)) {
-            waypoints.push(WP.STRAIT_MALACCA_E);
-            waypoints.push(WP.STRAIT_MALACCA_W);
-            waypoints.push([80.0, 5.0]);
-        }
-    }
-
-    // 12. Africa routes (if both points cross Africa, route via Cape of Good Hope)
-    if (oLng < 52 && dLng < 52 && ((oLat < -10 && dLat > 10) || (oLat > 10 && dLat < -10))) {
-        if (oLat > dLat) {
-            waypoints.push(WP.CAPE_GOOD_HOPE);
-        } else {
-            waypoints.unshift(WP.CAPE_GOOD_HOPE);
-        }
-    }
-
-    return waypoints;
+    return path;
 }
 
 // Helper to parse the custom "Address || lat,lng" format
