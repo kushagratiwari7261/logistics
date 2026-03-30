@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFileUpload } from '../../hooks/useFileUpload';
+import { supabase } from '../../lib/supabaseClient';
 import './MessageThread.css';
 
 /* ── Timestamp helper ── */
@@ -49,6 +50,9 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
   const [attachments, setAttachments] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sentFlash, setSentFlash] = useState(false);
+  const [otherUserStatus, setOtherUserStatus] = useState({ is_online: false, last_seen: null });
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
   const { uploadFile, getFileUrl, getSignedUrl, uploading, progress, uploadError } = useFileUpload();
@@ -62,11 +66,89 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         setLoadingChat(false);
       });
     } else if (message) {
-      // For DM: build a simple 2-message view (original + any replies)
-      // We just show the single message for now; group is the full thread
       setChatMessages([]);
     }
   }, [isGroup, conversation?.id, message?.id]);
+
+  /* ── Real-time: live message arrival ── */
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Determine the other user's ID for DMs
+    const otherUserId = message?.sender_id === currentUser?.id
+      ? message?.receiver_id
+      : message?.sender_id;
+
+    // Subscribe to new messages in this conversation
+    const channelFilter = isGroup && conversation?.id
+      ? `conversation_id=eq.${conversation.id}`
+      : otherUserId
+        ? `sender_id=eq.${otherUserId}`
+        : null;
+
+    if (!channelFilter) return;
+
+    const channelName = `thread-${isGroup ? conversation?.id : otherUserId}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: channelFilter,
+      }, async (payload) => {
+        const newMsg = payload.new;
+        // Enrich with sender profile
+        const { data: sender } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .eq('id', newMsg.sender_id)
+          .maybeSingle();
+
+        const enriched = {
+          ...newMsg,
+          sender: sender || { id: newMsg.sender_id, full_name: 'Unknown', username: 'unknown' },
+          attachments: [],
+        };
+
+        if (isGroup) {
+          setChatMessages(prev => [...prev, enriched]);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, message?.sender_id, message?.receiver_id, isGroup, conversation?.id]);
+
+  /* ── Fetch other user's online status ── */
+  useEffect(() => {
+    if (isGroup || !message) return;
+
+    const otherUserId = message?.sender_id === currentUser?.id
+      ? message?.receiver_id
+      : message?.sender_id;
+
+    if (!otherUserId || otherUserId === 'system') {
+      setOtherUserStatus({ is_online: false, last_seen: null });
+      return;
+    }
+
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_online, last_seen')
+        .eq('id', otherUserId)
+        .maybeSingle();
+      if (data) setOtherUserStatus(data);
+    };
+
+    fetchStatus();
+    // Poll every 15 seconds
+    const interval = setInterval(fetchStatus, 15000);
+    return () => clearInterval(interval);
+  }, [isGroup, message?.sender_id, message?.receiver_id, currentUser?.id]);
 
   /* ── Auto-scroll to bottom ── */
   useEffect(() => {
@@ -79,7 +161,11 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     for (const file of files) {
       try {
         const uploaded = await uploadFile(file, currentUser.id);
-        setAttachments(prev => [...prev, uploaded]);
+        setAttachments(prev => [...prev, { ...uploaded, _new: true }]);
+        // Clear the "new" flag after animation plays
+        setTimeout(() => {
+          setAttachments(prev => prev.map(a => ({ ...a, _new: false })));
+        }, 600);
       } catch (err) {
         console.error('Upload error:', err);
       }
@@ -90,6 +176,9 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
   /* ── Send ── */
   const handleSend = async () => {
     if (!replyContent.trim() && attachments.length === 0) return;
+    if (sending) return;
+
+    setSending(true);
 
     const msgData = isGroup
       ? { conversation_id: conversation?.id, content: replyContent, attachments }
@@ -101,7 +190,13 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       };
 
     const result = await onSendReply(msgData);
+    setSending(false);
+
     if (!result?.error) {
+      // Trigger the sent flash animation
+      setSentFlash(true);
+      setTimeout(() => setSentFlash(false), 1200);
+
       setReplyContent('');
       setAttachments([]);
       // Refresh group chat
@@ -146,9 +241,24 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       ? (message?.receiver?.full_name || message?.receiver?.username || 'Unknown')
       : (message?.sender?.full_name || message?.sender?.username || 'Unknown'));
 
+  const fmtLastSeen = (ts) => {
+    if (!ts) return 'Offline';
+    const d = new Date(ts);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  };
+
   const headerSub = isGroup
     ? `${conversation?.participants?.length || 0} members`
-    : '';
+    : otherUserStatus.is_online
+      ? 'Online'
+      : `Last seen ${fmtLastSeen(otherUserStatus.last_seen)}`;
 
   /* ── Render a single message bubble ── */
   const renderBubble = (msg, idx, arr) => {
@@ -156,6 +266,7 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     const prevMsg = arr[idx - 1];
     const showDateDivider = !prevMsg || fmtDate(prevMsg.created_at) !== fmtDate(msg.created_at);
     const showAvatar = isGroup && !isMine && (idx === arr.length - 1 || arr[idx + 1]?.sender_id !== msg.sender_id);
+    const isLast = idx === arr.length - 1;
 
     return (
       <div key={msg.id || idx}>
@@ -164,7 +275,7 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
             <span>{fmtDate(msg.created_at)}</span>
           </div>
         )}
-        <div className={`wa-bubble-row ${isMine ? 'mine' : 'theirs'}`}>
+        <div className={`wa-bubble-row ${isMine ? 'mine' : 'theirs'} ${isLast ? 'wa-bubble-enter' : ''}`}>
           {isGroup && !isMine && (
             <div className="wa-bubble-avatar">
               {showAvatar ? <Avatar user={msg.sender} size={32} /> : <div style={{ width: 32 }} />}
@@ -222,12 +333,23 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         </div>
         <div className="wa-header-info">
           <div className="wa-header-name">{headerTitle}</div>
-          {headerSub && <div className="wa-header-sub">{headerSub}</div>}
+          <div className={`wa-header-sub ${!isGroup && otherUserStatus.is_online ? 'wa-online' : ''}`}>
+            {!isGroup && otherUserStatus.is_online && <span className="wa-online-dot" />}
+            {headerSub}
+          </div>
         </div>
         {!isGroup && message && (
           <button className="wa-delete-btn" onClick={() => onDelete(message.id)} title="Delete">🗑️</button>
         )}
       </div>
+
+      {/* Sent flash overlay */}
+      {sentFlash && (
+        <div className="wa-sent-flash">
+          <div className="wa-sent-icon">✓</div>
+          <span>Sent</span>
+        </div>
+      )}
 
       {/* Chat area */}
       <div className="wa-chat-area">
@@ -252,8 +374,9 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       {attachments.length > 0 && (
         <div className="wa-staged-attachments">
           {attachments.map((att, i) => (
-            <div key={i} className="wa-staged-chip">
-              <span>{fileIcon(att.type)} {att.name}</span>
+            <div key={i} className={`wa-staged-chip ${att._new ? 'wa-chip-enter' : ''}`}>
+              <span className="wa-staged-chip-icon">{fileIcon(att.type)}</span>
+              <span className="wa-staged-chip-name">{att.name}</span>
               <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>×</button>
             </div>
           ))}
@@ -288,11 +411,11 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
           rows={1}
         />
         <button
-          className="wa-send-btn"
+          className={`wa-send-btn ${sending ? 'wa-send-sending' : ''}`}
           onClick={handleSend}
-          disabled={(!replyContent.trim() && attachments.length === 0) || uploading}
+          disabled={(!replyContent.trim() && attachments.length === 0) || uploading || sending}
         >
-          ➤
+          {sending ? <div className="wa-send-spinner" /> : '➤'}
         </button>
       </div>
     </div>

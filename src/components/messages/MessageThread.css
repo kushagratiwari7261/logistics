@@ -65,6 +65,33 @@
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.wa-header-sub.wa-online {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.wa-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: onlinePulse 2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+}
+
+@keyframes onlinePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+  }
 }
 
 .wa-delete-btn {
@@ -466,4 +493,271 @@
   color: var(--text-secondary);
   padding: 2rem;
   font-size: 0.9rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Bubble slide-in for new messages ── */
+.wa-bubble-enter {
+  animation: bubbleSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.wa-bubble-enter.mine {
+  animation: bubbleSlideInRight 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bubbleSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bubbleSlideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(30px) translateY(10px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+/* ── Sent flash overlay ── */
+.wa-sent-flash {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 116, 94, 0.92);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(0, 116, 94, 0.35);
+  animation: sentFlashIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+             sentFlashOut 0.4s 0.8s ease-in forwards;
+  pointer-events: none;
+}
+
+.wa-sent-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  animation: sentCheck 0.5s 0.15s ease-out forwards;
+  transform: scale(0);
+}
+
+@keyframes sentFlashIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes sentFlashOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-15px) scale(0.9);
+  }
+}
+
+@keyframes sentCheck {
+  0% {
+    transform: scale(0) rotate(-45deg);
+  }
+  60% {
+    transform: scale(1.3) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ── Attachment chip bounce-in ── */
+.wa-chip-enter {
+  animation: chipBounceIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes chipBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Staged chip improved styling ── */
+.wa-staged-chip-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.wa-staged-chip-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+/* ── Send button sending state ── */
+.wa-send-sending {
+  background: var(--brand-primary) !important;
+  pointer-events: none;
+}
+
+.wa-send-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: wa-spin 0.6s linear infinite;
+}
+
+/* ── Upload progress bar animation ── */
+.wa-upload-bar {
+  height: 3px;
+  background: var(--bg-surface-2);
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.wa-upload-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary, #06b6d4));
+  transition: width 0.3s ease;
+  border-radius: 2px;
+  animation: uploadPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes uploadPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+/* ── Staged attachments container entrance ── */
+.wa-staged-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 1rem;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  animation: stageSlideUp 0.25s ease-out forwards;
+}
+
+@keyframes stageSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Attachment chip hover lift ── */
+.wa-staged-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface-2);
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: default;
+}
+
+.wa-staged-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.wa-staged-chip button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.wa-staged-chip button:hover {
+  color: var(--danger);
+  transform: scale(1.2);
+}
+
+/* ── Send button hover animation ── */
+.wa-send-btn {
+  background: var(--brand-primary);
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.wa-send-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 3px 12px rgba(99, 102, 241, 0.3);
+}
+
+.wa-send-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.wa-send-btn:disabled {
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }

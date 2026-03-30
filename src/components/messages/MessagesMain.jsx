@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../../hooks/useMessages';
 import { useMessageSubscription } from '../../hooks/useMessageSubscription';
+import { usePresence } from '../../hooks/usePresence';
+import { supabase } from '../../lib/supabaseClient';
 import MessageList from './MessageList';
 import MessageThread from './MessageThread';
 import ComposeMessage from './ComposeMessage';
@@ -51,6 +53,9 @@ const MessagesMain = ({ user }) => {
     console.log('New message received:', payload);
     refetch(); // Refresh messages when new message arrives
   });
+
+  // Track online presence
+  usePresence(user?.id);
 
   // Fetch all users for Contacts view
   useEffect(() => {
