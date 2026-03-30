@@ -57,7 +57,59 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
   const bottomRef = useRef(null);
   const { uploadFile, getFileUrl, getSignedUrl, uploading, progress, uploadError } = useFileUpload();
 
-  /* ── Load group messages ── */
+  /* ── Fetch full DM history between two users ── */
+  const fetchDmHistory = async () => {
+    if (isGroup || !message || !currentUser?.id) return;
+    const otherUserId = message?.sender_id === currentUser?.id
+      ? message?.receiver_id
+      : message?.sender_id;
+    if (!otherUserId) return;
+
+    try {
+      // Step 1: Fetch all messages between the two users
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+        .limit(100);
+
+      if (error) {
+        console.error('DM history fetch error:', error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setChatMessages([]);
+        return;
+      }
+
+      // Step 2: Batch fetch profiles for all unique user IDs
+      const userIds = [...new Set(data.flatMap(m => [m.sender_id, m.receiver_id]).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', userIds);
+
+      const profileMap = {};
+      (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+      // Step 3: Enrich messages with profile data
+      const enriched = data.map(msg => ({
+        ...msg,
+        sender: profileMap[msg.sender_id] || { id: msg.sender_id, full_name: 'Unknown', username: 'unknown' },
+        receiver: profileMap[msg.receiver_id] || { id: msg.receiver_id, full_name: 'Unknown', username: 'unknown' },
+        attachments: [],
+      }));
+
+      setChatMessages(enriched);
+    } catch (err) {
+      console.error('Error fetching DM history:', err);
+    }
+  };
+
+  /* ── Load messages ── */
   useEffect(() => {
     if (isGroup && conversation?.id) {
       setLoadingChat(true);
@@ -66,7 +118,8 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         setLoadingChat(false);
       });
     } else if (message) {
-      setChatMessages([]);
+      setLoadingChat(true);
+      fetchDmHistory().then(() => setLoadingChat(false));
     }
   }, [isGroup, conversation?.id, message?.id]);
 
@@ -79,43 +132,54 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       ? message?.receiver_id
       : message?.sender_id;
 
-    // Subscribe to new messages in this conversation
-    const channelFilter = isGroup && conversation?.id
-      ? `conversation_id=eq.${conversation.id}`
-      : otherUserId
-        ? `sender_id=eq.${otherUserId}`
-        : null;
-
-    if (!channelFilter) return;
+    if (!isGroup && !otherUserId) return;
+    if (isGroup && !conversation?.id) return;
 
     const channelName = `thread-${isGroup ? conversation?.id : otherUserId}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: channelFilter,
-      }, async (payload) => {
-        const newMsg = payload.new;
-        // Enrich with sender profile
-        const { data: sender } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url')
-          .eq('id', newMsg.sender_id)
-          .maybeSingle();
+    const channel = supabase.channel(channelName);
 
-        const enriched = {
-          ...newMsg,
-          sender: sender || { id: newMsg.sender_id, full_name: 'Unknown', username: 'unknown' },
-          attachments: [],
-        };
+    const handleNewMessage = async (payload) => {
+      const newMsg = payload.new;
+      // Enrich with sender profile
+      const { data: sender } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .eq('id', newMsg.sender_id)
+        .maybeSingle();
 
-        if (isGroup) {
-          setChatMessages(prev => [...prev, enriched]);
-        }
-      })
-      .subscribe();
+      const enriched = {
+        ...newMsg,
+        sender: sender || { id: newMsg.sender_id, full_name: 'Unknown', username: 'unknown' },
+        attachments: [],
+      };
+
+      // Add to chat — avoid duplicates
+      setChatMessages(prev => {
+        if (prev.some(m => m.id === enriched.id)) return prev;
+        return [...prev, enriched];
+      });
+    };
+
+    if (isGroup) {
+      // Group: listen for messages in this conversation
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `conversation_id=eq.${conversation.id}`,
+      }, handleNewMessage);
+    } else {
+      // DM: listen for messages FROM the other user TO me
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `sender_id=eq.${otherUserId}`,
+      }, handleNewMessage);
+      // Also listen for messages FROM me TO the other user (for multi-tab/device sync)
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `sender_id=eq.${currentUser.id}`,
+      }, handleNewMessage);
+    }
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -197,12 +261,38 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       setSentFlash(true);
       setTimeout(() => setSentFlash(false), 1200);
 
+      // Immediately add the sent message to the chat as an optimistic update
+      const optimisticMsg = {
+        id: result?.data?.id || `temp-${Date.now()}`,
+        sender_id: currentUser?.id,
+        receiver_id: msgData.receiver_id || null,
+        conversation_id: msgData.conversation_id || null,
+        content: replyContent,
+        created_at: new Date().toISOString(),
+        is_read: false,
+        sender: {
+          id: currentUser?.id,
+          full_name: currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0],
+          username: currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0],
+        },
+        attachments: attachments.map(a => ({ file_name: a.name, file_type: a.type, file_size: a.size, storage_path: a.path })),
+      };
+
+      setChatMessages(prev => {
+        if (prev.some(m => m.id === optimisticMsg.id)) return prev;
+        return [...prev, optimisticMsg];
+      });
+
       setReplyContent('');
       setAttachments([]);
-      // Refresh group chat
+
+      // Also do a full refresh to sync with server
       if (isGroup && conversation?.id) {
         const msgs = await fetchConversationMessages(conversation.id);
         setChatMessages(msgs);
+      } else {
+        // Refresh DM history to get the real message from DB
+        setTimeout(() => fetchDmHistory(), 500);
       }
     }
   };
@@ -355,12 +445,10 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       <div className="wa-chat-area">
         {loadingChat ? (
           <div className="wa-loading"><div className="wa-spinner" /></div>
-        ) : isGroup ? (
-          chatMessages.length === 0
-            ? <div className="wa-empty">No messages yet. Say hello! 👋</div>
-            : chatMessages.map((msg, i, arr) => renderBubble(msg, i, arr))
+        ) : chatMessages.length === 0 ? (
+          <div className="wa-empty">No messages yet. Say hello! 👋</div>
         ) : (
-          dmBubbles.map((msg, i, arr) => renderBubble(msg, i, arr))
+          chatMessages.map((msg, i, arr) => renderBubble(msg, i, arr))
         )}
         <div ref={bottomRef} />
       </div>
