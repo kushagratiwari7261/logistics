@@ -147,6 +147,34 @@ function App() {
     }
   }, []);
 
+  // Ensure a profiles row exists for the authenticated user
+  const ensureProfile = async (authUser) => {
+    if (!authUser?.id) return;
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (!existing) {
+        console.log('Creating profile for user:', authUser.email);
+        const { error } = await supabase.from('profiles').upsert({
+          id: authUser.id,
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '',
+          username: authUser.user_metadata?.username || authUser.email?.split('@')[0] || '',
+          avatar_url: authUser.user_metadata?.avatar_url || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+        if (error) console.error('Error creating profile:', error);
+        else console.log('Profile created successfully for', authUser.email);
+      }
+    } catch (err) {
+      console.error('ensureProfile error:', err);
+    }
+  };
+
   // FIXED: Enhanced authentication state management with better session handling
   useEffect(() => {
     let mounted = true;
@@ -188,6 +216,7 @@ function App() {
 
         if (session?.user) {
           console.log('Valid session found for user:', session.user.email);
+          await ensureProfile(session.user);
           setIsAuthenticated(true);
           setUser(session.user);
           authInitializedRef.current = true;
@@ -253,6 +282,7 @@ function App() {
               case 'SIGNED_IN':
                 if (session?.user && !isAuthenticated) {
                   console.log('User signed in successfully:', session.user.email);
+                  await ensureProfile(session.user);
                   setIsAuthenticated(true);
                   setUser(session.user);
 
