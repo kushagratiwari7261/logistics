@@ -17,7 +17,8 @@ import {
   Anchor,
   ShieldCheck,
   Truck,
-  CheckCircle
+  CheckCircle,
+  Users
 } from 'lucide-react';
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
@@ -335,10 +336,11 @@ const IconMap = {
     Anchor,
     ShieldCheck,
     Truck,
-    CheckCircle
+    CheckCircle,
+    Users
 };
 
-/* ─── Shipment List ──────────────────────────────────── */
+/* ───表达 Shipment List ──────────────────────────────────── */
 function ShipmentList({ onSelect }) {
     const [shipments, setShipments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -410,7 +412,7 @@ function ShipmentList({ onSelect }) {
 
             {/* Stats row */}
             <div className="st-stat-row">
-                {STATUS_STEPS.slice(0, 5).map(step => {
+                {STATUS_STEPS.map(step => {
                     const count = shipments.filter(s => s.status === step.key).length;
                     const Icon = IconMap[step.icon] || FileText;
                     return (
@@ -426,6 +428,17 @@ function ShipmentList({ onSelect }) {
                         </button>
                     );
                 })}
+                
+                {/* Total Customers Stat */}
+                <button 
+                    className={`st-stat-chip ${statusFilter === 'CUSTOMERS' ? 'active' : ''}`}
+                    style={{ '--chip-color': '#000000' }}
+                    onClick={() => setStatusFilter('')}
+                >
+                    <span><Users size={18} /></span>
+                    <span>{new Set(shipments.map(s => s.client).filter(Boolean)).size}</span>
+                    <small>Customers</small>
+                </button>
             </div>
 
             {/* Table */}
