@@ -161,10 +161,33 @@ function getMaritimeRoute(origin, dest) {
     }
 
     // 11. Americas East Coast ↔ SE Asia / India (via Panama + Pacific or Suez)
-    if (isNAmerica(oLng, oLat) && (isSEAsia(dLng, dLat) || isIndian(dLng, dLat))) {
+    if (isNAmerica(oLng, oLat) && oLng >= -110 && (isSEAsia(dLng, dLat) || isIndian(dLng, dLat))) {
         waypoints.push(WP.PANAMA_ATL);
         waypoints.push(WP.PANAMA_PAC);
         waypoints.push(WP.PACIFIC_NORTH);
+    }
+
+    // 12. Americas West Coast ↔ SE Asia / India (Pacific crossing)
+    const isUSWestCoast = (lng, lat) => lng < -110 && lat > 15;
+    
+    if ((isIndian(oLng, oLat) || isSEAsia(oLng, oLat)) && isUSWestCoast(dLng, dLat)) {
+        if (isIndian(oLng, oLat)) {
+            waypoints.push([80.0, 5.0]); // South of Sri Lanka
+            waypoints.push(WP.STRAIT_MALACCA_W);
+            waypoints.push(WP.STRAIT_MALACCA_E);
+        }
+        waypoints.push([125.0, 15.0]); // Philippine Sea
+        waypoints.push(WP.PACIFIC_NORTH);
+    }
+    
+    if (isUSWestCoast(oLng, oLat) && (isIndian(dLng, dLat) || isSEAsia(dLng, dLat))) {
+        waypoints.push(WP.PACIFIC_NORTH);
+        waypoints.push([125.0, 15.0]);
+        if (isIndian(dLng, dLat)) {
+            waypoints.push(WP.STRAIT_MALACCA_E);
+            waypoints.push(WP.STRAIT_MALACCA_W);
+            waypoints.push([80.0, 5.0]);
+        }
     }
 
     // 12. Africa routes (if both points cross Africa, route via Cape of Good Hope)
@@ -281,9 +304,17 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
                         ? getMaritimeRoute(originInfo.coords, destInfo.coords) 
                         : [];
                         
-                    // Full path points
-                    const allPoints = [originInfo.coords, ...smartWaypoints, destInfo.coords];
+                    // Full path points (clone coords to prevent mutating state)
+                    const allPoints = [originInfo.coords, ...smartWaypoints, destInfo.coords].map(p => [...p]);
                     
+                    // Fix MapLibre Dateline Crossing (ensures Pacific routes go across the ocean, not back across land)
+                    for (let i = 1; i < allPoints.length; i++) {
+                        let prev = allPoints[i-1];
+                        let curr = allPoints[i];
+                        while (curr[0] - prev[0] < -180) curr[0] += 360;
+                        while (curr[0] - prev[0] > 180) curr[0] -= 360;
+                    }
+
                     // Generate smooth curves between each segment
                     for (let i = 0; i < allPoints.length - 1; i++) {
                         // For short segments, bend less
