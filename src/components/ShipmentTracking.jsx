@@ -12,7 +12,12 @@ import {
   Ship, 
   Map, 
   Clock, 
-  Package 
+  Package,
+  FileText,
+  Anchor,
+  ShieldCheck,
+  Truck,
+  CheckCircle
 } from 'lucide-react';
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
@@ -324,6 +329,15 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
     );
 }
 
+const IconMap = {
+    FileText,
+    Ship,
+    Anchor,
+    ShieldCheck,
+    Truck,
+    CheckCircle
+};
+
 /* ─── Shipment List ──────────────────────────────────── */
 function ShipmentList({ onSelect }) {
     const [shipments, setShipments] = useState([]);
@@ -398,6 +412,7 @@ function ShipmentList({ onSelect }) {
             <div className="st-stat-row">
                 {STATUS_STEPS.slice(0, 5).map(step => {
                     const count = shipments.filter(s => s.status === step.key).length;
+                    const Icon = IconMap[step.icon] || FileText;
                     return (
                         <button
                             key={step.key}
@@ -405,8 +420,8 @@ function ShipmentList({ onSelect }) {
                             style={{ '--chip-color': STATUS_COLORS[step.key] }}
                             onClick={() => setStatusFilter(p => p === step.key ? '' : step.key)}
                         >
-                            <span>{step.icon}</span>
-                            <span>{count}</span>
+                            <span><Icon size={18} /></span>
+                            {count > 0 && <span>{count}</span>}
                             <small>{step.label}</small>
                         </button>
                     );
