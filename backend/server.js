@@ -2,12 +2,19 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from 'url';
 
 // Prevent missing dotenv crash in production
 try {
   if (process.env.NODE_ENV !== "production") {
     const dotenv = await import("dotenv");
-    dotenv.config();
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    // Look for .env in the backend folder OR the root folder
+    dotenv.config({ path: path.join(__dirname, '.env') });
+    dotenv.config({ path: path.join(__dirname, '..', '.env') });
+    console.log("✅ Dotenv loaded for local development");
   }
 } catch (e) {
   // Ignore missing dotenv
@@ -19,7 +26,7 @@ const PORT = process.env.PORT || 3001;
 // Flexible CORS setup
 app.use(
   cors({
-    origin: "*", // Or restrict to your Vercel URL
+    origin: "*", 
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
   })
