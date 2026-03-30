@@ -18,7 +18,6 @@ export default function TrackShipment() {
         setError(null);
         try {
             const tokenId = id ? id.trim() : '';
-            console.log('Attempting to fetch token:', tokenId);
             // 1. Find token in shipment_updates to get shipment_id
             const { data: linkData, error: linkErr } = await supabase
                 .from('shipment_updates')
@@ -27,7 +26,6 @@ export default function TrackShipment() {
                 .eq('status', 'Link Generated')
                 .maybeSingle();
 
-            console.log('Link lookup result:', { linkData, linkErr });
             if (linkErr) throw new Error(`Database Error: ${linkErr.message} (${linkErr.code})`);
             if (!linkData) throw new Error('Invalid or Expired Tracking Link (No record found for token)');
 
@@ -85,19 +83,19 @@ export default function TrackShipment() {
         fetchData();
     }, [fetchData]);
 
-    /* Load Leaflet CSS + JS once */
+    /* Load MapLibre CSS + JS once */
     useEffect(() => {
-        if (!document.getElementById('leaflet-css')) {
+        if (!document.getElementById('maplibre-css')) {
             const link = document.createElement('link');
-            link.id = 'leaflet-css';
+            link.id = 'maplibre-css';
             link.rel = 'stylesheet';
-            link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+            link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
             document.head.appendChild(link);
         }
-        if (!window.L && !document.getElementById('leaflet-js')) {
+        if (!window.maplibregl && !document.getElementById('maplibre-js')) {
             const script = document.createElement('script');
-            script.id = 'leaflet-js';
-            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.id = 'maplibre-js';
+            script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
             document.head.appendChild(script);
         }
     }, []);

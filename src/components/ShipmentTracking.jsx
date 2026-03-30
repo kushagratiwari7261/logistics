@@ -5,6 +5,7 @@ import './ShipmentTracking.css';
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
 import StatusTimeline from './StatusTimeline';
+import LocationPicker from './LocationPicker';
 import './ShipmentTracking.css';
 
 /* ─── Status Update Form ─────────────────────────────── */
@@ -49,9 +50,11 @@ function StatusUpdateForm({ shipment, onUpdated }) {
                 .eq('id', shipment.id);
             if (shipErr) throw shipErr;
 
-            setMsg('✅ Status updated successfully!');
+            setMsg('✅ Status updated successfully! Refreshing page...');
             setForm(p => ({ ...p, location: '', remarks: '', estimated_arrival: '' }));
-            setTimeout(() => { onUpdated(); setMsg(''); }, 1200);
+            setTimeout(() => { 
+                window.location.reload(); 
+            }, 1000);
         } catch (err) {
             setMsg('❌ ' + err.message);
         } finally {
@@ -71,10 +74,16 @@ function StatusUpdateForm({ shipment, onUpdated }) {
                         <option value="Cancelled">Cancelled</option>
                     </select>
                 </div>
-                <div className="st-form-group">
-                    <label>Current Location</label>
-                    <input name="location" value={form.location} onChange={handleChange}
-                        placeholder="e.g. Mumbai Port / JNPT Gate 3" />
+                <div className="st-form-group st-form-group--full">
+                    <label>Current Location *</label>
+                    <LocationPicker 
+                        value={form.location}
+                        onLocationSelect={({ address, lat, lng }) => {
+                            if (!address) return;
+                            const val = `${address} || ${lat},${lng}`;
+                            setForm(p => ({ ...p, location: val }));
+                        }}
+                    />
                 </div>
                 <div className="st-form-group">
                     <label>Estimated Arrival</label>
@@ -407,19 +416,19 @@ export default function ShipmentTracking() {
     const [selected, setSelected] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    /* Load Leaflet CSS + JS once */
+    /* Load MapLibre CSS + JS once */
     useEffect(() => {
-        if (!document.getElementById('leaflet-css')) {
+        if (!document.getElementById('maplibre-css')) {
             const link = document.createElement('link');
-            link.id = 'leaflet-css';
+            link.id = 'maplibre-css';
             link.rel = 'stylesheet';
-            link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+            link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
             document.head.appendChild(link);
         }
-        if (!window.L && !document.getElementById('leaflet-js')) {
+        if (!window.maplibregl && !document.getElementById('maplibre-js')) {
             const script = document.createElement('script');
-            script.id = 'leaflet-js';
-            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.id = 'maplibre-js';
+            script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
             document.head.appendChild(script);
         }
     }, []);

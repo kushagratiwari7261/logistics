@@ -1,113 +1,139 @@
 import { useEffect, useRef } from 'react';
 import { STATUS_COLORS, getCoords } from '../constants/shipment';
 
+// Helper to parse the custom "Address || lat,lng" format
+const parseLocation = (loc) => {
+    if (!loc) return { name: '', coords: null };
+    if (loc.includes(' || ')) {
+        const [name, coordsStr] = loc.split(' || ');
+        const [lat, lng] = coordsStr.split(',').map(Number);
+        return { name, coords: [lng, lat] }; // MapLibre uses [lng, lat] for coordinates
+    }
+    // Fallback to existing coordinate map
+    const coords = getCoords(loc);
+    return { name: loc, coords: coords ? [coords[1], coords[0]] : null };
+};
+
 export default function ShipmentMap({ origin, destination, currentLocation, status }) {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
 
-    const originCoords = getCoords(origin);
-    const destCoords = getCoords(destination);
-    const currentCoords = getCoords(currentLocation);
+    const originInfo = parseLocation(origin);
+    const destInfo = parseLocation(destination);
+    const currentInfo = parseLocation(currentLocation);
 
     useEffect(() => {
-        if (!window.L) return; // Leaflet not loaded yet
+        if (!window.maplibregl || !mapRef.current) return;
+        
         if (mapInstanceRef.current) {
             mapInstanceRef.current.remove();
             mapInstanceRef.current = null;
         }
-        if (!mapRef.current) return;
 
-        // Use the most specific location for center
-        const center = currentCoords || destCoords || originCoords || [20.5937, 78.9629];
-        const map = window.L.map(mapRef.current, { zoomControl: true }).setView(center, 4);
-        mapInstanceRef.current = map;
-
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
-            maxZoom: 18,
-        }).addTo(map);
-
-        const makeIcon = (emoji, color, isAnimated = false) => window.L.divIcon({
-            html: `<div class="st-map-marker ${isAnimated ? 'st-marker-at-port' : ''}" style="font-size:22px;display:flex;align-items:center;justify-content:center;
-             width:36px;height:36px;background:${color};border-radius:50%;border:3px solid #fff;
-             box-shadow:0 2px 8px rgba(0,0,0,.4)"><span class="st-marker-emoji">${emoji}</span></div>`,
-            iconSize: [36, 36],
-            iconAnchor: [18, 18],
-            className: '',
+        const center = currentInfo.coords || destInfo.coords || originInfo.coords || [78.9629, 20.5937];
+        
+        const map = new window.maplibregl.Map({
+            container: mapRef.current,
+            style: {
+                version: 8,
+                sources: {
+                    osm: {
+                        type: 'raster',
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        attribution: '© OpenStreetMap',
+                    },
+                },
+                layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+            },
+            center: center,
+            zoom: 4,
         });
 
-        const bounds = [];
+        mapInstanceRef.current = map;
 
-        if (originCoords) {
-            window.L.marker(originCoords, { icon: makeIcon('🔵', '#3b82f6') })
-                .addTo(map)
-                .bindPopup(`<b>Origin</b><br>${origin}`);
-            bounds.push(originCoords);
-        }
+        const bounds = new window.maplibregl.LngLatBounds();
 
-        if (destCoords) {
-            const destColor = STATUS_COLORS[status] || '#6366f1';
-            window.L.marker(destCoords, { icon: makeIcon('📍', destColor) })
-                .addTo(map)
-                .bindPopup(`<b>Destination</b><br>${destination}`);
-            bounds.push(destCoords);
-        }
-
-        if (currentCoords) {
-            const isAnimated = true; // Always animate current location
+        const addMarker = (coords, emoji, color, label) => {
+            if (!coords) return;
             
-            // Select emoji based on status
+            const el = document.createElement('div');
+            el.className = 'st-map-marker';
+            el.style.cssText = `
+                width: 36px; height: 36px; 
+                background: ${color}; 
+                border-radius: 50%; 
+                border: 3px solid #fff;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                display: flex; align-items: center; justify-content: center;
+                font-size: 20px; cursor: pointer;
+            `;
+            el.innerHTML = `<span>${emoji}</span>`;
+
+            new window.maplibregl.Marker({ element: el })
+                .setLngLat(coords)
+                .setPopup(new window.maplibregl.Popup({ offset: 25 }).setHTML(`<b>${label}</b>`))
+                .addTo(map);
+            
+            bounds.extend(coords);
+        };
+
+        if (originInfo.coords) addMarker(originInfo.coords, '🔵', '#3b82f6', 'Origin');
+        if (destInfo.coords) addMarker(destInfo.coords, '🏁', STATUS_COLORS[status] || '#6366f1', 'Destination');
+        
+        if (currentInfo.coords) {
             let emoji = '🚢';
             if (status === 'At Port') emoji = '⚓';
             if (status === 'Out for Delivery' || status === 'Customs') emoji = '🚛';
             if (status === 'Delivered') emoji = '✅';
-            if (status === 'Booked') emoji = '📋';
-
-            const color = STATUS_COLORS[status] || '#f59e0b';
             
-            window.L.marker(currentCoords, { icon: makeIcon(emoji, color, isAnimated) })
-                .addTo(map)
-                .bindPopup(`<b>Location Now (${status})</b><br>${currentLocation}`)
-                .openPopup();
-            bounds.push(currentCoords);
+            addMarker(currentInfo.coords, emoji, STATUS_COLORS[status] || '#f59e0b', `Current: ${currentInfo.name}`);
         }
 
-        // Draw Polyline for route
-        // connect origin -> current -> destination if possible
-        const polylineCoords = [originCoords, currentCoords, destCoords].filter(Boolean);
-        if (polylineCoords.length > 1) {
-            window.L.polyline(polylineCoords, {
-                color: STATUS_COLORS[status] || '#6366f1',
-                weight: 2.5,
-                dashArray: '6 4',
-                opacity: 0.8,
-            }).addTo(map);
-        }
+        // Draw Route Line
+        map.on('load', () => {
+            const pathCoords = [originInfo.coords, currentInfo.coords, destInfo.coords].filter(Boolean);
+            
+            if (pathCoords.length > 1) {
+                map.addSource('route', {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: pathCoords
+                        }
+                    }
+                });
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [40, 40] });
-        }
+                map.addLayer({
+                    id: 'route-line',
+                    type: 'line',
+                    source: 'route',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                        'line-color': STATUS_COLORS[status] || '#6366f1',
+                        'line-width': 4,
+                        'line-dasharray': [2, 1]
+                    }
+                });
+            }
+
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50, duration: 1000 });
+            }
+        });
 
         return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.remove();
-                mapInstanceRef.current = null;
-            }
+            map.remove();
+            mapInstanceRef.current = null;
         };
-    }, [origin, destination, currentLocation, status, originCoords, destCoords, currentCoords]);
+    }, [origin, destination, currentLocation, status]);
 
-    if (!originCoords && !destCoords && !currentCoords) {
-        return (
-            <div className="st-map-placeholder">
-                <div className="st-map-placeholder-content">
-                    <span className="st-map-placeholder-icon">🗺️</span>
-                    <p>Port coordinates not available for this route</p>
-                    <small>{origin} → {destination}</small>
-                    {currentLocation && <small><br/>Current Location: {currentLocation}</small>}
-                </div>
-            </div>
-        );
-    }
-
-    return <div ref={mapRef} className="st-map-container" style={{ height: '320px', borderRadius: '10px' }} />;
+    return (
+        <div className="st-map-wrapper">
+            <h3 className="st-section-title">🗺️ Enterprise Route Map</h3>
+            <div ref={mapRef} style={{ height: '350px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+        </div>
+    );
 }
