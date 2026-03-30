@@ -34,7 +34,11 @@ app.use(
 
 app.use(express.json());
 
-// Basic health check route
+// Basic health check routes
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", service: "websocket-messaging" });
+});
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "websocket-messaging" });
 });
