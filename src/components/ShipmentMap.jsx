@@ -192,6 +192,37 @@ const parseLocation = (loc) => {
     return { name: loc, coords: coords ? [coords[1], coords[0]] : null };
 };
 
+// Generate a gentle curve (Bezier arc) between two points
+function generateArc(start, end, numPoints = 30, bend = 0.15) {
+    const coords = [];
+    const [x1, y1] = start;
+    const [x2, y2] = end;
+    
+    // midpoint
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    
+    // distance vector
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    
+    // Check if the path crosses the 180th meridian (Pacific ocean crossing)
+    // If dx is very large, we should probably wrap, but MapLibre handles simple wraparounds mostly ok
+    // To keep it simple, we just apply the bend
+    
+    // perpendicular control point to create the curve
+    const cx = mx - dy * bend;
+    const cy = my + dx * bend;
+
+    for (let i = 0; i <= numPoints; i++) {
+        const t = i / numPoints;
+        const x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
+        const y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+        coords.push([x, y]);
+    }
+    return coords;
+}
+
 export default function ShipmentMap({ origin, destination, currentLocation, status, shipmentType }) {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -244,17 +275,31 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
             // Build route coordinates (always draw a path if 2+ points exist)
             let pathCoords = [];
             if (originInfo.coords && destInfo.coords) {
-                pathCoords.push(originInfo.coords);
-
-                if (mode === 'SEA FREIGHT') {
-                    const smartWaypoints = getMaritimeRoute(originInfo.coords, destInfo.coords);
-                    pathCoords = pathCoords.concat(smartWaypoints);
+                if (mode === 'SEA FREIGHT' || mode === 'AIR FREIGHT') {
+                    // Get waypoints (only SEA FREIGHT uses smart waypoints to avoid land)
+                    const smartWaypoints = mode === 'SEA FREIGHT' 
+                        ? getMaritimeRoute(originInfo.coords, destInfo.coords) 
+                        : [];
+                        
+                    // Full path points
+                    const allPoints = [originInfo.coords, ...smartWaypoints, destInfo.coords];
+                    
+                    // Generate smooth curves between each segment
+                    for (let i = 0; i < allPoints.length - 1; i++) {
+                        // For short segments, bend less
+                        const p1 = allPoints[i];
+                        const p2 = allPoints[i+1];
+                        const dist = Math.sqrt(Math.pow(p2[0]-p1[0], 2) + Math.pow(p2[1]-p1[1], 2));
+                        const bendAmount = dist > 40 ? 0.2 : 0.05; 
+                        
+                        const arc = generateArc(p1, p2, 40, bendAmount);
+                        pathCoords = pathCoords.concat(arc);
+                    }
+                } else {
+                    // Straight line for Transport/Ground
+                    pathCoords.push(originInfo.coords);
+                    pathCoords.push(destInfo.coords);
                 }
-
-                if (currentInfo.coords) {
-                    pathCoords.push(currentInfo.coords);
-                }
-                pathCoords.push(destInfo.coords);
             } else if (originInfo.coords && currentInfo.coords) {
                 pathCoords.push(originInfo.coords);
                 pathCoords.push(currentInfo.coords);

@@ -102,7 +102,13 @@ function StatusUpdateForm({ shipment, onUpdated }) {
                 </div>
                 <div className="st-form-group">
                     <label>Estimated Arrival</label>
-                    <input type="date" name="estimated_arrival" value={form.estimated_arrival} onChange={handleChange} />
+                    <input 
+                        type="date" 
+                        name="estimated_arrival" 
+                        value={form.estimated_arrival} 
+                        onChange={handleChange} 
+                        min={new Date().toISOString().split('T')[0]} 
+                    />
                 </div>
                 <div className="st-form-group st-form-group--full">
                     <label>Remarks / Notes</label>
