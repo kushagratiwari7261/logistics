@@ -168,7 +168,21 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         return; // Doesn't match
       }
 
-      // Re-fetch history to get the new message fully enriched (with attachments added moments later)
+      // 1. INSTANT UPDATE: Add the message to the UI immediately if it's not from us
+      if (payload.sender_id !== currentUser?.id) {
+        setChatMessages(prev => {
+          if (prev.some(m => m.id === payload.id)) return prev;
+          
+          const newMsg = {
+            ...payload,
+            sender: payload.sender || { id: payload.sender_id }, // Basic fallback
+            attachments: payload.attachments || []
+          };
+          return [...prev, newMsg];
+        });
+      }
+
+      // 2. BACKGROUND SYNC: Slight delay to ensure attachments/metadata are fully written to DB
       setTimeout(async () => {
         if (isGroup && conversation?.id) {
           const msgs = await fetchConversationMessages(conversation.id);
@@ -176,7 +190,7 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         } else {
           fetchDmHistory();
         }
-      }, 300); // Slight delay for attachment insertions to finish
+      }, 1000); 
     };
 
     socket.on('receive_message', handleNewMessage);
@@ -256,40 +270,46 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         attachments,
       };
 
+    // 1. OPTIMISTIC UPDATE: Add the message to the UI instantly
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
+      sender_id: currentUser?.id,
+      receiver_id: isGroup ? null : (message?.sender_id === currentUser?.id ? message?.receiver_id : message?.sender_id),
+      conversation_id: isGroup ? conversation?.id : null,
+      content: replyContent,
+      created_at: new Date().toISOString(),
+      is_read: false,
+      sending: true, // Special flag for UI
+      sender: {
+        id: currentUser?.id,
+        full_name: currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0],
+        username: currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0],
+      },
+      attachments: attachments.map(a => ({ file_name: a.name, file_type: a.type, file_size: a.size, storage_path: a.path })),
+    };
+
+    setChatMessages(prev => [...prev, optimisticMsg]);
+    setReplyContent('');
+    setAttachments([]);
+
+    // 2. API CALL: Background save
     const result = await onSendReply(msgData);
     setSending(false);
 
     if (!result?.error) {
-      // Trigger the sent flash animation
       setSentFlash(true);
       setTimeout(() => setSentFlash(false), 1200);
 
-      // Immediately add the sent message to the chat as an optimistic update
-      const optimisticMsg = {
-        id: result?.data?.id || `temp-${Date.now()}`,
-        sender_id: currentUser?.id,
-        receiver_id: msgData.receiver_id || null,
-        conversation_id: msgData.conversation_id || null,
-        content: replyContent,
-        created_at: new Date().toISOString(),
-        is_read: false,
-        sender: {
-          id: currentUser?.id,
-          full_name: currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0],
-          username: currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0],
-        },
-        attachments: attachments.map(a => ({ file_name: a.name, file_type: a.type, file_size: a.size, storage_path: a.path })),
-      };
-
-      setChatMessages(prev => {
-        if (prev.some(m => m.id === optimisticMsg.id)) return prev;
-        return [...prev, optimisticMsg];
-      });
-
-      setReplyContent('');
-      setAttachments([]);
-
-      // Real-time listener will sync the final state in the background
+      // Update the optimistic message with the real ID from DB
+      setChatMessages(prev => prev.map(m => 
+        m.id === tempId ? { ...m, id: result.data.id, sending: false } : m
+      ));
+    } else {
+      // If error, we could mark the message as "Failed"
+      setChatMessages(prev => prev.map(m => 
+        m.id === tempId ? { ...m, error: true, sending: false } : m
+      ));
     }
   };
 
@@ -395,8 +415,17 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
             )}
 
             <div className="wa-bubble-meta">
-              <span className="wa-time">{fmtTime(msg.created_at)}</span>
-              {isMine && <span className="wa-tick">{msg.is_read ? '✓✓' : '✓'}</span>}
+              <span className="wa-time">
+                {msg.sending ? 'Sending...' : fmtTime(msg.created_at)}
+              </span>
+              {isMine && !msg.sending && (
+                <span className="wa-tick">
+                  {msg.error ? '⚠️' : (msg.is_read ? '✓✓' : '✓')}
+                </span>
+              )}
+              {isMine && msg.sending && (
+                <span className="wa-tick-sending">🕒</span>
+              )}
             </div>
           </div>
         </div>

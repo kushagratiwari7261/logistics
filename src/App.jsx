@@ -101,6 +101,20 @@ function App() {
   const [isJobsLoading, setIsJobsLoading] = useState(false)
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false)
 
+  // Wake up the backend server (on free tiers like Render/Railway it might be sleeping)
+  useEffect(() => {
+    const warmupServer = async () => {
+      const serverUrl = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001';
+      try {
+        console.log('🔥 Warming up messaging server...');
+        await fetch(`${serverUrl}/health`);
+      } catch (err) {
+        console.warn('⚠️ Server warmup ping failed (it might still be starting up)');
+      }
+    };
+    warmupServer();
+  }, []);
+
   // Refs to prevent duplicate redirects and auth loops
   const redirectTimeoutRef = useRef(null)
   const lastRedirectRef = useRef(null)

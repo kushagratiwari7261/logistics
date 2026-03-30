@@ -171,6 +171,9 @@ const MessagesMain = ({ user }) => {
           if (result.data) {
             setSelectedMessage(result.data);
           }
+        } else if (result.data) {
+          // If already in a thread, ensure it stays selected
+          setSelectedMessage(result.data);
         }
         
         // Broadcast over WebSocket!
@@ -200,9 +203,6 @@ const MessagesMain = ({ user }) => {
       if (!result.error) {
         if (isGroupComposing) {
           setIsGroupComposing(false);
-          // Optional: we don't have the newly created conversation auto-select easily here, so we just clear.
-          // But if we are in a normal group thread, we don't want to close it!
-          setSelectedConversation(null); 
         }
 
         // Broadcast over WebSocket!
@@ -210,7 +210,7 @@ const MessagesMain = ({ user }) => {
           socket.emit('send_message', {
              ...result.data,
              isGroup: true,
-             conversation_id: messageData.conversation_id,
+             conversation_id: messageData.conversation_id || result.data.conversation_id,
              sender_id: user?.id
           });
         }

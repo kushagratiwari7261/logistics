@@ -85,8 +85,13 @@ io.on("connection", (socket) => {
 
   // The core message forwarding logic
   socket.on("send_message", (messageData) => {
-    // messageData expects: sender_id, receiver_id, conversation_id, isGroup
-    console.log("📨 Received message to forward:", messageData);
+    // ROBUSTNESS: Ensure data exists before processing
+    if (!messageData || (!messageData.isGroup && !messageData.receiver_id)) {
+      console.warn("⚠️ Invalid message packet received:", messageData);
+      return;
+    }
+
+    console.log(`📨 Relaying message from ${messageData.sender_id} to ${messageData.isGroup ? `group_${messageData.conversation_id}` : messageData.receiver_id}`);
 
     if (messageData.isGroup && messageData.conversation_id) {
       // Broadcast to everyone in the group room
@@ -100,8 +105,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Keep-alive/ping logic
+  socket.on("heartbeat", () => {
+    socket.emit("heartbeat_ack");
+  });
+
   socket.on("user_typing", (data) => {
-    // data expects: sender_id, receiver_id, conversation_id, isGroup
+    if (!data) return;
     if (data.isGroup && data.conversation_id) {
       socket.to(`group_${data.conversation_id}`).emit("user_typing", data);
     } else if (data.receiver_id) {
@@ -109,8 +119,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+  socket.on("disconnect", (reason) => {
+    console.log(`❌ Client disconnected: ${socket.id} (${reason})`);
   });
 });
 
