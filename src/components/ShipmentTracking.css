@@ -289,14 +289,19 @@
 }
 
 .st-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px 18px;
     background: var(--bg-surface-2);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text-secondary);
     font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .st-refresh-btn:hover {
@@ -313,10 +318,14 @@
 }
 
 .st-map-container {
-    height: 320px;
-    border-radius: 10px;
+    /* Height controlled by ShipmentMap inner div */
+    border-radius: 14px;
     overflow: hidden;
-    border: 1px solid var(--border);
+}
+
+/* Prevent MapLibre marker jitter on zoom */
+.maplibregl-marker {
+    will-change: transform;
 }
 
 .st-map-placeholder {
@@ -613,26 +622,72 @@
 }
 
 .st-btn-update {
-    padding: 11px 24px;
-    background: var(--brand-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 22px;
+    background: var(--brand-gradient);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3px 16px var(--brand-glow);
+    align-self: flex-start;
+    white-space: nowrap;
+}
+
+.st-btn-update:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px var(--brand-glow);
+}
+
+.st-btn-update:active {
+    transform: scale(0.97);
+}
+
+.st-btn-update:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Save Update button — matches app primary-button style */
+.st-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 28px;
+    width: 100%;
+    background: var(--brand-gradient);
     color: #fff;
     border: none;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-    align-self: flex-start;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3px 16px var(--brand-glow);
+    letter-spacing: 0.2px;
 }
 
-.st-btn-update:hover:not(:disabled) {
-    opacity: 0.88;
-    transform: translateY(-1px);
+.st-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px var(--brand-glow);
 }
 
-.st-btn-update:disabled {
+.st-submit-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.st-submit-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .st-msg {

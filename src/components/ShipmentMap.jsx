@@ -241,7 +241,7 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
 
             mapInstanceRef.current = map;
 
-            // Build route coordinates
+            // Build route coordinates (always draw a path if 2+ points exist)
             let pathCoords = [];
             if (originInfo.coords && destInfo.coords) {
                 pathCoords.push(originInfo.coords);
@@ -252,10 +252,12 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
                 }
 
                 if (currentInfo.coords) {
-                    // Only add current location as intermediate if it's between origin & dest
                     pathCoords.push(currentInfo.coords);
                 }
                 pathCoords.push(destInfo.coords);
+            } else if (originInfo.coords && currentInfo.coords) {
+                pathCoords.push(originInfo.coords);
+                pathCoords.push(currentInfo.coords);
             }
 
             // Calculate bounds from key points only (not waypoints to avoid distortion)
@@ -296,9 +298,12 @@ export default function ShipmentMap({ origin, destination, currentLocation, stat
                         layout: { 'line-join': 'round', 'line-cap': 'round' },
                         paint: {
                             'line-color': STATUS_COLORS[status] || '#6366f1',
-                            'line-width': 3,
-                            'line-dasharray': mode === 'SEA FREIGHT' ? [4, 2] :
-                                              mode === 'AIR FREIGHT' ? [2, 2] : [1, 0],
+                            'line-width': 3.5,
+                            ...(mode === 'SEA FREIGHT'
+                                ? { 'line-dasharray': [6, 3] }
+                                : mode === 'AIR FREIGHT'
+                                ? { 'line-dasharray': [3, 3] }
+                                : {}),
                         },
                     });
                 }
