@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFileUpload } from '../../hooks/useFileUpload';
 import { supabase } from '../../lib/supabaseClient';
+import { socket } from '../../hooks/useMessageSubscription';
 import './MessageThread.css';
 
 /* ── Timestamp helper ── */
@@ -138,7 +139,7 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     }
   }, [isGroup, conversation?.id, message?.id]);
 
-  /* ── Real-time: live message arrival ── */
+  /* ── WebSocket Real-time: live message arrival ── */
   useEffect(() => {
     if (!currentUser?.id) return;
 
@@ -150,10 +151,23 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     if (!isGroup && !otherUserId) return;
     if (isGroup && !conversation?.id) return;
 
-    const channelName = `thread-${isGroup ? conversation?.id : otherUserId}-${Date.now()}`;
-    const channel = supabase.channel(channelName);
+    if (isGroup && conversation?.id) {
+      socket.emit('join_group', conversation.id);
+    }
 
     const handleNewMessage = async (payload) => {
+      // Check if message belongs to this thread
+      if (isGroup && payload.isGroup && payload.conversation_id === conversation?.id) {
+        // Group message matches
+      } else if (!isGroup && !payload.isGroup) {
+        // DM message matches if between these two users
+        const involvesMe = payload.sender_id === currentUser.id || payload.receiver_id === currentUser.id;
+        const involvesThem = payload.sender_id === otherUserId || payload.receiver_id === otherUserId;
+        if (!(involvesMe && involvesThem)) return;
+      } else {
+        return; // Doesn't match
+      }
+
       // Re-fetch history to get the new message fully enriched (with attachments added moments later)
       setTimeout(async () => {
         if (isGroup && conversation?.id) {
@@ -165,29 +179,13 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       }, 300); // Slight delay for attachment insertions to finish
     };
 
-    if (isGroup) {
-      // Group: listen for messages in this conversation
-      channel.on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `conversation_id=eq.${conversation.id}`,
-      }, handleNewMessage);
-    } else {
-      // DM: listen for messages FROM the other user TO me
-      channel.on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `sender_id=eq.${otherUserId}`,
-      }, handleNewMessage);
-      // Also listen for messages FROM me TO the other user (for multi-tab/device sync)
-      channel.on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `sender_id=eq.${currentUser.id}`,
-      }, handleNewMessage);
-    }
-
-    channel.subscribe();
+    socket.on('receive_message', handleNewMessage);
 
     return () => {
-      supabase.removeChannel(channel);
+      socket.off('receive_message', handleNewMessage);
+      if (isGroup && conversation?.id) {
+        socket.emit('leave_group', conversation.id);
+      }
     };
   }, [currentUser?.id, message?.sender_id, message?.receiver_id, isGroup, conversation?.id]);
 

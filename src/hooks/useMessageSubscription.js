@@ -1,48 +1,33 @@
 import { useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Fixed import path
+import { io } from 'socket.io-client';
+
+// Connect to the backend (assumes backend runs on same host or uses Vite proxy/env var)
+// We default to port 3001 if locally developing
+const SOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001';
+export const socket = io(SOCKET_URL, {
+  autoConnect: true,
+  reconnection: true,
+});
 
 export const useMessageSubscription = (userId, callback) => {
   useEffect(() => {
     if (!userId) return;
 
-    console.log('Setting up message subscription for user:', userId);
+    console.log('🔌 Connecting to WebSocket message subscription for user:', userId);
 
-    const channel = supabase
-      .channel(`messages-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('New message received:', payload);
-          callback(payload);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${userId}`
-        },
-        (payload) => {
-          console.log('Message updated:', payload);
-          callback(payload);
-        }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+    socket.emit('join', userId);
+
+    const handleNewMessage = (payload) => {
+      console.log('📨 New message received via WebSocket:', payload);
+      callback(payload);
+    };
+
+    socket.on('receive_message', handleNewMessage);
 
     // Cleanup function
     return () => {
-      console.log('Cleaning up message subscription');
-      supabase.removeChannel(channel);
+      console.log('Cleaning up WebSocket message subscription');
+      socket.off('receive_message', handleNewMessage);
     };
   }, [userId, callback]);
 };

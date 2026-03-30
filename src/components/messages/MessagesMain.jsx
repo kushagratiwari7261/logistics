@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../../hooks/useMessages';
-import { useMessageSubscription } from '../../hooks/useMessageSubscription';
+import { useMessageSubscription, socket } from '../../hooks/useMessageSubscription';
 import { usePresence } from '../../hooks/usePresence';
 import { supabase } from '../../lib/supabaseClient';
 import MessageList from './MessageList';
@@ -172,6 +172,17 @@ const MessagesMain = ({ user }) => {
             setSelectedMessage(result.data);
           }
         }
+        
+        // Broadcast over WebSocket!
+        if (result.data) {
+          socket.emit('send_message', {
+             ...result.data,
+             isGroup: false,
+             sender_id: user?.id,
+             receiver_id: messageData.receiver_id
+          });
+        }
+
         await refetch();
       }
 
@@ -193,6 +204,17 @@ const MessagesMain = ({ user }) => {
           // But if we are in a normal group thread, we don't want to close it!
           setSelectedConversation(null); 
         }
+
+        // Broadcast over WebSocket!
+        if (result.data) {
+          socket.emit('send_message', {
+             ...result.data,
+             isGroup: true,
+             conversation_id: messageData.conversation_id,
+             sender_id: user?.id
+          });
+        }
+
         await refetch();
       }
 

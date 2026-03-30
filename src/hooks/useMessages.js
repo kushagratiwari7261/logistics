@@ -261,7 +261,25 @@ export const useMessages = (userId) => {
         attachmentMap[att.message_id].push(att);
       });
 
-      const messagesWithProfiles = data.map(message => {
+      // GROUP DIRECT MESSAGES BY COUNTERPART USER
+      const dmMap = new Map();
+      const uniqueMessages = [];
+
+      data.forEach(message => {
+        if (message.conversation_id || message.is_group_message || message.is_welcome_message) {
+          // It's a group message or welcome message, we just push it (though group messages shouldn't be here)
+          uniqueMessages.push(message);
+        } else {
+          // Direct message - group by the OTHER user involved
+          const otherUserId = message.sender_id === userId ? message.receiver_id : message.sender_id;
+          if (!dmMap.has(otherUserId)) {
+            dmMap.set(otherUserId, message);
+            uniqueMessages.push(message);
+          }
+        }
+      });
+
+      const messagesWithProfiles = uniqueMessages.map(message => {
         const sender = message.sender_id === 'system' 
           ? { username: 'system', full_name: 'System', avatar_url: null }
           : (profileMap[message.sender_id] || { username: 'Unknown', full_name: 'Unknown User', avatar_url: null });
