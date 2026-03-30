@@ -58,7 +58,7 @@ const MessagesMain = ({ user }) => {
     const onNewMsg = (payload) => {
       console.log('New message received:', payload);
       // Update global unread count or refresh list silently
-      refetch(); 
+      refetch(true); 
     };
 
     socket.on('receive_message', onNewMsg);

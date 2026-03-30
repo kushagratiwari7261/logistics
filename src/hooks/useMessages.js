@@ -8,56 +8,6 @@ export const useMessages = (userId) => {
   const [error, setError] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Debug function to check database state
-  const debugDatabase = async () => {
-    try {
-      console.log('=== DATABASE DEBUG INFO ===');
-
-      // Check messages table
-      const { data: allMessages, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .limit(10);
-
-      console.log('All messages in database:', allMessages);
-      console.log('Messages error:', messagesError);
-
-      // Check profiles table
-      const { data: allProfiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, username, full_name')
-        .limit(10);
-
-      console.log('All profiles in database:', allProfiles);
-      console.log('Profiles error:', profilesError);
-
-      // Check conversations table
-      const { data: allConversations, error: convError } = await supabase
-        .from('conversations')
-        .select('*')
-        .limit(10);
-
-      console.log('All conversations in database:', allConversations);
-      console.log('Conversations error:', convError);
-
-      // Check current user profile
-      if (userId) {
-        const { data: currentProfile, error: userError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-
-        console.log('Current user profile:', currentProfile);
-        console.log('Current user error:', userError);
-      }
-
-      console.log('=== END DEBUG INFO ===');
-    } catch (debugError) {
-      console.error('Debug error:', debugError);
-    }
-  };
-
   // Fetch conversations for the user
   // Fetch conversations for the user - FIXED VERSION
   const fetchConversations = async () => {
@@ -172,15 +122,12 @@ export const useMessages = (userId) => {
   };
 
   // Simple fetch without complex joins - optimized version
-  const fetchMessages = async () => {
+  const fetchMessages = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
-
-      console.log('Fetching messages for user:', userId);
-
-      // Run debug first to see database state
-      await debugDatabase();
 
       // Fetch conversations
       await fetchConversations();
@@ -389,8 +336,8 @@ export const useMessages = (userId) => {
         console.log('All attachments processed');
       }
 
-      // Refresh messages after sending
-      await fetchMessages();
+      // Refresh messages after sending (silent refresh)
+      await fetchMessages(true);
 
       return { data, error: null };
     } catch (err) {
@@ -449,8 +396,8 @@ export const useMessages = (userId) => {
         console.log('All group attachments processed');
       }
 
-      // Refresh messages after sending
-      await fetchMessages();
+      // Refresh messages after sending (silent refresh)
+      await fetchMessages(true);
 
       return { data, error: null };
     } catch (err) {
