@@ -627,8 +627,8 @@ const NewShipments = () => {
     // Ensure all required fields for PDFGenerator are present
     return {
       ...shipmentData,
-      shipmentNo: isEditing ? editingShipment.shipmentNo : `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`,
-      mtdNumber: isEditing ? editingShipment.shipmentNo : `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`,
+      shipmentNo: isEditing ? (editingShipment.shipment_no || editingShipment.shipmentNo) : (result?.[0]?.shipment_no || `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`),
+      mtdNumber: isEditing ? (editingShipment.shipment_no || editingShipment.shipmentNo) : (result?.[0]?.shipment_no || `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`),
       // Map fields that PDFGenerator expects
       hs_code: shipmentData.hs_code || '',
       gross_weight: shipmentData.gross_weight || '',
@@ -783,9 +783,19 @@ const NewShipments = () => {
           if (error) throw error;
           result = updatedShipment;
         } else {
+          // ============ NEW: Generate Sequential Shipment No ============
+          const { count, error: countErr } = await supabase
+            .from('shipments')
+            .select('*', { count: 'exact', head: true });
+          
+          if (countErr) console.error('Error fetching shipment count:', countErr);
+          
+          const nextNum = (count || 0) + 1;
+          const shipmentNo = `MTD-${String(nextNum).padStart(6, '0')}`;
+          
           const { data: newShipment, error } = await supabase
             .from('shipments')
-            .insert([cleanShipmentData])
+            .insert([{ ...cleanShipmentData, shipment_no: shipmentNo }])
             .select();
           
           if (error) throw error;

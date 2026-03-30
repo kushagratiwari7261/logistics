@@ -166,6 +166,15 @@ const UserSearch = ({ onUserSelect, selectedUser, currentUserId }) => {
                   <div className="user-info">
                     <div className="user-primary">
                       <span className="user-name">{getUserDisplayName(user)}</span>
+                      <button 
+                        className="user-select-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectUser(user);
+                        }}
+                      >
+                        Message
+                      </button>
                     </div>
                     <div className="user-secondary">
                       {user.email && (

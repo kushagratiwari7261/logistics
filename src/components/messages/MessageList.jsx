@@ -51,11 +51,13 @@ const MessageList = ({
   onSelectConversation,
   currentUserId,
   loading,
-  searchQuery,
   filter,
+  contacts = [],
+  onSelectContact
 }) => {
   const showGroups = filter === 'all' || filter === 'groups';
-  const showDMs = filter !== 'groups';
+  const showDMs = filter !== 'groups' && filter !== 'contacts';
+  const showContacts = filter === 'contacts';
 
   const groupConversations = (conversations || []).filter(c => c.is_group);
   const dmMessages = (messages || []).filter(msg => !msg.conversation_id);
@@ -118,6 +120,38 @@ const MessageList = ({
           currentUserId={currentUserId}
         />
       ))}
+
+      {/* Contacts List */}
+      {showContacts && (
+        <div className="contacts-list">
+          <div className="list-section-label">All Users</div>
+          {(contacts || []).filter(u => 
+            !searchQuery || 
+            u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+          ).map(user => (
+            <div 
+              key={user.id} 
+              className="message-item contact-item"
+              onClick={() => onSelectContact(user)}
+            >
+              <div className="message-avatar">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.full_name} />
+                ) : (
+                  <div className="avatar-fallback">{(user.full_name || 'U')[0]}</div>
+                )}
+              </div>
+              <div className="message-content">
+                <div className="message-header">
+                  <span className="message-sender">{user.full_name || user.username}</span>
+                </div>
+                <div className="message-preview">{user.email}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import ShipmentMap from './ShipmentMap';
 import StatusTimeline from './StatusTimeline';
 import { STATUS_COLORS } from '../constants/shipment';
-import { Map, Clock, Package } from 'lucide-react';
+import { Map, Clock, Package, CreditCard } from 'lucide-react';
+import { openRazorpay } from '../utils/paymentUtils';
 import './ShipmentTracking.css'; // Reuse styles
 
 export default function TrackShipment() {
@@ -108,7 +109,7 @@ export default function TrackShipment() {
     const statusColor = STATUS_COLORS[shipment.status] || '#6366f1';
 
     const fields = [
-        ['Shipment No', shipment.shipment_no || shipment.id],
+        ['Shipment No', shipment.shipment_no || `MTD-${String(shipment.id).slice(0, 8).toUpperCase()}`],
         ['Origin', shipment.por || shipment.pol],
         ['Destination', shipment.pod || shipment.destination],
         ['Type', shipment.shipment_type],
@@ -125,7 +126,7 @@ export default function TrackShipment() {
                 {/* Header */}
                 <div className="st-detail-header" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                     <div className="st-detail-title">
-                        <h2>{shipment.shipment_no || `SHP-${String(shipment.id).padStart(6, '0')}`}</h2>
+                        <h2>{shipment.shipment_no || `MTD-${String(shipment.id).slice(0, 8).toUpperCase()}`}</h2>
                         <span className="st-status-chip" style={{ background: statusColor }}>
                             {shipment.status || 'Booked'}
                         </span>
@@ -143,6 +144,35 @@ export default function TrackShipment() {
                         shipmentType={shipment.shipment_type}
                     />
                 </div>
+
+                {/* Payment Card (Public) */}
+                {shipment.freight && parseFloat(shipment.freight) > 0 && (
+                    <div className="st-payment-card-public">
+                        <div className="st-pay-left">
+                            <CreditCard size={24} className="st-pay-icon" />
+                            <div>
+                                <h3>Freight Payment</h3>
+                                <p>{shipment.payment_status === 'paid' ? 'Completed' : 'Outstanding'}</p>
+                            </div>
+                        </div>
+                        <div className="st-pay-right">
+                            <div className="st-pay-amount">
+                                <span>₹</span>
+                                {parseFloat(shipment.freight).toLocaleString('en-IN')}
+                            </div>
+                            {shipment.payment_status !== 'paid' ? (
+                                <button 
+                                    className="st-pay-now-btn-public"
+                                    onClick={() => openRazorpay(shipment, shipment.freight, fetchData, (err) => alert(err))}
+                                >
+                                    Pay Now
+                                </button>
+                            ) : (
+                                <span className="st-paid-badge-public">✓ Paid</span>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className="st-detail-body">
                     {/* Timeline */}

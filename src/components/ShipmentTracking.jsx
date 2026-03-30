@@ -24,6 +24,7 @@ import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
 import StatusTimeline from './StatusTimeline';
 import LocationPicker from './LocationPicker';
+import { openRazorpay } from '../utils/paymentUtils';
 import './ShipmentTracking.css';
 
 /* ─── Status Update Form ─────────────────────────────── */
@@ -457,6 +458,7 @@ function ShipmentList({ onSelect }) {
                                 <th>Route</th>
                                 <th>Type</th>
                                 <th>Status</th>
+                                <th>Payment</th>
                                 <th>Location</th>
                                 <th>ETA</th>
                                 <th>Last Updated</th>
@@ -465,7 +467,7 @@ function ShipmentList({ onSelect }) {
                         <tbody>
                             {filtered.map(s => (
                                 <tr key={s.id} className="st-table-row" onClick={() => onSelect(s)}>
-                                    <td className="st-mono">{s.shipment_no || `SHP-${String(s.id).padStart(6, '0')}`}</td>
+                                    <td className="st-mono">{s.shipment_no || `MTD-${String(s.id).slice(0, 8).toUpperCase()}`}</td>
                                     <td className="st-mono st-awb">{s.awb || s.hbl_no || '—'}</td>
                                     <td>{s.client || '—'}</td>
                                     <td className="st-route">{s.por || '—'} → {s.pod || '—'}</td>
@@ -474,6 +476,22 @@ function ShipmentList({ onSelect }) {
                                         <span className="st-status-pill"
                                             style={{ background: (STATUS_COLORS[s.status] || '#6366f1') + '22', color: STATUS_COLORS[s.status] || '#6366f1', border: `1px solid ${STATUS_COLORS[s.status] || '#6366f1'}44` }}>
                                             {s.status || 'Booked'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className={`st-payment-pill ${s.payment_status === 'paid' ? 'paid' : 'pending'}`}>
+                                            {s.payment_status === 'paid' ? 'Paid' : (parseFloat(s.freight) > 0 ? `Pay Now` : 'Unpaid')}
+                                            {s.payment_status !== 'paid' && parseFloat(s.freight) > 0 && (
+                                                <button 
+                                                    className="st-pay-btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openRazorpay(s, s.freight, () => setRefreshKey(k => k + 1), (err) => alert(err));
+                                                    }}
+                                                >
+                                                    💳
+                                                </button>
+                                            )}
                                         </span>
                                     </td>
                                     <td className="st-location">{s.current_location || '—'}</td>

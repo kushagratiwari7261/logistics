@@ -12,10 +12,12 @@ const MessagesMain = ({ user }) => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [initialRecipient, setInitialRecipient] = useState(null);
   const [isGroupComposing, setIsGroupComposing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // all, unread, sent, received, groups
+  const [filter, setFilter] = useState('all'); // all, unread, sent, received, groups, contacts
   const [initialLoading, setInitialLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState([]);
 
   // Track if component has loaded data before
   const hasLoadedRef = useRef(false);
@@ -50,6 +52,28 @@ const MessagesMain = ({ user }) => {
     refetch(); // Refresh messages when new message arrives
   });
 
+  // Fetch all users for Contacts view
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, email')
+          .neq('id', user?.id)
+          .limit(100);
+        
+        if (error) throw error;
+        setAllUsers(data || []);
+      } catch (err) {
+        console.error('Error fetching users for contacts:', err);
+      }
+    };
+
+    if (user?.id) {
+      fetchAllUsers();
+    }
+  }, [user?.id]);
+
   // Filter messages and conversations based on selected filter
   const getFilteredMessages = () => {
     if (!messages || messages.length === 0) return [];
@@ -78,6 +102,9 @@ const MessagesMain = ({ user }) => {
           msg.conversation_id && !msg.deleted_at
         );
         break;
+      case 'contacts':
+        // The sidebar will handle rendering contacts separately when this filter is active
+        return [];
       case 'all':
       default:
         filtered = messages.filter(msg => !msg.deleted_at);
@@ -117,6 +144,7 @@ const MessagesMain = ({ user }) => {
     setSelectedMessage(null);
     setSelectedConversation(null);
     setIsComposing(true);
+    setInitialRecipient(null);
     setIsGroupComposing(false);
   };
 
@@ -205,6 +233,7 @@ const MessagesMain = ({ user }) => {
     setSelectedMessage(null);
     setSelectedConversation(null);
     setIsComposing(false);
+    setInitialRecipient(null);
     setIsGroupComposing(false);
   };
 
@@ -320,15 +349,30 @@ const MessagesMain = ({ user }) => {
             >
               Groups
             </button>
+            <button
+              className={`filter-btn ${filter === 'contacts' ? 'active' : ''}`}
+              onClick={() => setFilter('contacts')}
+              disabled={loading}
+            >
+              Contacts
+            </button>
           </div>
 
           <MessageList
             messages={filteredMessages}
             conversations={conversations}
+            contacts={allUsers}
             selectedMessage={selectedMessage}
             selectedConversation={selectedConversation}
             onSelectMessage={handleMessageSelect}
             onSelectConversation={handleConversationSelect}
+            onSelectContact={(contact) => {
+              // Instead of just selecting, we switch to "Compose" with this contact
+              setSelectedMessage(null);
+              setSelectedConversation(null);
+              setIsComposing(true);
+              setInitialRecipient(contact);
+            }}
             currentUserId={user?.id}
             loading={loading && !hasLoadedRef.current}
             searchQuery={searchQuery}
@@ -343,6 +387,7 @@ const MessagesMain = ({ user }) => {
               currentUser={user}
               onSend={handleSendMessage}
               onCancel={handleBackToList}
+              initialRecipient={initialRecipient}
             />
           ) : isGroupComposing ? (
             <GroupComposeMessage

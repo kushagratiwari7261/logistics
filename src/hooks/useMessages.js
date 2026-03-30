@@ -86,42 +86,35 @@ export const useMessages = (userId) => {
         (participantData || []).map(async (participant) => {
           const conversation = participant.conversations;
 
-          // FIXED: Get participants without embedded profiles
-          const { data: participants, error: partError } = await supabase
+          // Fetch all participants for this conversation
+          const { data: participants } = await supabase
             .from('conversation_participants')
             .select('user_id')
             .eq('conversation_id', conversation.id);
 
-          if (partError) console.error('Error fetching participants:', partError);
+          const participantIds = (participants || []).map(p => p.user_id);
+          
+          // Batch fetch profiles for all participants
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .in('id', participantIds);
 
-          // FIXED: Fetch profile details separately
-          const participantsWithProfiles = await Promise.all(
-            (participants || []).map(async (part) => {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('id, username, full_name, avatar_url')
-                .eq('id', part.user_id)
-                .single();
+          const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
 
-              return {
-                user_id: part.user_id,
-                profile: profile || { id: part.user_id, username: 'unknown', full_name: 'Unknown User' }
-              };
-            })
-          );
+          const participantsWithProfiles = (participants || []).map(part => ({
+            user_id: part.user_id,
+            profile: profileMap[part.user_id] || { id: part.user_id, username: 'unknown', full_name: 'Unknown User' }
+          }));
 
           // Get last message in conversation
-          const { data: lastMessage, error: msgError } = await supabase
+          const { data: lastMessage } = await supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversation.id)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-
-          if (msgError && msgError.code !== 'PGRST116') {
-            console.error('Error fetching last message:', msgError);
-          }
 
           return {
             ...conversation,
@@ -241,61 +234,49 @@ export const useMessages = (userId) => {
         return;
       }
 
-      // For real messages, fetch user profiles
-      const messagesWithProfiles = await Promise.all(
-        data.map(async (message) => {
-          try {
-            let sender = { username: 'Unknown', full_name: 'Unknown User', avatar_url: null };
-            let receiver = { username: 'Unknown', full_name: 'Unknown User', avatar_url: null };
+      // Batch fetch all unique user IDs involved in these messages
+      const userIds = new Set();
+      data.forEach(msg => {
+        if (msg.sender_id && msg.sender_id !== 'system') userIds.add(msg.sender_id);
+        if (msg.receiver_id && msg.receiver_id !== 'system') userIds.add(msg.receiver_id);
+      });
 
-            // Only fetch profiles for non-system users
-            if (message.sender_id !== 'system') {
-              const { data: senderData } = await supabase
-                .from('profiles')
-                .select('username, full_name, avatar_url')
-                .eq('id', message.sender_id)
-                .single();
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', Array.from(userIds));
 
-              if (senderData) sender = senderData;
-            } else {
-              sender = { username: 'system', full_name: 'System', avatar_url: null };
-            }
+      const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+      
+      // Batch fetch all attachments for these messages
+      const messageIds = data.map(m => m.id);
+      const { data: allAttachments } = await supabase
+        .from('message_attachments')
+        .select('*')
+        .in('message_id', messageIds);
 
-            if (message.receiver_id !== 'system') {
-              const { data: receiverData } = await supabase
-                .from('profiles')
-                .select('username, full_name, avatar_url')
-                .eq('id', message.receiver_id)
-                .single();
+      const attachmentMap = {};
+      (allAttachments || []).forEach(att => {
+        if (!attachmentMap[att.message_id]) attachmentMap[att.message_id] = [];
+        attachmentMap[att.message_id].push(att);
+      });
 
-              if (receiverData) receiver = receiverData;
-            } else {
-              receiver = { username: 'system', full_name: 'System', avatar_url: null };
-            }
+      const messagesWithProfiles = data.map(message => {
+        const sender = message.sender_id === 'system' 
+          ? { username: 'system', full_name: 'System', avatar_url: null }
+          : (profileMap[message.sender_id] || { username: 'Unknown', full_name: 'Unknown User', avatar_url: null });
+        
+        const receiver = message.receiver_id === 'system'
+          ? { username: 'system', full_name: 'System', avatar_url: null }
+          : (profileMap[message.receiver_id] || { username: 'Unknown', full_name: 'Unknown User', avatar_url: null });
 
-            // Fetch attachments
-            const { data: attachments } = await supabase
-              .from('message_attachments')
-              .select('*')
-              .eq('message_id', message.id);
-
-            return {
-              ...message,
-              sender,
-              receiver,
-              attachments: attachments || []
-            };
-          } catch (err) {
-            console.warn('Error enriching message:', err);
-            return {
-              ...message,
-              sender: { username: 'Unknown', full_name: 'Unknown Sender', avatar_url: null },
-              receiver: { username: 'Unknown', full_name: 'Unknown Receiver', avatar_url: null },
-              attachments: []
-            };
-          }
-        })
-      );
+        return {
+          ...message,
+          sender,
+          receiver,
+          attachments: attachmentMap[message.id] || []
+        };
+      });
 
       setMessages(messagesWithProfiles);
 

@@ -137,6 +137,110 @@
     color: var(--brand-primary);
 }
 
+/* ── Public Payment Card ── */
+.st-payment-card-public {
+    margin: 20px 30px 0;
+    padding: 24px;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.st-pay-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.st-pay-left h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1e293b;
+}
+
+.st-pay-left p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.st-pay-icon {
+    color: #6366f1;
+    padding: 10px;
+    background: #6366f115;
+    border-radius: 12px;
+}
+
+.st-pay-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.st-pay-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.st-pay-amount span {
+    font-size: 16px;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.st-pay-now-btn-public {
+    padding: 12px 32px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.st-pay-now-btn-public:hover {
+    background: #4f46e5;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(99, 102, 241, 0.3);
+}
+
+.st-paid-badge-public {
+    padding: 8px 16px;
+    background: #10b98115;
+    color: #10b981;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .st-payment-card-public {
+        flex-direction: column;
+        margin: 15px;
+        align-items: stretch;
+        text-align: center;
+    }
+    .st-pay-left {
+        flex-direction: column;
+    }
+    .st-pay-right {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+
 /* ── Table ── */
 .st-table-wrap {
     overflow-x: auto;
@@ -685,27 +789,6 @@
 
 .st-submit-btn:disabled {
     opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-.st-msg {
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13.5px;
-    font-weight: 500;
-}
-
-.st-msg--ok {
-    background: var(--success-bg);
-    color: var(--success);
-    border: 1px solid var(--success);
-}
-
-.st-msg--err {
-    background: var(--danger-bg);
-    color: var(--danger);
     border: 1px solid var(--danger);
 }
 /* ============================================================

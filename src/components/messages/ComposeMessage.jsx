@@ -3,8 +3,8 @@ import { useFileUpload } from '../../hooks/useFileUpload';
 import UserSearch from './UserSearch';
 import './ComposeMessage.css';
 
-const ComposeMessage = ({ currentUser, onSend, onCancel }) => {
-  const [recipient, setRecipient] = useState(null);
+const ComposeMessage = ({ currentUser, onSend, onCancel, initialRecipient }) => {
+  const [recipient, setRecipient] = useState(initialRecipient || null);
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState([]);
