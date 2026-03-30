@@ -165,8 +165,13 @@ const MessagesMain = ({ user }) => {
       const result = await sendMessage(messageData);
 
       if (!result.error) {
-        setIsComposing(false);
-        setSelectedMessage(null);
+        if (isComposing) {
+          setIsComposing(false);
+          // Auto-select the newly sent message so it opens as a DM thread
+          if (result.data) {
+            setSelectedMessage(result.data);
+          }
+        }
         await refetch();
       }
 
@@ -182,8 +187,12 @@ const MessagesMain = ({ user }) => {
       const result = await sendGroupMessage(messageData);
 
       if (!result.error) {
-        setIsGroupComposing(false);
-        setSelectedConversation(null);
+        if (isGroupComposing) {
+          setIsGroupComposing(false);
+          // Optional: we don't have the newly created conversation auto-select easily here, so we just clear.
+          // But if we are in a normal group thread, we don't want to close it!
+          setSelectedConversation(null); 
+        }
         await refetch();
       }
 

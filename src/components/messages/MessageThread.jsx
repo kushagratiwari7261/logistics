@@ -95,12 +95,27 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       const profileMap = {};
       (profiles || []).forEach(p => { profileMap[p.id] = p; });
 
-      // Step 3: Enrich messages with profile data
+      // Step 3: Fetch attachments for all fetched messages
+      const messageIds = data.map(m => m.id);
+      let attachmentMap = {};
+      if (messageIds.length > 0) {
+        const { data: allAttachments } = await supabase
+          .from('message_attachments')
+          .select('*')
+          .in('message_id', messageIds);
+        
+        (allAttachments || []).forEach(att => {
+          if (!attachmentMap[att.message_id]) attachmentMap[att.message_id] = [];
+          attachmentMap[att.message_id].push(att);
+        });
+      }
+
+      // Step 4: Enrich messages with profile data and attachments
       const enriched = data.map(msg => ({
         ...msg,
         sender: profileMap[msg.sender_id] || { id: msg.sender_id, full_name: 'Unknown', username: 'unknown' },
         receiver: profileMap[msg.receiver_id] || { id: msg.receiver_id, full_name: 'Unknown', username: 'unknown' },
-        attachments: [],
+        attachments: attachmentMap[msg.id] || [],
       }));
 
       setChatMessages(enriched);
@@ -139,25 +154,15 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     const channel = supabase.channel(channelName);
 
     const handleNewMessage = async (payload) => {
-      const newMsg = payload.new;
-      // Enrich with sender profile
-      const { data: sender } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url')
-        .eq('id', newMsg.sender_id)
-        .maybeSingle();
-
-      const enriched = {
-        ...newMsg,
-        sender: sender || { id: newMsg.sender_id, full_name: 'Unknown', username: 'unknown' },
-        attachments: [],
-      };
-
-      // Add to chat — avoid duplicates
-      setChatMessages(prev => {
-        if (prev.some(m => m.id === enriched.id)) return prev;
-        return [...prev, enriched];
-      });
+      // Re-fetch history to get the new message fully enriched (with attachments added moments later)
+      setTimeout(async () => {
+        if (isGroup && conversation?.id) {
+          const msgs = await fetchConversationMessages(conversation.id);
+          setChatMessages(msgs);
+        } else {
+          fetchDmHistory();
+        }
+      }, 300); // Slight delay for attachment insertions to finish
     };
 
     if (isGroup) {
@@ -286,14 +291,7 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
       setReplyContent('');
       setAttachments([]);
 
-      // Also do a full refresh to sync with server
-      if (isGroup && conversation?.id) {
-        const msgs = await fetchConversationMessages(conversation.id);
-        setChatMessages(msgs);
-      } else {
-        // Refresh DM history to get the real message from DB
-        setTimeout(() => fetchDmHistory(), 500);
-      }
+      // Real-time listener will sync the final state in the background
     }
   };
 
