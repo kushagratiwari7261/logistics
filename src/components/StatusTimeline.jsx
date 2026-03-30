@@ -28,17 +28,17 @@ export default function StatusTimeline({ currentStatus, updates }) {
                         </div>
                         <div className="st-timeline-content">
                             <span className="st-timeline-label">{step.label}</span>
-                            {isCurrent && <span className="st-timeline-badge">Current</span>}
+                            {isCurrent ? <span className="st-timeline-badge">Current</span> : null}
                         </div>
-                        {idx < STATUS_STEPS.length - 1 && (
+                        {idx < STATUS_STEPS.length - 1 ? (
                             <div className={`st-timeline-connector ${isCompleted || isCurrent ? 'active' : ''}`} />
-                        )}
+                        ) : null}
                     </div>
                 );
             })}
 
             {/* Actual DB updates */}
-            {updates && updates.length > 0 && (
+            {(updates && updates.length > 0) ? (
                 <div className="st-update-log">
                     <h4>Update History</h4>
                     {updates.map((u, i) => (
@@ -52,7 +52,7 @@ export default function StatusTimeline({ currentStatus, updates }) {
                         </div>
                     ))}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }
