@@ -71,7 +71,7 @@ app.get("/api/cron/greetings", async (req, res) => {
     if (error) throw error;
     if (!users || users.length === 0) return res.json({ msg: "No users found" });
 
-    const subject = type === 'morning' ? "Good Morning from Seal Freight System ☀️" : "Good Night from Seal Freight System 🌙";
+    const subject = type === 'morning' ? "Daily Update: Seal Freight System" : "System Status: Seal Freight Logistics";
     const greeting = type === 'morning' ? "Good Morning" : "Good Night";
     const bodyText = type === 'morning' 
       ? "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly." 
@@ -136,7 +136,7 @@ app.get("/api/cron/payments", async (req, res) => {
         await resend.emails.send({
           from: 'Seal Freight Alerts <alerts@prudata.info>',
           to: payment.email,
-          subject: "⚠️ Action Required: Payment Failed",
+          subject: "Seal Freight: Important Update Regarding Your Payment",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #fff5f5; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #feb2b2;">
@@ -199,7 +199,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         await resend.emails.send({
           from: 'Seal Freight System <system@prudata.info>',
           to: allRecipients,
-          subject: `📦 Status Update: Shipment #${shipmentId}`,
+          subject: `Seal Freight: Shipment Status Update (#${shipmentId.slice(0, 8)})`,
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
@@ -241,7 +241,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         await resend.emails.send({
           from: 'Seal Freight Alerts <alerts@prudata.info>',
           to: allRecipients,
-          subject: "⚠️ Critical: Payment Failed",
+          subject: "Seal Freight: Important Update Regarding A Payment",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #fff5f5; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #feb2b2;">
