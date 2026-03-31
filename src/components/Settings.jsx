@@ -106,6 +106,53 @@ const Settings = ({ user }) => {
         setTimeout(() => setSavedMsg(''), 2500)
     }
 
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you absolutely sure you want to delete your account? This will permanently delete all your shipments, jobs, messages, and your profile. This action cannot be undone.")) {
+            return;
+        }
+
+        setSaving(true);
+        try {
+            // 1. Delete all shipments created by this user
+            await supabase.from('shipments').delete().eq('user_id', user.id);
+
+            // 2. Delete all jobs created by this user
+            await supabase.from('jobs').delete().eq('user_id', user.id);
+
+            // 3. Delete all messages associated with this user
+            await supabase.from('messages').delete().or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+            // 4. Delete profile and user settings
+            await supabase.from('user_settings').delete().eq('user_id', user.id);
+            await supabase.from('profiles').delete().eq('id', user.id);
+
+            // 5. Try to call an RPC if it exists in the backend to delete the auth.users record
+            const { error: rpcError } = await supabase.rpc('delete_user');
+            if (rpcError && !rpcError.message.includes('Could not find')) {
+                console.warn('RPC delete_user failed:', rpcError);
+            }
+
+            // 6. Force sign out and clear local storage
+            await supabase.auth.signOut();
+            
+            // Clean local storage fully
+            const storageKeys = Object.keys(localStorage);
+            storageKeys.forEach(key => {
+                if (key.includes('supabase') || key.includes('sf_') || key.includes('sb-')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            window.location.href = '/login';
+
+        } catch (error) {
+            console.error("Error deleting account logs:", error);
+            alert("An error occurred while cleaning up your account data. Please contact support. Details: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    }
+
     const handleMode = (m) => { setColorMode(m); applyColorMode(m) }
     const handleAccent = (id) => { setAccentColor(id); applyAccent(id) }
 
@@ -252,7 +299,10 @@ const Settings = ({ user }) => {
                             <span className="s-card-icon" style={{ background: 'linear-gradient(135deg,#991b1b,#f87171)' }}><AlertTriangle size={18} /></span>
                             <div><h3 className="s-card-title" style={{ color: 'var(--danger)' }}>Danger Zone</h3><p className="s-card-desc">These actions cannot be undone</p></div>
                         </div>
-                        <button className="s-danger-btn"><Trash2 size={16} /> Delete Account</button>
+                        <button className="s-danger-btn" onClick={handleDeleteAccount} disabled={saving}>
+                            {saving ? <span className="settings-btn-spinner" /> : <Trash2 size={16} />} 
+                            {saving ? 'Deleting...' : 'Delete Account'}
+                        </button>
                     </div>
                 </div>
             </div>
