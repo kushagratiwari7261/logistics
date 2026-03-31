@@ -82,7 +82,7 @@ app.get("/api/cron/greetings", async (req, res) => {
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user => 
       resend.emails.send({
-        from: 'Seal Freight <system@sealfreight.com>',
+        from: 'Seal Freight <system@prudata.info>',
         to: user.email,
         subject: subject,
         html: `
@@ -134,7 +134,7 @@ app.get("/api/cron/payments", async (req, res) => {
     for (const payment of failedPayments) {
       if (payment.email) {
         await resend.emails.send({
-          from: 'Seal Freight Alerts <alerts@sealfreight.com>',
+          from: 'Seal Freight Alerts <alerts@prudata.info>',
           to: payment.email,
           subject: "⚠️ Action Required: Payment Failed",
           html: `
@@ -197,7 +197,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
-          from: 'Seal Freight System <system@sealfreight.com>',
+          from: 'Seal Freight System <system@prudata.info>',
           to: allRecipients,
           subject: `📦 Status Update: Shipment #${shipmentId}`,
           html: `
@@ -239,7 +239,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
 
         await resend.emails.send({
-          from: 'Seal Freight Alerts <alerts@sealfreight.com>',
+          from: 'Seal Freight Alerts <alerts@prudata.info>',
           to: allRecipients,
           subject: "⚠️ Critical: Payment Failed",
           html: `
