@@ -106,10 +106,19 @@ function App() {
   // Wake up the backend server (on free tiers like Render/Railway it might be sleeping)
   useEffect(() => {
     const warmupServer = async () => {
-      const serverUrl = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001';
+      // Don't attempt to connect to localhost when running in production (Vercel)
+      const serverUrl = import.meta.env.VITE_WEBSOCKET_URL || '';
+      
+      if (!serverUrl || serverUrl.includes('localhost')) {
+        if (import.meta.env.PROD) {
+          console.log('ℹ️ Messaging server URL not configured for production; skipping warmup.');
+          return;
+        }
+      }
+
       try {
-        console.log('🔥 Warming up messaging server...');
-        await fetch(`${serverUrl}/health`);
+        console.log(`🔥 Warming up messaging server at: ${serverUrl}`);
+        if (serverUrl) await fetch(`${serverUrl}/health`);
       } catch (err) {
         console.warn('⚠️ Server warmup ping failed (it might still be starting up)');
       }

@@ -6,14 +6,7 @@ import sealLogo from '../seal.png';
 import loadingImage from './image.png';
 import './Login.css';
 
-// ===== SUPABASE CONFIGURATION =====
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
-
-let supabase = null;
-if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('https://')) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-}
+import { supabase } from '../lib/supabaseClient';
 
 const Login = ({ onLogin }) => {
   const navigate = useNavigate();
