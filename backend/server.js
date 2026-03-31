@@ -192,8 +192,8 @@ app.post("/api/webhooks/shipments", async (req, res) => {
 
       if (isStatusUpdate) {
         const newStatus = payload.record.status;
-        const trackingUrl = `https://logistics-alpha-steel.vercel.app/tracking?id=${shipmentId}`;
-        const whatsappMsg = encodeURIComponent(`📦 *Shipment Update from Seal Freight*\nShipment #${shipmentId} status is now: *${newStatus}*\n\nTrack here: ${trackingUrl}`);
+        const trackingUrl = `https://logistics-alpha-steel.vercel.app/track/${shipmentId}`;
+        const whatsappMsg = encodeURIComponent(`📦 Track your shipment ${shipmentId} update here: ${trackingUrl}`);
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
