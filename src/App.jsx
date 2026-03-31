@@ -478,7 +478,6 @@ function App() {
       setIsAuthenticated(false);
       setUser(null);
       authInitializedRef.current = false;
-      sessionCheckedRef.current = false;
 
       if (shouldRedirect('/login')) {
         navigate('/login', { replace: true });
@@ -492,7 +491,6 @@ function App() {
       setIsAuthenticated(false);
       setUser(null);
       authInitializedRef.current = false;
-      sessionCheckedRef.current = false;
       if (shouldRedirect('/login')) {
         navigate('/login', { replace: true });
       }
