@@ -18,5 +18,19 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/greetings?type=morning",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/greetings?type=night",
+      "schedule": "50 23 * * *"
+    },
+    {
+      "path": "/api/cron/payments",
+      "schedule": "0 12 * * *"
+    }
+  ]
 }
