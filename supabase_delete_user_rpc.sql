@@ -15,16 +15,10 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- 1. Delete user's jobs
-  DELETE FROM public.jobs WHERE user_id = uid;
-  
-  -- 2. Delete user's shipments
-  DELETE FROM public.shipments WHERE user_id = uid;
-  
-  -- 3. Delete user's messages
+  -- 1. Delete user's messages (but preserve jobs, shipments, and payments)
   DELETE FROM public.messages WHERE sender_id = uid OR receiver_id = uid;
 
-  -- 4. Delete user profile (and any user_settings will cascade if FK is set, or delete them explicitly)
+  -- 2. Delete user profile and settings
   DELETE FROM public.user_settings WHERE user_id = uid;
   DELETE FROM public.profiles WHERE id = uid;
 

@@ -107,22 +107,17 @@ const Settings = ({ user }) => {
     }
 
     const handleDeleteAccount = async () => {
-        if (!window.confirm("Are you absolutely sure you want to delete your account? This will permanently delete all your shipments, jobs, messages, and your profile. This action cannot be undone.")) {
+        if (!window.confirm("Are you absolutely sure you want to delete your account? Your profile and messages will be removed, but essential company records (Jobs, Shipments, Payments, and Tracking) will be permanently preserved. This action cannot be undone.")) {
             return;
         }
 
         setSaving(true);
         try {
-            // 1. Delete all shipments created by this user
-            await supabase.from('shipments').delete().eq('user_id', user.id);
-
-            // 2. Delete all jobs created by this user
-            await supabase.from('jobs').delete().eq('user_id', user.id);
-
-            // 3. Delete all messages associated with this user
+            // Note: Jobs, Shipments, Payments, and Tracking are explicitly NOT deleted to preserve company records.
+            // 1. Delete all messages associated with this user
             await supabase.from('messages').delete().or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
-            // 4. Delete profile and user settings
+            // 2. Delete profile and user settings
             await supabase.from('user_settings').delete().eq('user_id', user.id);
             await supabase.from('profiles').delete().eq('id', user.id);
 
