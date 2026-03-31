@@ -1,0 +1,323 @@
+/* =======================================================
+   Register.css — Premium Full-Screen Centered Register
+   Seal Freight | 2025
+   ======================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* REUSING STYLES FROM LOGIN.CSS FOR CONSISTENCY */
+
+.register-page {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    position: relative;
+    overflow: hidden;
+    background: #060c1a;
+}
+
+/* Background layers */
+.register-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 80% 60% at 10% 20%, rgba(99, 102, 241, 0.22) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(6, 182, 212, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 50% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+        linear-gradient(160deg, #060c1a 0%, #0a1628 40%, #060c1a 100%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.register-page::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: meshDriftRegister 30s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+}
+
+@keyframes meshDriftRegister {
+    from { transform: translateY(0); }
+    to { transform: translateY(60px); }
+}
+
+.register-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    animation: orbFloatRegister var(--dur, 12s) ease-in-out infinite alternate;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.register-orb-1 {
+    width: 500px;
+    height: 500px;
+    top: -150px;
+    left: -100px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+    --dur: 14s;
+}
+
+.register-orb-2 {
+    width: 400px;
+    height: 400px;
+    bottom: -100px;
+    right: -80px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
+    --dur: 18s;
+}
+
+@keyframes orbFloatRegister {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(30px, 40px) scale(1.15); }
+}
+
+.register-center-wrap {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 520px; /* Bit wider for signup form */
+}
+
+.register-top-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.register-logo-img {
+    height: 40px;
+    width: auto;
+    filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.6));
+}
+
+.register-logo-brand {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #ffffff, #a5b4fc, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+.register-card {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 28px;
+    padding: 40px 44px 32px;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 0 0 1px rgba(99, 102, 241, 0.12),
+        0 4px 24px rgba(0, 0, 0, 0.4),
+        0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.register-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899, #f59e0b, #10b981, #06b6d4, #6366f1);
+    background-size: 400% 100%;
+    animation: rainbowBarRegister 5s linear infinite;
+}
+
+@keyframes rainbowBarRegister {
+    0% { background-position: 0% 0; }
+    100% { background-position: 400% 0; }
+}
+
+.register-card-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.register-card-header h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.6px;
+    margin-bottom: 6px;
+}
+
+.register-card-subtitle {
+    font-size: 14px;
+    color: #64748b;
+}
+
+/* reused from login-msg */
+.register-msg {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.register-msg.success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #065f46;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.register-msg.error {
+    background: rgba(239, 68, 68, 0.08);
+    color: #991b1b;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.rf-form {
+    margin-bottom: 16px;
+}
+
+.rf-group {
+    margin-bottom: 16px;
+}
+
+.rf-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.rf-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.rf-input {
+    width: 100%;
+    padding: 12px 14px 12px 42px;
+    font-size: 14.5px;
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.rf-input:focus {
+    border-color: #6366f1;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.rf-input-icon {
+    position: absolute;
+    left: 14px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+}
+
+.rf-input-wrap:focus-within .rf-input-icon {
+    color: #6366f1;
+}
+
+.rf-field-err {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.rf-terms-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 20px 0;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: #475569;
+}
+
+.rf-terms-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: #6366f1;
+}
+
+.rf-terms-text {
+    line-height: 1.4;
+}
+
+.rf-submit {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 40%, #06b6d4 100%);
+    background-size: 200% 100%;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+
+.rf-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.rf-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.register-card-footer {
+    text-align: center;
+    font-size: 13.5px;
+    color: #64748b;
+    padding-top: 16px;
+    margin-top: 6px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.rf-login-link {
+    color: #6366f1;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.rf-login-link:hover {
+    text-decoration: underline;
+}
+
+.register-copyright {
+    margin-top: 24px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: center;
+}

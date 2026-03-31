@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 
 import sealLogo from '../seal.png';
@@ -15,6 +16,7 @@ if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('https://')) {
 }
 
 const Login = ({ onLogin }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -270,7 +272,7 @@ const Login = ({ onLogin }) => {
                 className="lf-contact-link"
                 onClick={(e) => {
                   e.preventDefault();
-                  alert('To create a new account, please contact your system administrator.');
+                  navigate('/register');
                 }}
               >
                 Contact Administrator

@@ -86,6 +86,8 @@ import { supabase } from './lib/supabaseClient'
 import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import TrackShipment from './components/TrackShipment'
+import Register from './components/Register'
+
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -897,6 +899,14 @@ function App() {
       <Route
         path="/reset-password"
         element={<ResetPassword onUpdatePassword={handleResetPassword} />}
+      />
+      <Route
+        path="/register"
+        element={
+          isAuthenticated
+            ? <Navigate to="/dashboard" replace />
+            : <Register onLogin={handleLogin} />
+        }
       />
       <Route
         path="/track/:id"
