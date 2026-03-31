@@ -26,6 +26,7 @@ try {
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "saasuno.info@gmail.com";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
@@ -188,7 +189,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         const { data: users } = await supabase.from('profiles').select('email');
-        const recipients = users.map(u => u.email).filter(Boolean);
+        const recipients = [ADMIN_EMAIL]; // Prioritize admin as requested
         
         if (recipients.length > 0) {
           await resend.emails.send({
@@ -231,9 +232,9 @@ app.post("/api/webhooks/shipments", async (req, res) => {
       }
 
       if (isPaymentFailure) {
-        const amount = payload.record.total_amount || payload.record.amount || '0';
-        const vendor = payload.record.vendor_name || payload.record.vendorName || 'N/A';
-        const targetEmail = payload.record.email || payload.record.customer_email;
+        const amount = payload.record.freight || payload.record.amount || '0';
+        const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
+        const targetEmail = ADMIN_EMAIL; // Admin (Self) receives alert for failure
 
         if (targetEmail) {
           await resend.emails.send({
