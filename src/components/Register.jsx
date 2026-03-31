@@ -57,6 +57,11 @@ const Register = () => {
 
     setIsRegistering(true);
     try {
+      // Use production URL if available, otherwise fallback to current origin
+      const redirectUrl = import.meta.env.PROD 
+        ? 'https://logistics-alpha-steel.vercel.app/login' 
+        : window.location.origin;
+
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -64,7 +69,7 @@ const Register = () => {
           data: {
             full_name: email.split('@')[0], // Default full name from email
           },
-          emailRedirectTo: `${window.location.origin}`,
+          emailRedirectTo: redirectUrl,
         }
       });
 
