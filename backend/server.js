@@ -26,7 +26,6 @@ try {
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "saasuno.info@gmail.com";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
@@ -188,8 +187,8 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappMsg = encodeURIComponent(`📦 *Shipment Update from Seal Freight*\nShipment #${shipmentId} status is now: *${newStatus}*\n\nTrack here: ${trackingUrl}`);
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
-        const { data: users } = await supabase.from('profiles').select('email');
-        const recipients = [ADMIN_EMAIL]; // Prioritize admin as requested
+        const targetEmail = payload.record.user_id || payload.record.email || payload.record.customer_email;
+        const recipients = [targetEmail].filter(e => e && e.includes('@'));
         
         if (recipients.length > 0) {
           await resend.emails.send({
@@ -234,9 +233,9 @@ app.post("/api/webhooks/shipments", async (req, res) => {
       if (isPaymentFailure) {
         const amount = payload.record.freight || payload.record.amount || '0';
         const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
-        const targetEmail = ADMIN_EMAIL; // Admin (Self) receives alert for failure
+        const targetEmail = payload.record.user_id || payload.record.email;
 
-        if (targetEmail) {
+        if (targetEmail && targetEmail.includes('@')) {
           await resend.emails.send({
             from: 'Seal Freight Alerts <alerts@sealfreight.com>',
             to: targetEmail,
