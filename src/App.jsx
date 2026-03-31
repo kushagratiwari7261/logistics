@@ -285,8 +285,8 @@ function App() {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          // CRITICAL FIX: Only process events after initial setup and when mounted
-          if (!mounted || !authInitializedRef.current) {
+          // FIXED: Allow SIGNED_IN events even during initialization to catch hash tokens from emails
+          if (!mounted || (!authInitializedRef.current && event !== 'SIGNED_IN')) {
             console.log(`Ignoring auth event ${event} during initialization`);
             return;
           }

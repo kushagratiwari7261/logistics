@@ -64,7 +64,7 @@ const Register = () => {
           data: {
             full_name: email.split('@')[0], // Default full name from email
           },
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}`,
         }
       });
 
