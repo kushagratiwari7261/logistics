@@ -72,24 +72,36 @@ app.get("/api/cron/greetings", async (req, res) => {
     if (!users || users.length === 0) return res.json({ msg: "No users found" });
 
     const subject = type === 'morning' ? "Good Morning from Seal Freight System ☀️" : "Good Night from Seal Freight System 🌙";
-    const greeting = type === 'morning' ? "Good Morning!" : "Good Night!";
+    const greeting = type === 'morning' ? "Good Morning" : "Good Night";
     const bodyText = type === 'morning' 
       ? "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly." 
       : "The system is okay. All your shipments and data are secure. Sleep well, we've got you covered.";
 
-    // 2. Batch send (Resend supports up to 100 recips per call in some plans, but simple loop is safer for now)
+    const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
+
+    // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user => 
       resend.emails.send({
-        from: 'Seal Freight <notifications@sealfreight.com>', // Note: Needs domain verification in Resend dashboard
+        from: 'Seal Freight <system@sealfreight.com>',
         to: user.email,
         subject: subject,
         html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #4f46e5;">Hello ${user.full_name || 'there'}!</h2>
-            <p style="font-size: 16px; line-height: 1.5; color: #374151;">${greeting}</p>
-            <p style="font-size: 16px; line-height: 1.5; color: #374151;">${bodyText}</p>
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-            <p style="font-size: 12px; color: #9ca3af;">This is an automated system check from Seal Freight Logistics Platform.</p>
+          <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+              <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
+                <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+              </div>
+              <div style="padding: 40px;">
+                <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${greeting}, ${user.full_name || 'there'}!</h1>
+                <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${bodyText}</p>
+                <div style="padding: 20px; background-color: #f3f4f6; border-radius: 8px; text-align: center;">
+                  <p style="margin: 0; font-size: 14px; font-weight: 600; color: #374151;">System Status: <span style="color: #10b981;">● Online & Secure</span></p>
+                </div>
+              </div>
+              <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
+                <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 Seal Freight Logistics Platform. All rights reserved.</p>
+              </div>
+            </div>
           </div>
         `
       })
@@ -104,29 +116,45 @@ app.get("/api/cron/greetings", async (req, res) => {
 
 /**
  * Cron: Payment Alerts
- * Checks for failed/pending payments
  */
 app.get("/api/cron/payments", async (req, res) => {
   if (!resend) return res.status(500).json({ error: "Resend API key not configured" });
 
   try {
-    // Note: Assuming a 'payments' or 'shipments' table has a 'payment_status' 
-    // This part is illustrative based on schema check earlier
     const { data: failedPayments, error } = await supabase
       .from('shipments')
       .select('id, amount, vendorName, email')
-      .eq('payment_status', 'failed'); // Example status
+      .eq('payment_status', 'failed');
 
     if (error) throw error;
     if (!failedPayments || failedPayments.length === 0) return res.json({ msg: "No failed payments today" });
+
+    const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
 
     for (const payment of failedPayments) {
       if (payment.email) {
         await resend.emails.send({
           from: 'Seal Freight Alerts <alerts@sealfreight.com>',
           to: payment.email,
-          subject: "⚠️ Payment Failed - Seal Freight System",
-          html: `<h3>Hello! Checkout the payment failed.</h3><p>Your payment for shipment #${payment.id} has failed. Please log in to resolve this issue.</p>`
+          subject: "⚠️ Action Required: Payment Failed",
+          html: `
+            <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #fff5f5; padding: 40px 0;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #feb2b2;">
+                <div style="background-color: #c53030; padding: 30px; text-align: center;">
+                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                </div>
+                <div style="padding: 40px;">
+                  <h1 style="margin: 0 0 20px; font-size: 22px; font-weight: 700; color: #2d3748;">Payment Failed</h1>
+                  <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #4a5568;">Hello, we noticed a failed payment for shipment <strong>#${payment.id}</strong>.</p>
+                  <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #c53030; background-color: #fff5f5;">
+                    <p style="margin: 0 0 10px; font-weight: bold; color: #c53030;">Shipment Details:</p>
+                    <p style="margin: 0; font-size: 14px; color: #718096;">Amount: ₹${payment.amount || '0'}<br>Vendor: ${payment.vendorName || 'N/A'}</p>
+                  </div>
+                  <a href="https://logistics-alpha-steel.vercel.app/dashboard" style="display: inline-block; background-color: #c53030; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Fix Payment Now</a>
+                </div>
+              </div>
+            </div>
+          `
         });
       }
     }
@@ -139,41 +167,58 @@ app.get("/api/cron/payments", async (req, res) => {
 
 /**
  * Webhook: Shipment Status Update
- * Triggered by Supabase Webhook when 'shipments' table is updated
  */
 app.post("/api/webhooks/shipments", async (req, res) => {
-  const payload = req.body; // Supabase webhook sends the row data
+  const payload = req.body;
+  const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
   
-  // payload.record = current row, payload.old_record = previous row
   if (payload.type === 'UPDATE' && payload.record.status !== payload.old_record.status) {
     const shipmentId = payload.record.id;
     const newStatus = payload.record.status;
     const trackingUrl = `https://logistics-alpha-steel.vercel.app/tracking?id=${shipmentId}`;
-    const whatsappMsg = encodeURIComponent(`Hello! My shipment #${shipmentId} status has been updated to: ${newStatus}. Check it here: ${trackingUrl}`);
+    const whatsappMsg = encodeURIComponent(`📦 *Shipment Update from Seal Freight*\nShipment #${shipmentId} status is now: *${newStatus}*\n\nTrack here: ${trackingUrl}`);
     const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
     if (!resend) return res.status(200).json({ msg: "Webhook received but Resend not config" });
 
     try {
-      // Notify all users as requested
       const { data: users } = await supabase.from('profiles').select('email');
-      
       const recipients = users.map(u => u.email).filter(Boolean);
       
       if (recipients.length > 0) {
         await resend.emails.send({
           from: 'Seal Freight System <system@sealfreight.com>',
           to: recipients,
-          subject: `📦 Shipment Updated: #${shipmentId}`,
+          subject: `📦 Status Update: Shipment #${shipmentId}`,
           html: `
-            <div style="font-family: sans-serif; padding: 20px;">
-              <h2>Shipment Status Updated!</h2>
-              <p>Shipment #${shipmentId} is now: <strong>${newStatus}</strong></p>
-              <br>
-              <a href="${trackingUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Shipment</a>
-              <br><br>
-              <p>Share this update:</p>
-              <a href="${whatsappLink}" style="color: #25D366; font-weight: bold;">Share on WhatsApp</a>
+            <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
+                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                </div>
+                <div style="padding: 40px; text-align: center;">
+                  <div style="display: inline-block; padding: 8px 16px; background-color: #e0e7ff; color: #4338ca; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 20px;">
+                    Shipment Update
+                  </div>
+                  <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">Your shipment status has changed!</h1>
+                  <p style="margin: 0 0 30px; font-size: 18px; color: #4b5563;">Shipment <strong>#${shipmentId}</strong> is now: <span style="color: #4f46e5; font-weight: bold;">${newStatus}</span></p>
+                  
+                  <div style="margin-bottom: 30px;">
+                    <a href="${trackingUrl}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Track My Shipment</a>
+                  </div>
+                  
+                  <div style="border-top: 1px solid #f3f4f6; margin-top: 30px; padding-top: 30px;">
+                    <p style="margin: 0 0 15px; font-size: 14px; color: #6b7280;">Quickly share this update with your team:</p>
+                    <a href="${whatsappLink}" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="16" height="16" style="vertical-align: middle; margin-right: 8px;">
+                      Share on WhatsApp
+                    </a>
+                  </div>
+                </div>
+                <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">This is an automated notification from Seal Freight. Please do not reply to this email.</p>
+                </div>
+              </div>
             </div>
           `
         });
