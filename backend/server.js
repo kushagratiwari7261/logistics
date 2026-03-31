@@ -77,7 +77,7 @@ app.get("/api/cron/greetings", async (req, res) => {
       ? "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly." 
       : "The system is okay. All your shipments and data are secure. Sleep well, we've got you covered.";
 
-    const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
+    const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
 
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user => 
@@ -129,7 +129,7 @@ app.get("/api/cron/payments", async (req, res) => {
     if (error) throw error;
     if (!failedPayments || failedPayments.length === 0) return res.json({ msg: "No failed payments today" });
 
-    const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
+    const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
 
     for (const payment of failedPayments) {
       if (payment.email) {
@@ -170,7 +170,7 @@ app.get("/api/cron/payments", async (req, res) => {
  */
 app.post("/api/webhooks/shipments", async (req, res) => {
   const payload = req.body;
-  const logoUrl = "https://logistics-alpha-steel.vercel.app/seal.png";
+  const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
   
   if (payload.type === 'UPDATE' && payload.record.status !== payload.old_record.status) {
     const shipmentId = payload.record.id;
