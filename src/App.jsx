@@ -126,12 +126,12 @@ function App() {
     warmupServer();
   }, []);
 
-  // Refs to prevent duplicate redirects and auth loops
-  const redirectTimeoutRef = useRef(null)
-  const lastRedirectRef = useRef(null)
-  const authInitializedRef = useRef(false)
-  const authListenerActiveRef = useRef(false)
-  const sessionCheckedRef = useRef(false)
+  // Refs for tracking authentication state and preventing race conditions
+  const sessionCheckedRef = useRef(false);
+  const authListenerActiveRef = useRef(false);
+  const authInitializedRef = useRef(false);
+  const loginProcessingRef = useRef(false);
+  const lastRedirectRef = useRef(0);
 
   const navigate = useNavigate()
 
@@ -206,83 +206,42 @@ function App() {
     let authSubscription = null;
 
     const getInitialSession = async () => {
-      try {
-        if (sessionCheckedRef.current) {
-          console.log('Session already checked, skipping...');
-          return;
+      // Safety timeout: if getSession hangs, clear the loading screen after 5 seconds
+      const timeoutId = setTimeout(() => {
+        if (mounted && !authInitializedRef.current) {
+          console.log('⏳ Session check timeout reached, clearing loading screen');
+          setIsLoading(false);
         }
+      }, 5000);
 
+      try {
+        if (sessionCheckedRef.current) return;
+        
         setIsLoading(true);
         sessionCheckedRef.current = true;
 
-        console.log('Checking initial session...');
+        console.log('🔍 Checking initial session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mounted || authInitializedRef.current) return;
 
         if (sessionError) {
           console.error('Session error:', sessionError);
-          await performLocalCleanup();
           setIsAuthenticated(false);
           setUser(null);
-
-          // Only redirect if not already on auth pages or public tracking pages
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes('/login') &&
-            !currentPath.includes('/forgot-password') &&
-            !currentPath.includes('/reset-password') &&
-            !currentPath.startsWith('/track')) {
-            if (shouldRedirect('/login')) {
-              navigate('/login', { replace: true });
-            }
-          }
-          return;
-        }
-
-        if (session?.user) {
-          console.log('Valid session found for user:', session.user.email);
-          await ensureProfile(session.user);
-          setIsAuthenticated(true);
-          setUser(session.user);
-          authInitializedRef.current = true;
-
-          // Redirect from auth pages to dashboard
-          const currentPath = window.location.pathname;
-          if ((currentPath === '/login' || currentPath === '/forgot-password') &&
-            shouldRedirect('/dashboard')) {
-            navigate('/dashboard', { replace: true });
-          }
+        } else if (session?.user) {
+          console.log('✅ Valid session found for user:', session.user.email);
+          await handleLoginSuccess(session.user, session.access_token);
         } else {
-          console.log('No valid session found');
+          console.log('ℹ️ No valid session found');
           setIsAuthenticated(false);
           setUser(null);
-
-          // Only redirect to login if not on auth pages or public tracking pages
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes('/login') &&
-            !currentPath.includes('/forgot-password') &&
-            !currentPath.includes('/reset-password') &&
-            !currentPath.startsWith('/track')) {
-            if (shouldRedirect('/login')) {
-              navigate('/login', { replace: true });
-            }
-          }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        if (mounted) {
-          await performLocalCleanup();
-          setIsAuthenticated(false);
-          setUser(null);
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes('/reset-password') && shouldRedirect('/login')) {
-            navigate('/login', { replace: true });
-          }
-        }
       } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        clearTimeout(timeoutId);
+        if (mounted) setIsLoading(false);
       }
     };
 
@@ -294,10 +253,11 @@ function App() {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          // FIXED: Allow SIGNED_IN events even during initialization to catch hash tokens from emails
-          if (!mounted || (!authInitializedRef.current && event !== 'SIGNED_IN')) {
-            console.log(`Ignoring auth event ${event} during initialization`);
-            return;
+          if (!mounted) return;
+          
+          if (event === 'SIGNED_IN' && session) {
+            console.log('🚀 Auth state change: SIGNED_IN detected');
+            handleLoginSuccess(session.user, session.access_token);
           }
 
           console.log('Auth state change:', event, 'Session exists:', !!session);
@@ -478,6 +438,42 @@ function App() {
   };
 
   // FIXED: Enhanced Supabase Login function with better session handling
+  const handleLoginSuccess = async (authUser, token) => {
+    if (loginProcessingRef.current) return;
+    loginProcessingRef.current = true;
+
+    try {
+      // AGGRESSIVE: Clear loading screen immediately when login is detected
+      setIsLoading(false);
+      setIsAuthenticated(true);
+      setUser(authUser);
+      authInitializedRef.current = true;
+
+      console.log('🔑 Login processing for:', authUser.email);
+      
+      // Update local storage
+      localStorage.setItem('sf_token', token);
+      localStorage.setItem('sf_user_email', authUser.email);
+
+      // Background logic: Ensure profile exists
+      await ensureProfile(authUser);
+
+      console.log('✅ User login flow complete:', authUser.email);
+      
+      // Redirect from auth pages to dashboard
+      const currentPath = window.location.pathname;
+      if ((currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/register' || currentPath === '/') && 
+          shouldRedirect('/dashboard')) {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err) {
+      console.error('handleLoginSuccess error:', err);
+    } finally {
+      loginProcessingRef.current = false;
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (email, password) => {
     try {
       setIsLoggingIn(true);
