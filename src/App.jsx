@@ -349,9 +349,6 @@ function App() {
     return () => {
       mounted = false;
       authListenerActiveRef.current = false;
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current);
-      }
       if (authSubscription) {
         authSubscription.unsubscribe();
       }
