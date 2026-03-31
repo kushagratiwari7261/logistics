@@ -126,11 +126,9 @@ function App() {
     warmupServer();
   }, []);
 
-  // Refs for tracking authentication state and preventing race conditions
-  const sessionCheckedRef = useRef(false);
+  // Refs for tracking authentication state
   const authListenerActiveRef = useRef(false);
   const authInitializedRef = useRef(false);
-  const loginProcessingRef = useRef(false);
   const lastRedirectRef = useRef(0);
 
   const navigate = useNavigate()
@@ -200,7 +198,7 @@ function App() {
     }
   };
 
-  // FIXED: Enhanced authentication state management with better session handling
+  // FIXED: Simplified authentication state management
   useEffect(() => {
     let mounted = true;
     let authSubscription = null;
@@ -208,22 +206,19 @@ function App() {
     const getInitialSession = async () => {
       // Safety timeout: if getSession hangs, clear the loading screen after 5 seconds
       const timeoutId = setTimeout(() => {
-        if (mounted && !authInitializedRef.current) {
+        if (mounted && isLoading) {
           console.log('⏳ Session check timeout reached, clearing loading screen');
           setIsLoading(false);
         }
       }, 5000);
 
       try {
-        if (sessionCheckedRef.current) return;
-        
         setIsLoading(true);
-        sessionCheckedRef.current = true;
 
         console.log('🔍 Checking initial session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (!mounted || authInitializedRef.current) return;
+        if (!mounted) return;
 
         if (sessionError) {
           console.error('Session error:', sessionError);
@@ -231,7 +226,13 @@ function App() {
           setUser(null);
         } else if (session?.user) {
           console.log('✅ Valid session found for user:', session.user.email);
-          await handleLoginSuccess(session.user, session.access_token);
+          setIsAuthenticated(true);
+          setUser(session.user);
+          authInitializedRef.current = true;
+          localStorage.setItem('sf_token', session.access_token);
+          localStorage.setItem('sf_user_email', session.user.email);
+          // Ensure profile in background (don't block)
+          ensureProfile(session.user).catch(console.error);
         } else {
           console.log('ℹ️ No valid session found');
           setIsAuthenticated(false);
@@ -239,6 +240,8 @@ function App() {
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        setIsAuthenticated(false);
+        setUser(null);
       } finally {
         clearTimeout(timeoutId);
         if (mounted) setIsLoading(false);
@@ -247,98 +250,64 @@ function App() {
 
     getInitialSession();
 
-    // FIXED: Improved auth state change handler with better event filtering
+    // Auth state change listener — set up only once
     if (!authListenerActiveRef.current) {
       authListenerActiveRef.current = true;
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (!mounted) return;
-          
-          if (event === 'SIGNED_IN' && session) {
-            console.log('🚀 Auth state change: SIGNED_IN detected');
-            handleLoginSuccess(session.user, session.access_token);
-          }
-
           console.log('Auth state change:', event, 'Session exists:', !!session);
 
-          try {
-            switch (event) {
-              case 'SIGNED_IN':
-                if (session?.user && !isAuthenticated) {
-                  console.log('User signed in successfully:', session.user.email);
-                  await ensureProfile(session.user);
-                  setIsAuthenticated(true);
-                  setUser(session.user);
+          switch (event) {
+            case 'SIGNED_IN':
+              if (session?.user) {
+                console.log('🚀 User signed in:', session.user.email);
+                setIsAuthenticated(true);
+                setUser(session.user);
+                setIsLoading(false);
+                authInitializedRef.current = true;
+                localStorage.setItem('sf_token', session.access_token);
+                localStorage.setItem('sf_user_email', session.user.email);
+                ensureProfile(session.user).catch(console.error);
 
-                  // Wait a bit for state to update before redirecting
-                  setTimeout(() => {
-                    const currentPath = window.location.pathname;
-                    if ((currentPath === '/login' || currentPath === '/forgot-password') &&
-                      shouldRedirect('/dashboard')) {
-                      navigate('/dashboard', { replace: true });
-                    }
-                  }, 100);
+                const currentPath = window.location.pathname;
+                if (['/login', '/forgot-password', '/register', '/'].includes(currentPath) &&
+                    shouldRedirect('/dashboard')) {
+                  navigate('/dashboard', { replace: true });
                 }
-                break;
+              }
+              break;
 
-              case 'SIGNED_OUT':
-                console.log('User signed out');
-                await performLocalCleanup();
-                setIsAuthenticated(false);
-                setUser(null);
-                authInitializedRef.current = false;
-                sessionCheckedRef.current = false;
-
-                setTimeout(() => {
-                  const signOutPath = window.location.pathname;
-                  if (!signOutPath.includes('/login') &&
-                    !signOutPath.includes('/forgot-password') &&
-                    !signOutPath.includes('/reset-password') &&
-                    !signOutPath.startsWith('/track') &&
-                    shouldRedirect('/login')) {
-                    navigate('/login', { replace: true });
-                  }
-                }, 100);
-                break;
-
-              case 'TOKEN_REFRESHED':
-                console.log('Token refreshed - updating user silently');
-                if (session?.user) {
-                  setUser(session.user);
-                }
-                break;
-
-              case 'USER_UPDATED':
-                console.log('User updated - updating user silently');
-                if (session?.user) {
-                  setUser(session.user);
-                }
-                break;
-
-              case 'PASSWORD_RECOVERY':
-                console.log('Password recovery flow initiated');
-                break;
-
-              default:
-                console.log('Unhandled auth event:', event);
-            }
-          } catch (error) {
-            console.error('Auth state change error:', error);
-            if (mounted) {
+            case 'SIGNED_OUT':
+              console.log('User signed out');
               await performLocalCleanup();
               setIsAuthenticated(false);
               setUser(null);
+              setIsLoading(false);
               authInitializedRef.current = false;
-              sessionCheckedRef.current = false;
 
-              setTimeout(() => {
-                if (!window.location.pathname.includes('/reset-password') &&
+              const signOutPath = window.location.pathname;
+              if (!signOutPath.includes('/login') &&
+                  !signOutPath.includes('/forgot-password') &&
+                  !signOutPath.includes('/reset-password') &&
+                  !signOutPath.startsWith('/track') &&
                   shouldRedirect('/login')) {
-                  navigate('/login', { replace: true });
-                }
-              }, 100);
-            }
+                navigate('/login', { replace: true });
+              }
+              break;
+
+            case 'TOKEN_REFRESHED':
+            case 'USER_UPDATED':
+              if (session?.user) setUser(session.user);
+              break;
+
+            case 'PASSWORD_RECOVERY':
+              console.log('Password recovery flow initiated');
+              break;
+
+            default:
+              break;
           }
         }
       );
@@ -353,7 +322,7 @@ function App() {
         authSubscription.unsubscribe();
       }
     };
-  }, [navigate, performLocalCleanup, shouldRedirect, isAuthenticated]);
+  }, []);  // Empty deps — run only once on mount
 
   // Fetch data when authenticated
   useEffect(() => {
@@ -435,41 +404,7 @@ function App() {
   };
 
   // FIXED: Enhanced Supabase Login function with better session handling
-  const handleLoginSuccess = async (authUser, token) => {
-    if (loginProcessingRef.current) return;
-    loginProcessingRef.current = true;
 
-    try {
-      // AGGRESSIVE: Clear loading screen immediately when login is detected
-      setIsLoading(false);
-      setIsAuthenticated(true);
-      setUser(authUser);
-      authInitializedRef.current = true;
-
-      console.log('🔑 Login processing for:', authUser.email);
-      
-      // Update local storage
-      localStorage.setItem('sf_token', token);
-      localStorage.setItem('sf_user_email', authUser.email);
-
-      // Background logic: Ensure profile exists
-      await ensureProfile(authUser);
-
-      console.log('✅ User login flow complete:', authUser.email);
-      
-      // Redirect from auth pages to dashboard
-      const currentPath = window.location.pathname;
-      if ((currentPath === '/login' || currentPath === '/forgot-password' || currentPath === '/register' || currentPath === '/') && 
-          shouldRedirect('/dashboard')) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (err) {
-      console.error('handleLoginSuccess error:', err);
-    } finally {
-      loginProcessingRef.current = false;
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async (email, password) => {
     try {
@@ -578,10 +513,15 @@ function App() {
         .from('jobs')
         .select('*', { count: 'exact', head: true });
 
-      // Messages count
-      const { count: messagesCount, error: messagesError } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true });
+      // Messages count — filtered by current user
+      const currentUserId = user?.id;
+      const { count: messagesCount, error: messagesError } = currentUserId
+        ? await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
+            .is('deleted_at', null)
+        : { count: 0, error: null };
 
       // If you want to count only shipments with certain status as invoices
       // For example, count shipments with status 'Completed', 'Delivered', or 'Invoiced'
