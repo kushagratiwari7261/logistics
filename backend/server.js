@@ -192,8 +192,41 @@ app.post("/api/webhooks/shipments", async (req, res) => {
 
       if (isStatusUpdate) {
         const newStatus = payload.record.status;
-        const trackingUrl = `https://logistics-alpha-steel.vercel.app/track/${shipmentId}`;
-        const whatsappMsg = encodeURIComponent(`📦 Track your shipment ${shipmentId} update here: ${trackingUrl}`);
+
+        // Fetch or Generate public tracking token
+        let trackToken = shipmentId; 
+        try {
+          const { data: existingLink } = await supabase
+            .from('shipment_updates')
+            .select('remarks')
+            .eq('shipment_id', shipmentId)
+            .eq('status', 'Link Generated')
+            .not('remarks', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingLink && existingLink.remarks) {
+            trackToken = existingLink.remarks.trim();
+          } else {
+            const newToken = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+              const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+              return v.toString(16);
+            });
+            await supabase.from('shipment_updates').insert([{
+              shipment_id: shipmentId,
+              status: 'Link Generated',
+              remarks: newToken,
+              update_time: new Date().toISOString()
+            }]);
+            trackToken = newToken;
+          }
+        } catch (e) {
+          console.error("Token gen error", e);
+        }
+
+        const trackingUrl = `https://logistics-alpha-steel.vercel.app/track/${trackToken}`;
+        const whatsappMsg = encodeURIComponent(`Track your shipment ${shipmentId} update here: ${trackingUrl}`);
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
