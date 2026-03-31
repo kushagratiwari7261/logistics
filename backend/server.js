@@ -199,7 +199,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         await resend.emails.send({
           from: 'Seal Freight System <system@prudata.info>',
           to: allRecipients,
-          subject: `Seal Freight: Shipment Status Update (#${shipmentId.slice(0, 8)})`,
+          subject: "Seal Freight: Shipment Status Update",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
