@@ -327,14 +327,29 @@ const CustomerPage = () => {
 
   const fetchCountries = async () => {
     try {
-      const response = await fetch("https://restcountries.com/v3.1/all");
+      const response = await fetch("https://restcountries.com/v3.1/all?fields=name");
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
       const data = await response.json();
+      if (!Array.isArray(data)) throw new Error('Invalid response format');
       const sortedCountries = data
-        .map(country => country.name.common)
+        .map(country => country.name?.common)
+        .filter(Boolean)
         .sort();
       setCountries(sortedCountries);
     } catch (error) {
-      console.error("Error fetching countries:", error);
+      console.error("Error fetching countries, using fallback list:", error);
+      // Fallback list of common countries
+      setCountries([
+        "Afghanistan", "Argentina", "Australia", "Bangladesh", "Belgium", "Brazil",
+        "Canada", "China", "Denmark", "Egypt", "Finland", "France", "Germany",
+        "Greece", "Hong Kong", "India", "Indonesia", "Iran", "Iraq", "Ireland",
+        "Israel", "Italy", "Japan", "Kenya", "Kuwait", "Malaysia", "Mexico",
+        "Nepal", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
+        "Pakistan", "Philippines", "Poland", "Portugal", "Qatar", "Russia",
+        "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
+        "Sri Lanka", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
+        "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+      ]);
     }
   };
 
