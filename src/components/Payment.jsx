@@ -115,18 +115,30 @@ const PaymentPage = () => {
             notes: { shipment_no: shipment.shipment_no || '', job_no: shipment.job_no || '' },
             theme: { color: '#6366f1' },
             modal: {
-                ondismiss: () => {
+                ondismiss: async () => {
                     setPayingId(null);
                     showToast('Payment cancelled — you closed the payment window.', 'error');
+                    // Update database to trigger notification
+                    await supabase
+                        .from('shipments')
+                        .update({ payment_status: 'failed' })
+                        .eq('id', shipment.id);
+                    fetchShipments();
                 },
             },
         };
 
         const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', (resp) => {
+        rzp.on('payment.failed', async (resp) => {
             console.error('Razorpay payment.failed:', resp.error);
             showToast(`Payment failed: ${resp.error.description}`, 'error');
             setPayingId(null);
+            // Update database to trigger notification
+            await supabase
+                .from('shipments')
+                .update({ payment_status: 'failed' })
+                .eq('id', shipment.id);
+            fetchShipments();
         });
         rzp.open();
     };
