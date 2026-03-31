@@ -1,13 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabaseClient'
 import './ChangePassword.css'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabase = supabaseUrl && supabaseKey && supabaseUrl.startsWith('https://')
-    ? createClient(supabaseUrl, supabaseKey)
-    : null
+
 
 const ChangePassword = () => {
     const navigate = useNavigate()

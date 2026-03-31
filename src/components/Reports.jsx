@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabaseClient'
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -9,11 +9,7 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import './Reports.css'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabase = supabaseUrl && supabaseKey && supabaseUrl.startsWith('https://')
-    ? createClient(supabaseUrl, supabaseKey)
-    : null
+/* ── Fallback demo data ─────────────────────────────────────── */
 
 /* ── Fallback demo data ─────────────────────────────────────── */
 const MONTHS = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb']
