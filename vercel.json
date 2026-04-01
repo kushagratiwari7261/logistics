@@ -22,15 +22,19 @@
   "crons": [
     {
       "path": "/api/cron/greetings?type=morning",
-      "schedule": "0 8 * * *"
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/greetings?type=afternoon",
+      "schedule": "30 6 * * *"
     },
     {
       "path": "/api/cron/greetings?type=night",
-      "schedule": "50 23 * * *"
+      "schedule": "0 18 * * *"
     },
     {
       "path": "/api/cron/payments",
-      "schedule": "0 12 * * *"
+      "schedule": "30 7 * * *"
     }
   ]
 }

@@ -71,11 +71,29 @@ app.get("/api/cron/greetings", async (req, res) => {
     if (error) throw error;
     if (!users || users.length === 0) return res.json({ msg: "No users found" });
 
-    const subject = type === 'morning' ? "Daily Update: Seal Freight System" : "System Status: Seal Freight Logistics";
-    const greeting = type === 'morning' ? "Good Morning" : "Good Night";
-    const bodyText = type === 'morning' 
-      ? "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly." 
-      : "The system is okay. All your shipments and data are secure. Sleep well, we've got you covered.";
+    const getSubject = () => {
+      if (type === 'morning') return "Daily Update: Seal Freight System";
+      if (type === 'afternoon') return "Mid-Day Status: Seal Freight Logistics";
+      return "System Status: Seal Freight Logistics";
+    };
+
+    const getGreetingAndBody = () => {
+      if (type === 'morning') return {
+        greeting: "Good Morning",
+        body: "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly."
+      };
+      if (type === 'afternoon') return {
+        greeting: "Good Afternoon",
+        body: "Checking in to ensure your operations are running smoothly this afternoon."
+      };
+      return {
+        greeting: "Good Night",
+        body: "The system is okay. All your shipments and data are secure. Sleep well, we've got you covered."
+      };
+    };
+
+    const subject = getSubject();
+    const { greeting, body: bodyText } = getGreetingAndBody();
 
     const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
 
