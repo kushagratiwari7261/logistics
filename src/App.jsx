@@ -87,6 +87,7 @@ import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import TrackShipment from './components/TrackShipment'
 import Register from './components/Register'
+import { applyColorMode, applyAccent } from './utils/themeUtils'
 
 
 function App() {
@@ -170,6 +171,42 @@ function App() {
     }
   }, []);
 
+  // Fetch and apply user settings from Supabase
+  const syncUserSettings = useCallback(async (currentUserId) => {
+    if (!currentUserId) return;
+    try {
+      console.log('🔄 Syncing user settings from Supabase...');
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error syncing user settings:', error);
+        return;
+      }
+
+      if (data) {
+        console.log('✅ Settings fetched:', data.theme, data.accent_color);
+        if (data.theme) applyColorMode(data.theme);
+        if (data.accent_color) applyAccent(data.accent_color);
+        
+        // Update local storage for immediate load on next visit
+        localStorage.setItem('sf_color_mode', data.theme);
+        localStorage.setItem('sf_accent_color', data.accent_color);
+      } else {
+        // Fallback to local storage if no settings in Supabase yet
+        const localTheme = localStorage.getItem('sf_color_mode') || 'dark';
+        const localAccent = localStorage.getItem('sf_accent_color') || 'indigo';
+        applyColorMode(localTheme);
+        applyAccent(localAccent);
+      }
+    } catch (err) {
+      console.error('syncUserSettings catch:', err);
+    }
+  }, []);
+
   // Ensure a profiles row exists for the authenticated user
   const ensureProfile = async (authUser) => {
     if (!authUser?.id) return;
@@ -231,8 +268,9 @@ function App() {
           authInitializedRef.current = true;
           localStorage.setItem('sf_token', session.access_token);
           localStorage.setItem('sf_user_email', session.user.email);
-          // Ensure profile in background (don't block)
+          // Ensure profile and sync settings in background
           ensureProfile(session.user).catch(console.error);
+          syncUserSettings(session.user.id).catch(console.error);
         } else {
           console.log('ℹ️ No valid session found');
           setIsAuthenticated(false);
@@ -270,6 +308,7 @@ function App() {
                 localStorage.setItem('sf_token', session.access_token);
                 localStorage.setItem('sf_user_email', session.user.email);
                 ensureProfile(session.user).catch(console.error);
+                syncUserSettings(session.user.id).catch(console.error);
 
                 const currentPath = window.location.pathname;
                 if (['/login', '/forgot-password', '/register', '/'].includes(currentPath) &&

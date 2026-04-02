@@ -14,38 +14,11 @@ import {
     Trash2 
 } from 'lucide-react'
 
+import { ACCENTS, applyColorMode, applyAccent } from '../utils/themeUtils'
 import './Settings.css'
 
 /* ── Accent colour presets ─────────────────────────────────── */
 
-/* ── Accent colour presets ─────────────────────────────────── */
-const ACCENTS = [
-    { id: 'indigo', label: 'Indigo', dot: '#6366f1', gradient: 'linear-gradient(135deg,#4f46e5,#6366f1,#818cf8)', glow: 'rgba(99,102,241,0.35)' },
-    { id: 'sky', label: 'Sky', dot: '#0ea5e9', gradient: 'linear-gradient(135deg,#0284c7,#0ea5e9,#38bdf8)', glow: 'rgba(14,165,233,0.3)' },
-    { id: 'emerald', label: 'Emerald', dot: '#10b981', gradient: 'linear-gradient(135deg,#059669,#10b981,#34d399)', glow: 'rgba(16,185,129,0.3)' },
-    { id: 'violet', label: 'Violet', dot: '#8b5cf6', gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6,#a78bfa)', glow: 'rgba(139,92,246,0.3)' },
-    { id: 'rose', label: 'Rose', dot: '#f43f5e', gradient: 'linear-gradient(135deg,#e11d48,#f43f5e,#fb7185)', glow: 'rgba(244,63,94,0.3)' },
-    { id: 'amber', label: 'Amber', dot: '#f59e0b', gradient: 'linear-gradient(135deg,#d97706,#f59e0b,#fbbf24)', glow: 'rgba(245,158,11,0.3)' },
-    { id: 'teal', label: 'Teal', dot: '#14b8a6', gradient: 'linear-gradient(135deg,#0d9488,#14b8a6,#2dd4bf)', glow: 'rgba(20,184,166,0.3)' },
-    { id: 'orange', label: 'Orange', dot: '#f97316', gradient: 'linear-gradient(135deg,#ea580c,#f97316,#fb923c)', glow: 'rgba(249,115,22,0.3)' },
-]
-
-function applyAccent(accentId) {
-    const a = ACCENTS.find(x => x.id === accentId) ?? ACCENTS[0]
-    const root = document.documentElement
-    root.style.setProperty('--brand-primary', a.dot)
-    root.style.setProperty('--brand-gradient', a.gradient)
-    root.style.setProperty('--brand-glow', a.glow)
-}
-
-function applyColorMode(mode) {
-    const html = document.documentElement
-    if (mode === 'system') {
-        html.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    } else {
-        html.setAttribute('data-theme', mode)
-    }
-}
 
 const Settings = ({ user }) => {
     const [colorMode, setColorMode] = useState('dark')
@@ -58,26 +31,48 @@ const Settings = ({ user }) => {
     const [loading, setLoading] = useState(true)
 
     const loadPrefs = useCallback(async () => {
+        // First try to load from Supabase (Primary Source)
+        if (supabase && user?.id) {
+            console.log('Fetching preferences from user_settings for:', user.id);
+            const { data, error } = await supabase
+              .from('user_settings')
+              .select('*')
+              .eq('user_id', user.id)
+              .maybeSingle()
+
+            if (error) {
+                console.warn('Error loading remote prefs:', error);
+            } else if (data) {
+                console.log('✅ Remote preferences found:', data);
+                setColorMode(data.theme ?? 'dark');
+                setAccentColor(data.accent_color ?? 'indigo');
+                setEmailNotif(data.email_notifications ?? true);
+                setPushNotif(data.push_notifications ?? false);
+                
+                applyColorMode(data.theme ?? 'dark');
+                applyAccent(data.accent_color ?? 'indigo');
+                
+                // Keep local storage in sync
+                localStorage.setItem('sf_color_mode', data.theme ?? 'dark');
+                localStorage.setItem('sf_accent_color', data.accent_color ?? 'indigo');
+                
+                setLoading(false);
+                return;
+            }
+        }
+
+        // Fallback to local storage if not logged in or no record found
+        console.log('Falling back to local storage preferences');
         const lm = localStorage.getItem('sf_color_mode') ?? 'dark'
         const la = localStorage.getItem('sf_accent_color') ?? 'indigo'
         const lsc = localStorage.getItem('sf_sidebar_compact') === 'true'
         const le = localStorage.getItem('sf_email_notif') !== 'false'
         const lp = localStorage.getItem('sf_push_notif') === 'true'
+        
         setColorMode(lm); setAccentColor(la); setSidebarCompact(lsc)
         setEmailNotif(le); setPushNotif(lp)
         applyColorMode(lm); applyAccent(la)
-
-        if (supabase && user?.id) {
-            const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single()
-            if (data) {
-                const m = data.theme ?? lm
-                const a = data.accent_color ?? la
-                setColorMode(m); setAccentColor(a)
-                setEmailNotif(data.email_notifications ?? le)
-                setPushNotif(data.push_notifications ?? lp)
-                applyColorMode(m); applyAccent(a)
-            }
-        }
+        
         setLoading(false)
     }, [user])
 
@@ -85,6 +80,8 @@ const Settings = ({ user }) => {
 
     const savePrefs = async () => {
         setSaving(true)
+        console.log('Saving preferences to Supabase:', { colorMode, accentColor });
+
         localStorage.setItem('sf_color_mode', colorMode)
         localStorage.setItem('sf_accent_color', accentColor)
         localStorage.setItem('sf_sidebar_compact', String(sidebarCompact))
@@ -92,7 +89,7 @@ const Settings = ({ user }) => {
         localStorage.setItem('sf_push_notif', String(pushNotif))
 
         if (supabase && user?.id) {
-            await supabase.from('user_settings').upsert({
+            const { error } = await supabase.from('user_settings').upsert({
                 user_id: user.id,
                 theme: colorMode,
                 accent_color: accentColor,
@@ -100,6 +97,13 @@ const Settings = ({ user }) => {
                 push_notifications: pushNotif,
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'user_id' })
+
+            if (error) {
+                console.error('Error saving settings to Supabase:', error);
+                alert('Connection error: Settings saved locally but not to cloud. Please check your internet.');
+            } else {
+                console.log('✅ Settings saved to Supabase successfully');
+            }
         }
         setSaving(false)
         setSavedMsg('Saved!')
