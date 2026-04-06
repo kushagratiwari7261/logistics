@@ -200,7 +200,8 @@ const MessagesMain = ({ user }) => {
           });
         }
 
-        await refetch();
+        // Silently refresh sidebar list WITHOUT triggering loading state
+        refetch(true);
       }
 
       return result;
@@ -229,7 +230,8 @@ const MessagesMain = ({ user }) => {
           });
         }
 
-        await refetch();
+        // Silently refresh sidebar list WITHOUT triggering loading state
+        refetch(true);
       }
 
       return result;
@@ -493,12 +495,7 @@ const MessagesMain = ({ user }) => {
         </div>
       </div>
 
-      {/* Global loading overlay for operations - only after initial load */}
-      {loading && hasLoadedRef.current && (
-        <div className="global-loading-overlay">
-          <div className="loading-spinner"></div>
-        </div>
-      )}
+      {/* Global loading overlay removed - optimistic UI handles instant feedback */}
     </div>
   );
 };

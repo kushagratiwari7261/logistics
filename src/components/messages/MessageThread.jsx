@@ -52,7 +52,6 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
   const [chatMessages, setChatMessages] = useState([]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sentFlash, setSentFlash] = useState(false);
   const [otherUserStatus, setOtherUserStatus] = useState({ is_online: false, last_seen: null });
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
@@ -311,15 +310,12 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
     setSending(false);
 
     if (!result?.error) {
-      setSentFlash(true);
-      setTimeout(() => setSentFlash(false), 1200);
-
       // Update the optimistic message with the real ID from DB
       setChatMessages(prev => prev.map(m => 
         m.id === tempId ? { ...m, id: result.data.id, sending: false } : m
       ));
     } else {
-      // If error, we could mark the message as "Failed"
+      // If error, mark the message as "Failed"
       setChatMessages(prev => prev.map(m => 
         m.id === tempId ? { ...m, error: true, sending: false } : m
       ));
@@ -471,13 +467,6 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
         )}
       </div>
 
-      {/* Sent flash overlay */}
-      {sentFlash && (
-        <div className="wa-sent-flash">
-          <div className="wa-sent-icon">✓</div>
-          <span>Sent</span>
-        </div>
-      )}
 
       {/* Chat area */}
       <div className="wa-chat-area">
@@ -537,11 +526,11 @@ const MessageThread = ({ message, conversation, currentUser, onDelete, onBack, o
           rows={1}
         />
         <button
-          className={`wa-send-btn ${sending ? 'wa-send-sending' : ''}`}
+          className="wa-send-btn"
           onClick={handleSend}
           disabled={(!replyContent.trim() && attachments.length === 0) || uploading || sending}
         >
-          {sending ? <div className="wa-send-spinner" /> : '➤'}
+          ➤
         </button>
       </div>
     </div>
