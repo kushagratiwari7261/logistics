@@ -26,15 +26,20 @@ export default defineConfig({
         theme_color: '#0f172a',
         icons: [
           {
-            src: '/seal.png',
+            src: '/seal-square.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/seal.png',
+            src: '/seal-square.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/seal-square.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable'
           }
         ]
       }
