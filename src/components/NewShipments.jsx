@@ -224,9 +224,7 @@ const NewShipments = () => {
   // Define required fields for each step
   const requiredFields = useMemo(() => ({
     1: ['shipmentType'],
-    2: ['branch', 'department', 'shipmentDate', 'client', 'shipper', 'consignee', 
-        'por', 'pol', 'pod', 'pof', 'hblNo', 'jobNo', 'etd', 'eta', 'incoterms', 
-        'serviceType', 'freight', 'payableAt', 'dispatchAt'],
+    2: [],
     3: []
   }), []);
 
@@ -1002,7 +1000,7 @@ const NewShipments = () => {
               />
             </div>
             <div className="form-group">
-              <label>LCL/FCL <span className="required">*</span></label>
+              <label>LCL/FCL</label>
               <select 
                 name="lclFcl"
                 value={formData.lclFcl}
@@ -1298,7 +1296,7 @@ const NewShipments = () => {
                     {/* Trade Direction Selection */}
                     {shipmentType && TRADE_DIRECTIONS[shipmentType] && (
                       <div className="form-group">
-                        <label>Trade Direction <span className="required">*</span></label>
+                        <label>Trade Direction</label>
                         <select 
                           name="tradeDirection"
                           value={formData.tradeDirection}
@@ -1313,47 +1311,40 @@ const NewShipments = () => {
                     
                     <div className="form-grid-two-column">
                       <div className="form-group">
-                        <label>Branch <span className="required">*</span></label>
+                        <label>Branch</label>
                         <input 
                           type="text" 
                           name="branch"
                           value={formData.branch}
                           onChange={handleInputChange}
-                          className={validationErrors.branch ? 'error' : ''}
                         />
-                        {validationErrors.branch && <span className="field-error">{validationErrors.branch}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Department <span className="required">*</span></label>
+                        <label>Department</label>
                         <input 
                           type="text" 
                           name="department"
                           value={formData.department}
                           onChange={handleInputChange}
-                          className={validationErrors.department ? 'error' : ''}
                         />
-                        {validationErrors.department && <span className="field-error">{validationErrors.department}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Shipment Date <span className="required">*</span></label>
+                        <label>Shipment Date</label>
                         <input 
                           type="date" 
                           name="shipmentDate"
                           value={formData.shipmentDate}
                           onChange={handleInputChange}
-                          className={validationErrors.shipmentDate ? 'error' : ''}
                         />
-                        {validationErrors.shipmentDate && <span className="field-error">{validationErrors.shipmentDate}</span>}
                       </div>
                       <div className="form-group with-button">
-                        <label>Client <span className="required">*</span></label>
+                        <label>Client</label>
                         <div className="input-with-button">
                           <input 
                             type="text" 
                             name="client"
                             value={formData.client}
                             onChange={handleInputChange}
-                            className={validationErrors.client ? 'error' : ''}
                           />
                           <button 
                             className="add-button"
@@ -1362,29 +1353,24 @@ const NewShipments = () => {
                             +
                           </button>
                         </div>
-                        {validationErrors.client && <span className="field-error">{validationErrors.client}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Shipper <span className="required">*</span></label>
+                        <label>Shipper</label>
                         <input 
                           type="text" 
                           name="shipper"
                           value={formData.shipper}
                           onChange={handleInputChange}
-                          className={validationErrors.shipper ? 'error' : ''}
                         />
-                        {validationErrors.shipper && <span className="field-error">{validationErrors.shipper}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Consignee <span className="required">*</span></label>
+                        <label>Consignee</label>
                         <input 
                           type="text" 
                           name="consignee"
                           value={formData.consignee}
                           onChange={handleInputChange}
-                          className={validationErrors.consignee ? 'error' : ''}
                         />
-                        {validationErrors.consignee && <span className="field-error">{validationErrors.consignee}</span>}
                       </div>
                       <div className="form-group full-width">
                         <label>Address</label>
@@ -1396,67 +1382,56 @@ const NewShipments = () => {
                         />
                       </div>
                       <div className="form-group">
-                        <label>POR <span className="required">*</span></label>
+                        <label>POR</label>
                         <input 
                           type="text" 
                           name="por"
                           value={formData.por}
                           onChange={handleInputChange}
-                          className={validationErrors.por ? 'error' : ''}
                         />
-                        {validationErrors.por && <span className="field-error">{validationErrors.por}</span>}
                       </div>
                       <div className="form-group">
-                        <label>POL <span className="required">*</span></label>
+                        <label>POL</label>
                         <input 
                           type="text" 
                           name="pol"
                           value={formData.pol}
                           onChange={handleInputChange}
-                          className={validationErrors.pol ? 'error' : ''}
                         />
-                        {validationErrors.pol && <span className="field-error">{validationErrors.pol}</span>}
                       </div>
                       <div className="form-group">
-                        <label>POD <span className="required">*</span></label>
+                        <label>POD</label>
                         <input 
                           type="text" 
                           name="pod"
                           value={formData.pod}
                           onChange={handleInputChange}
-                          className={validationErrors.pod ? 'error' : ''}
                         />
-                        {validationErrors.pod && <span className="field-error">{validationErrors.pod}</span>}
                       </div>
                       <div className="form-group">
-                        <label>POF <span className="required">*</span></label>
+                        <label>POF</label>
                         <input 
                           type="text" 
                           name="pof"
                           value={formData.pof}
                           onChange={handleInputChange}
-                          className={validationErrors.pof ? 'error' : ''}
                         />
-                        {validationErrors.pof && <span className="field-error">{validationErrors.pof}</span>}
                       </div>
                       <div className="form-group">
-                        <label>HBL No. <span className="required">*</span></label>
+                        <label>HBL No.</label>
                         <input 
                           type="text" 
                           name="hblNo"
                           value={formData.hblNo}
                           onChange={handleInputChange}
-                          className={validationErrors.hblNo ? 'error' : ''}
                         />
-                        {validationErrors.hblNo && <span className="field-error">{validationErrors.hblNo}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Job No. <span className="required">*</span></label>
+                        <label>Job No.</label>
                         <select 
                           name="jobNo"
                           value={formData.jobNo}
                           onChange={handleJobSelect}
-                          className={validationErrors.jobNo ? 'error' : ''}
                         >
                           <option value="">Select a Job</option>
                           {isLoadingJobs ? (
@@ -1469,84 +1444,69 @@ const NewShipments = () => {
                             ))
                           )}
                         </select>
-                        {validationErrors.jobNo && <span className="field-error">{validationErrors.jobNo}</span>}
                       </div>
                       <div className="form-group">
-                        <label>ETD <span className="required">*</span></label>
+                        <label>ETD</label>
                         <input 
                           type="date" 
                           name="etd"
                           value={formData.etd}
                           onChange={handleInputChange}
-                          className={validationErrors.etd ? 'error' : ''}
                         />
-                        {validationErrors.etd && <span className="field-error">{validationErrors.etd}</span>}
                       </div>
                       <div className="form-group">
-                        <label>ETA <span className="required">*</span></label>
+                        <label>ETA</label>
                         <input 
                           type="date" 
                           name="eta"
                           value={formData.eta}
                           onChange={handleInputChange}
-                          className={validationErrors.eta ? 'error' : ''}
                         />
-                        {validationErrors.eta && <span className="field-error">{validationErrors.eta}</span>}
                       </div>
                       <div className="form-group">
-                        <label>INCOTERMS <span className="required">*</span></label>
+                        <label>INCOTERMS</label>
                         <input 
                           type="text" 
                           name="incoterms"
                           value={formData.incoterms}
                           onChange={handleInputChange}
-                          className={validationErrors.incoterms ? 'error' : ''}
                         />
-                        {validationErrors.incoterms && <span className="field-error">{validationErrors.incoterms}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Service Type <span className="required">*</span></label>
+                        <label>Service Type</label>
                         <input 
                           type="text" 
                           name="serviceType"
                           value={formData.serviceType}
                           onChange={handleInputChange}
-                          className={validationErrors.serviceType ? 'error' : ''}
                         />
-                        {validationErrors.serviceType && <span className="field-error">{validationErrors.serviceType}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Freight <span className="required">*</span></label>
+                        <label>Freight</label>
                         <input 
                           type="text" 
                           name="freight"
                           value={formData.freight}
                           onChange={handleInputChange}
-                          className={validationErrors.freight ? 'error' : ''}
                         />
-                        {validationErrors.freight && <span className="field-error">{validationErrors.freight}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Payable At <span className="required">*</span></label>
+                        <label>Payable At</label>
                         <input 
                           type="text" 
                           name="payableAt"
                           value={formData.payableAt}
                           onChange={handleInputChange}
-                          className={validationErrors.payableAt ? 'error' : ''}
                         />
-                        {validationErrors.payableAt && <span className="field-error">{validationErrors.payableAt}</span>}
                       </div>
                       <div className="form-group">
-                        <label>Dispatch At <span className="required">*</span></label>
+                        <label>Dispatch At</label>
                         <input 
                           type="text" 
                           name="dispatchAt"
                           value={formData.dispatchAt}
                           onChange={handleInputChange}
-                          className={validationErrors.dispatchAt ? 'error' : ''}
                         />
-                        {validationErrors.dispatchAt && <span className="field-error">{validationErrors.dispatchAt}</span>}
                       </div>
                       <div className="form-group">
                         <label>MTD Registration No.</label>
