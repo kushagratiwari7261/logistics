@@ -4,8 +4,15 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/seal.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="description" content="Seal Freight — Modern logistics and freight forwarding management platform." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Seal Freight" />
+  <link rel="apple-touch-icon" href="/seal.png" />
+  
   <title>Seal Freight | Logistics Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,7 +48,45 @@
 
 <body>
   <div id="root"></div>
+  
+  <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; background: var(--brand-primary, #6366f1); color: white; padding: 12px 20px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); align-items: center; gap: 15px;">
+    <span>Install App for better experience</span>
+    <button id="pwa-install-btn" style="background: white; color: var(--brand-primary, #6366f1); border: none; padding: 8px 16px; border-radius: 4px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Install</button>
+  </div>
+
   <script type="module" src="./src/main.jsx"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+      });
+    }
+
+    let deferredPrompt;
+    const installBanner = document.getElementById('pwa-install-banner');
+    const installBtn = document.getElementById('pwa-install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBanner.style.display = 'flex';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      installBanner.style.display = 'none';
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      deferredPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      installBanner.style.display = 'none';
+      console.log('PWA was installed');
+    });
+  </script>
 </body>
 
 </html>
