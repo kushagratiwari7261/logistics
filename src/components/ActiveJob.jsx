@@ -1447,7 +1447,15 @@ const ActiveJob = () => {
           <div className="modal-content job-modal">
             <div className="new-shipment-card">
               <div className="new-shipment-header">
-                <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
+                  {editingJob && (
+                    <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
+                      {editingJob.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>✍️ {editingJob.created_by.split('@')[0]}</span>}
+                      {editingJob.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>🔄 {editingJob.updated_by.split('@')[0]}</span>}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Progress Steps */}
@@ -1762,6 +1770,15 @@ const ActiveJob = () => {
             <div className="modal-body">
               <p>Are you sure you want to delete job #{jobToDelete?.jobNo}?</p>
               <p>This action cannot be undone.</p>
+              {jobToDelete && (jobToDelete.created_by || jobToDelete.updated_by) && (
+                <div className="delete-author-info" style={{marginTop: '15px', padding: '10px', background: 'var(--bg-surface-2)', borderRadius: '6px', fontSize: '0.85rem'}}>
+                  <strong>Author Information:</strong>
+                  <div style={{marginTop: '5px'}}>
+                    {jobToDelete.created_by && <div>Created by: {jobToDelete.created_by}</div>}
+                    {jobToDelete.updated_by && jobToDelete.updated_by !== jobToDelete.created_by && <div>Last edited by: {jobToDelete.updated_by}</div>}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button 

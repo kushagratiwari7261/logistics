@@ -1314,7 +1314,15 @@ const NewShipments = () => {
           <div className="modal-content job-modal">
             <div className="new-shipment-card">
               <div className="new-shipment-header">
-                <h1>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <h1>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</h1>
+                  {editingShipment && (
+                    <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
+                      {editingShipment.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>✍️ {editingShipment.created_by.split('@')[0]}</span>}
+                      {editingShipment.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>🔄 {editingShipment.updated_by.split('@')[0]}</span>}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Progress Steps */}
@@ -2179,6 +2187,15 @@ const NewShipments = () => {
             <div className="modal-body">
               <p>Are you sure you want to delete shipment #{shipmentToDelete?.shipmentNo}?</p>
               <p>This action cannot be undone.</p>
+              {shipmentToDelete && (shipmentToDelete.created_by || shipmentToDelete.updated_by) && (
+                <div className="delete-author-info" style={{marginTop: '15px', padding: '10px', background: 'var(--bg-surface-2)', borderRadius: '6px', fontSize: '0.85rem'}}>
+                  <strong>Author Information:</strong>
+                  <div style={{marginTop: '5px'}}>
+                    {shipmentToDelete.created_by && <div>Created by: {shipmentToDelete.created_by}</div>}
+                    {shipmentToDelete.updated_by && shipmentToDelete.updated_by !== shipmentToDelete.created_by && <div>Last edited by: {shipmentToDelete.updated_by}</div>}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button 
