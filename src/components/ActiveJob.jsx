@@ -1389,7 +1389,7 @@ const ActiveJob = () => {
 
                 {activeStep === 2 && (
                   <div className="trade-direction-selection">
-                    <h2>Is this an Export or Import job?</h2>
+                    <h2>Is this an Export, Import{jobType === 'TRANSPORT' ? ', or Local' : ''} job?</h2>
                     {validationErrors.tradeDirection && (
                       <div className="validation-error">{validationErrors.tradeDirection}</div>
                     )}
