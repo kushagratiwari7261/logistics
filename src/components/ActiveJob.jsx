@@ -750,7 +750,6 @@ const ActiveJob = () => {
       } else {
         // Create new job
         jobData.created_by = userEmail;
-        jobData.updated_by = userEmail;
         
         const { data: newJob, error } = await supabase
           .from('jobs')
@@ -1392,7 +1391,7 @@ const ActiveJob = () => {
                     <td>{job.updatedAt}</td>
                     <td>
                       {job.created_by && <div className="audit-badge" title="Created By">✍️ {job.created_by.split('@')[0]}</div>}
-                      {job.updated_by && job.updated_by !== job.created_by && <div className="audit-badge edit" title="Updated By">🔄 {job.updated_by.split('@')[0]}</div>}
+                      {job.updated_by && <div className="audit-badge edit" title="Updated By">🔄 {job.updated_by.split('@')[0]}</div>}
                     </td>
                     <td>
                       {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
@@ -1767,7 +1766,7 @@ const ActiveJob = () => {
                   <strong>Author Information:</strong>
                   <div style={{marginTop: '5px'}}>
                     {jobToDelete.created_by && <div>Created by: {jobToDelete.created_by}</div>}
-                    {jobToDelete.updated_by && jobToDelete.updated_by !== jobToDelete.created_by && <div>Last edited by: {jobToDelete.updated_by}</div>}
+                    {jobToDelete.updated_by && <div>Last edited by: {jobToDelete.updated_by}</div>}
                   </div>
                 </div>
               )}

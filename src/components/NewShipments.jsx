@@ -771,7 +771,6 @@ const NewShipments = () => {
           shipment_type: shipmentType,
           trade_direction: formatStringForDB(formData.tradeDirection),
           updated_at: new Date().toISOString(),
-          updated_by: userEmail,
           
           airport_of_departure: formatStringForDB(formData.airport_of_departure),
           airport_of_destination: formatStringForDB(formData.airport_of_destination),
@@ -824,6 +823,7 @@ const NewShipments = () => {
         
         let result;
         if (editingShipment) {
+          cleanShipmentData.updated_by = userEmail;
           const { data: updatedShipment, error } = await supabase
             .from('shipments')
             .update(cleanShipmentData)
@@ -1247,7 +1247,7 @@ const NewShipments = () => {
                     <td>{shipment.pof}</td>
                     <td>
                       {shipment.created_by && <div className="audit-badge" title="Created By">✍️ {shipment.created_by.split('@')[0]}</div>}
-                      {shipment.updated_by && shipment.updated_by !== shipment.created_by && <div className="audit-badge edit" title="Updated By">🔄 {shipment.updated_by.split('@')[0]}</div>}
+                      {shipment.updated_by && <div className="audit-badge edit" title="Updated By">🔄 {shipment.updated_by.split('@')[0]}</div>}
                     </td>
                     <td className="actions-cell">
                       <button 
@@ -2184,7 +2184,7 @@ const NewShipments = () => {
                   <strong>Author Information:</strong>
                   <div style={{marginTop: '5px'}}>
                     {shipmentToDelete.created_by && <div>Created by: {shipmentToDelete.created_by}</div>}
-                    {shipmentToDelete.updated_by && shipmentToDelete.updated_by !== shipmentToDelete.created_by && <div>Last edited by: {shipmentToDelete.updated_by}</div>}
+                    {shipmentToDelete.updated_by && <div>Last edited by: {shipmentToDelete.updated_by}</div>}
                   </div>
                 </div>
               )}
