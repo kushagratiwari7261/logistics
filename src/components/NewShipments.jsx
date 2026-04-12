@@ -436,14 +436,6 @@ const NewShipments = () => {
     };
   }, []);
 
-  // Adjust max height when shipments change
-  useEffect(() => {
-    if (tableContainerRef.current) {
-      const tableHeight = tableContainerRef.current.scrollHeight;
-      const calculatedMaxHeight = Math.min(tableHeight, 400);
-      setMaxHeight(`${calculatedMaxHeight}px`);
-    }
-  }, [shipments]);
 
   const handleJobSelect = async (e) => {
     const selectedJobNo = e.target.value;
@@ -1230,7 +1222,7 @@ const NewShipments = () => {
         <div
           className="table-container"
           ref={tableContainerRef}
-          style={{ maxHeight: maxHeight, overflowY: 'auto' }}
+          style={{ maxHeight: 'calc(100vh - 250px)', minHeight: '500px', overflowY: 'auto' }}
         >
           <table className="activity-table">
             <thead>

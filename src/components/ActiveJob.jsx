@@ -467,14 +467,6 @@ const ActiveJob = () => {
     };
   }, [fetchJobs]);
 
-  // Adjust max height when jobs change
-  useEffect(() => {
-    if (tableContainerRef.current) {
-      const tableHeight = tableContainerRef.current.scrollHeight;
-      const calculatedMaxHeight = Math.min(tableHeight, 400);
-      setMaxHeight(`${calculatedMaxHeight}px`);
-    }
-  }, [jobs]);
 
   // Validate current step before proceeding
   const validateStep = (step) => {
@@ -1357,10 +1349,10 @@ const ActiveJob = () => {
             Add Job
           </button>
         </div>
-        <div
-          className="table-container"
+        <div 
+          className="table-container" 
           ref={tableContainerRef}
-          style={{ maxHeight, overflowY: 'auto' }}
+          style={{ maxHeight: 'calc(100vh - 250px)', minHeight: '500px', overflowY: 'auto' }}
         >
           <table className="activity-table">
             <thead>
