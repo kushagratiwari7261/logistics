@@ -89,6 +89,8 @@ const INITIAL_FORM_DATA = {
   terms: '',
   sbNo: '',
   sbDate: '',
+  boeNo: '',
+  boeDate: '',
   destination: '',
   commodity: '',
   fob: '',
@@ -475,6 +477,8 @@ const NewShipments = () => {
           terms: data.terms || prev.terms,
           sbNo: data.sb_no || prev.sbNo,
           sbDate: formatDateOnly(data.sb_date) || prev.sbDate,
+          boeNo: data.boe_no || prev.boeNo,
+          boeDate: formatDateOnly(data.boe_date) || prev.boeDate,
           destination: data.destination || prev.destination,
           commodity: data.commodity || prev.commodity,
           fob: data.fob || prev.fob,
@@ -745,6 +749,8 @@ const NewShipments = () => {
           terms: formatStringForDB(formData.terms),
           sbNo: formatStringForDB(formData.sbNo),
           sbDate: formatDateForDB(formData.sbDate),
+          boe_no: formatStringForDB(formData.boeNo),
+          boe_date: formatDateForDB(formData.boeDate),
           destination: formatStringForDB(formData.destination),
           commodity: formatStringForDB(formData.commodity),
           fob: formatStringForDB(formData.fob),
@@ -881,6 +887,8 @@ const NewShipments = () => {
       terms: shipment.terms,
       sbNo: shipment.sbNo,
       sbDate: shipment.sbDate,
+      boeNo: shipment.boe_no,
+      boeDate: shipment.boe_date,
       destination: shipment.destination,
       commodity: shipment.commodity,
       fob: shipment.fob,
@@ -1039,8 +1047,10 @@ const NewShipments = () => {
               { label: 'Stuffing Date', name: 'stuffingDate', type: 'date', condition: true },
               { label: 'H/O Date', name: 'hoDate', type: 'date', condition: true },
               { label: 'Terms', name: 'terms', type: 'text', condition: true },
-              { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
-              { label: 'S/B Date', name: 'sbDate', type: 'date', condition: true },
+              { label: 'S/B No', name: 'sbNo', type: 'text', condition: formData.tradeDirection === 'EXPORT' },
+              { label: 'S/B Date', name: 'sbDate', type: 'date', condition: formData.tradeDirection === 'EXPORT' },
+              { label: 'BOE', name: 'boeNo', type: 'text', condition: formData.tradeDirection === 'IMPORT' },
+              { label: 'BOE Date', name: 'boeDate', type: 'date', condition: formData.tradeDirection === 'IMPORT' },
               { label: 'Destination', name: 'destination', type: 'text', condition: true },
               { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
               { label: 'FOB', name: 'fob', type: 'text', condition: true },
@@ -1782,12 +1792,30 @@ const NewShipments = () => {
                             <div className="summary-row">
                               <span className="label">Terms:</span>
                               <span className="value">{formData.terms}</span>
-                              <span className="label">S/B No:</span>
-                              <span className="value">{formData.sbNo}</span>
+                              {formData.tradeDirection === 'EXPORT' ? (
+                                <>
+                                  <span className="label">S/B No:</span>
+                                  <span className="value">{formData.sbNo}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="label">BOE:</span>
+                                  <span className="value">{formData.boeNo}</span>
+                                </>
+                              )}
                             </div>
                             <div className="summary-row">
-                              <span className="label">S/B Date:</span>
-                              <span className="value">{formData.sbDate}</span>
+                              {formData.tradeDirection === 'EXPORT' ? (
+                                <>
+                                  <span className="label">S/B Date:</span>
+                                  <span className="value">{formData.sbDate}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="label">BOE Date:</span>
+                                  <span className="value">{formData.boeDate}</span>
+                                </>
+                              )}
                               <span className="label">Destination:</span>
                               <span className="value">{formData.destination}</span>
                             </div>

@@ -171,6 +171,10 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
         ['POF', shipment.pof],
         ['ETD', shipment.etd],
         ['ETA', shipment.eta],
+        ['S/B No', shipment.sb_no || shipment.sbNo],
+        ['S/B Date', shipment.sb_date || shipment.sbDate],
+        ['BOE', shipment.boe_no],
+        ['BOE Date', shipment.boe_date],
         ['HBL No', shipment.hbl_no],
         ['Container No', shipment.containerNo || shipment.container_no],
         ['Vessel', shipment.vessel],
@@ -353,7 +357,7 @@ function ShipmentList({ onSelect }) {
         setLoading(true);
         let q = supabase
             .from('shipments')
-            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date')
+            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sbNo,sb_date,sbDate,boe_no,boe_date,trade_direction')
             .order('updated_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 

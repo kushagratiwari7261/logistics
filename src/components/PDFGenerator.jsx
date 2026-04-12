@@ -190,8 +190,11 @@ const PDFGenerator = ({ shipmentData = {} }) => {
     description: getSafeValue(shipmentData, 'description', 'CI CASTING (SIDE COVER R, SIDE COVER C, BALANCE WEIGHT,'),
     invoiceNo: getSafeValue(shipmentData, 'invoiceNo', '12/FS/EXP/2025-2026'),
     invoiceDate: getSafeValue(shipmentData, 'invoiceDate', '13/08/2025'),
-    sbNo: getSafeValue(shipmentData, 'sbNo', '446801'),
-    sbDate: getSafeValue(shipmentData, 'sbDate', '14/08/2025'),
+    tradeDirection: getSafeValue(shipmentData, 'tradeDirection', 'EXPORT'),
+    sbNo: getSafeValue(shipmentData, 'sbNo', ''),
+    sbDate: getSafeValue(shipmentData, 'sbDate', ''),
+    boeNo: getSafeValue(shipmentData, 'boeNo', getSafeValue(shipmentData, 'boe_no', '')),
+    boeDate: getSafeValue(shipmentData, 'boeDate', getSafeValue(shipmentData, 'boe_date', '')),
     hsCode: getSafeValue(shipmentData, 'hs_code', getSafeValue(shipmentData, 'HSCode', '73251000')),
     grossWeight: getSafeValue(shipmentData, 'gross_weight', getSafeValue(shipmentData, 'grossWeight', '8774.000 KGS')),
     netWeight: getSafeValue(shipmentData, 'net_weight', getSafeValue(shipmentData, 'netWeight', '8290.000 KGS')),
@@ -366,7 +369,11 @@ const PDFGenerator = ({ shipmentData = {} }) => {
                 <Text style={styles.smallText}>MAIN B/G RETAINER, REAR COVER, SUCTION VALVE BASE,</Text>
                 <Text style={styles.smallText}>REAR BEARING COVER & REAR BEARING HOLDER)</Text>
                 <Text style={[styles.smallText, { marginTop: 3 }]}>INV. NO.: {safeData.invoiceNo} DT. {safeData.invoiceDate}</Text>
-                <Text style={styles.smallText}>S/B NO.: {safeData.sbNo} DT. {safeData.sbDate}</Text>
+                {safeData.tradeDirection === 'IMPORT' ? (
+                  <Text style={styles.smallText}>BOE NO.: {safeData.boeNo} DT. {safeData.boeDate}</Text>
+                ) : (
+                  <Text style={styles.smallText}>S/B NO.: {safeData.sbNo} DT. {safeData.sbDate}</Text>
+                )}
                 <Text style={styles.smallText}>HS CODE: {safeData.hsCode}</Text>
                 <Text style={[styles.smallText, { marginTop: 5 }]}>"ORIGIN THC PREPAID"</Text>
                 <Text style={styles.smallText}>"OCEAN FREIGHT COLLECT"</Text>
