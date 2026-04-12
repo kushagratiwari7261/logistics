@@ -6,7 +6,12 @@ import { supabase } from '../lib/supabaseClient';
 
 // Constants for better maintainability
 const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
-const TRADE_DIRECTIONS = ['EXPORT', 'IMPORT'];
+const TRADE_DIRECTIONS = {
+  'AIR FREIGHT': ['EXPORT', 'IMPORT'],
+  'SEA FREIGHT': ['EXPORT', 'IMPORT'],
+  'TRANSPORT': ['EXPORT', 'IMPORT', 'LOCAL'],
+  'OTHERS': ['EXPORT', 'IMPORT']
+};
 const STEPS = ['Create Job', 'Trade Direction', 'Port Details', 'Summary'];
 const CATEGORIES = [
   'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER', 
@@ -1389,7 +1394,7 @@ const ActiveJob = () => {
                       <div className="validation-error">{validationErrors.tradeDirection}</div>
                     )}
                     <div className="trade-direction-grid">
-                      {TRADE_DIRECTIONS.map((direction, index) => (
+                      {(TRADE_DIRECTIONS[jobType] || ['EXPORT', 'IMPORT']).map((direction, index) => (
                         <div 
                           key={`direction-${index}`} 
                           className={`trade-direction-card ${tradeDirection === direction ? 'selected' : ''}`}

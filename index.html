@@ -65,6 +65,11 @@
       e.preventDefault();
       deferredPrompt = e;
       installBanner.style.display = 'flex';
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        installBanner.style.display = 'none';
+      }, 5000);
     });
 
     installBtn.addEventListener('click', async () => {
