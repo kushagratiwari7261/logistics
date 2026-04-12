@@ -3,6 +3,7 @@ import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { UserPlus, PenLine } from 'lucide-react';
 
 // Constants for better maintainability
 const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
@@ -1390,8 +1391,8 @@ const ActiveJob = () => {
                     <td>{job.createdAt}</td>
                     <td>{job.updatedAt}</td>
                     <td>
-                      {job.created_by && <div className="audit-badge" title="Created By">✍️ {job.created_by.split('@')[0]}</div>}
-                      {job.updated_by && <div className="audit-badge edit" title="Updated By">🔄 {job.updated_by.split('@')[0]}</div>}
+                      {job.created_by && <div className="audit-badge" title={`Created By: ${job.created_by}`}><UserPlus size={12} /> {job.created_by.split('@')[0]}</div>}
+                      {job.updated_by && <div className="audit-badge edit" title={`Updated By: ${job.updated_by}`}><PenLine size={12} /> {job.updated_by.split('@')[0]}</div>}
                     </td>
                     <td>
                       {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
@@ -1442,8 +1443,8 @@ const ActiveJob = () => {
                   <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
                   {editingJob && (
                     <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
-                      {editingJob.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>✍️ {editingJob.created_by.split('@')[0]}</span>}
-                      {editingJob.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>🔄 {editingJob.updated_by.split('@')[0]}</span>}
+                      {editingJob.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><UserPlus size={12} /> {editingJob.created_by.split('@')[0]}</span>}
+                      {editingJob.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><PenLine size={12} /> {editingJob.updated_by.split('@')[0]}</span>}
                     </div>
                   )}
                 </div>

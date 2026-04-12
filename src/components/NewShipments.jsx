@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { supabase } from '../lib/supabaseClient';
+import { UserPlus, PenLine } from 'lucide-react';
 import './NewShipments.css';
 
 // Lazy load PDFGenerator to reduce initial bundle size
@@ -1246,8 +1247,8 @@ const NewShipments = () => {
                     <td>{shipment.por}</td>
                     <td>{shipment.pof}</td>
                     <td>
-                      {shipment.created_by && <div className="audit-badge" title="Created By">✍️ {shipment.created_by.split('@')[0]}</div>}
-                      {shipment.updated_by && <div className="audit-badge edit" title="Updated By">🔄 {shipment.updated_by.split('@')[0]}</div>}
+                      {shipment.created_by && <div className="audit-badge" title={`Created By: ${shipment.created_by}`}><UserPlus size={12} /> {shipment.created_by.split('@')[0]}</div>}
+                      {shipment.updated_by && <div className="audit-badge edit" title={`Updated By: ${shipment.updated_by}`}><PenLine size={12} /> {shipment.updated_by.split('@')[0]}</div>}
                     </td>
                     <td className="actions-cell">
                       <button 
@@ -1310,8 +1311,8 @@ const NewShipments = () => {
                   <h1>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</h1>
                   {editingShipment && (
                     <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
-                      {editingShipment.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>✍️ {editingShipment.created_by.split('@')[0]}</span>}
-                      {editingShipment.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}>🔄 {editingShipment.updated_by.split('@')[0]}</span>}
+                      {editingShipment.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><UserPlus size={12} /> {editingShipment.created_by.split('@')[0]}</span>}
+                      {editingShipment.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><PenLine size={12} /> {editingShipment.updated_by.split('@')[0]}</span>}
                     </div>
                   )}
                 </div>

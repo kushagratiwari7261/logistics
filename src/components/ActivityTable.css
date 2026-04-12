@@ -1,4 +1,4 @@
-﻿/* src/components/ActivityTable.css */
+/* src/components/ActivityTable.css */
 
 /* Table Styles */
 .card.expandable-card {
@@ -1480,7 +1480,9 @@
 }
 /* Realtime Audit Badge */
 .audit-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px 8px;
   margin: 2px 0;
   border-radius: 6px;

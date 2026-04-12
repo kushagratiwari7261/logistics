@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { UserPlus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const DSRHondaReport = () => {
@@ -803,7 +804,7 @@ const DSRHondaReport = () => {
                     <td style={styles.cell}>{renderCellContent(row, 'DT')}</td>
                     <td style={styles.cell}>{renderCellContent(row, 'REMARK')}</td>
                     <td style={styles.cell}>
-                      {row.AUTHOR && <div style={{...styles.badge, backgroundColor: 'rgba(43, 108, 176, 0.1)', color: '#2b6cb0', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', whiteSpace: 'nowrap'}}>✍️ {row.AUTHOR}</div>}
+                      {row.AUTHOR && <div style={{display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(43, 108, 176, 0.1)', color: '#2b6cb0', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', whiteSpace: 'nowrap'}}><UserPlus size={11} /> {row.AUTHOR}</div>}
                     </td>
                   </tr>
                 ))}
