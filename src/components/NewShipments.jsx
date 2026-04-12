@@ -389,6 +389,51 @@ const NewShipments = () => {
   useEffect(() => {
     fetchJobs();
     fetchShipments();
+    
+    // Subscribe to realtime shipments updates
+    const channel = supabase
+      .channel('public:shipments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, payload => {
+        setShipments(currentShipments => {
+          if (payload.eventType === 'DELETE') {
+             return currentShipments.filter(s => s.id !== payload.old.id);
+          }
+          
+          const shipment = payload.new;
+          
+          const mappedShipment = {
+            id: shipment.id,
+            shipmentNo: shipment.shipment_no || `${shipment.id.toString().padStart(6, '0')}`,
+            client: shipment.client,
+            jobNo: shipment.job_no || `${shipment.id.toString().padStart(6, '0')}`,
+            por: shipment.por,
+            pof: shipment.pof,
+            createdAt: shipment.created_at ? new Date(shipment.created_at).toLocaleDateString() : '',
+            updatedAt: shipment.updated_at ? new Date(shipment.updated_at).toLocaleDateString() : '',
+            etd: shipment.etd ? new Date(shipment.etd).toLocaleDateString() : '',
+            eta: shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '',
+            ...shipment
+          };
+          
+          if (payload.eventType === 'INSERT') {
+             return [mappedShipment, ...currentShipments];
+          } else if (payload.eventType === 'UPDATE') {
+             const existingIdx = currentShipments.findIndex(s => s.id === shipment.id);
+             if (existingIdx >= 0) {
+                 const newShipments = [...currentShipments];
+                 newShipments[existingIdx] = mappedShipment;
+                 return newShipments;
+             }
+             return [mappedShipment, ...currentShipments];
+          }
+          return currentShipments;
+        });
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Adjust max height when shipments change
@@ -668,6 +713,14 @@ const NewShipments = () => {
       try {
         setLoading(true);
         
+        let userEmail = 'Unknown';
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) userEmail = user.email;
+        } catch (err) {
+          console.warn('Could not fetch user for audit trail', err);
+        }
+        
         const formatDateForDB = (dateValue) => {
           if (!dateValue || dateValue.toString().trim() === '') {
             return null;
@@ -726,6 +779,7 @@ const NewShipments = () => {
           shipment_type: shipmentType,
           trade_direction: formatStringForDB(formData.tradeDirection),
           updated_at: new Date().toISOString(),
+          updated_by: userEmail,
           
           airport_of_departure: formatStringForDB(formData.airport_of_departure),
           airport_of_destination: formatStringForDB(formData.airport_of_destination),
@@ -799,7 +853,7 @@ const NewShipments = () => {
           
           const { data: newShipment, error } = await supabase
             .from('shipments')
-            .insert([{ ...cleanShipmentData, shipment_no: shipmentNo }])
+            .insert([{ ...cleanShipmentData, shipment_no: shipmentNo, created_by: userEmail }])
             .select();
           
           if (error) throw error;
@@ -1186,6 +1240,7 @@ const NewShipments = () => {
                 <th>Job No.</th>
                 <th>POR</th>
                 <th>POF</th>
+                <th>Author</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1198,6 +1253,10 @@ const NewShipments = () => {
                     <td>{shipment.jobNo}</td>
                     <td>{shipment.por}</td>
                     <td>{shipment.pof}</td>
+                    <td>
+                      {shipment.created_by && <div className="audit-badge" title="Created By">✍️ {shipment.created_by.split('@')[0]}</div>}
+                      {shipment.updated_by && shipment.updated_by !== shipment.created_by && <div className="audit-badge edit" title="Updated By">🔄 {shipment.updated_by.split('@')[0]}</div>}
+                    </td>
                     <td className="actions-cell">
                       <button 
                         className="edit-btn"
@@ -1239,7 +1298,7 @@ const NewShipments = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>
+                  <td colSpan="7" style={{textAlign: 'center', padding: '20px'}}>
                     No shipments found
                   </td>
                 </tr>

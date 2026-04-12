@@ -127,6 +127,18 @@ const DSRHondaReport = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Subscribe to realtime shipments updates for DSR
+    const channel = supabase
+      .channel('public:shipments:dsr')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+         fetchData();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchData, retryCount]);
 
   const transformData = useCallback((rawData) => {
@@ -158,6 +170,7 @@ const DSRHondaReport = () => {
       MBHBLNO: item.mbl_no || item.mblNo || item.hbl_no || null,
       DT: extractDateFromTimestamp(item.hbl_dt || item.hblDt || item.shipment_date),
       REMARK: item.remarks || null,
+      AUTHOR: item.created_by ? item.created_by.split('@')[0] : (item.updated_by ? item.updated_by.split('@')[0] : null),
       Job: item.job_no || null,
       id: item.id,
       originalData: item
@@ -730,7 +743,7 @@ const DSRHondaReport = () => {
                     'GOODS', 'GrossWeightKGS', 'NETWEIGHT', 'TERM', 'SBILLNO',
                     'SBILLDT', 'STUFFINGDT', 'HANDOVERDT', 'SLINE', 'BKGNO',
                     'CONTAINERNO', 'CONTYPE', 'RAILOUTDT', 'ARRIVAL', 'VESSEL',
-                    'VOY', 'ETD', 'SOB', 'ETA', 'MBHBLNO', 'DT', 'REMARK'
+                    'VOY', 'ETD', 'SOB', 'ETA', 'MBHBLNO', 'DT', 'REMARK', 'AUTHOR'
                   ].map(column => (
                     <th
                       key={column}
@@ -789,6 +802,9 @@ const DSRHondaReport = () => {
                     <td style={styles.cell}>{renderCellContent(row, 'MBHBLNO')}</td>
                     <td style={styles.cell}>{renderCellContent(row, 'DT')}</td>
                     <td style={styles.cell}>{renderCellContent(row, 'REMARK')}</td>
+                    <td style={styles.cell}>
+                      {row.AUTHOR && <div style={{...styles.badge, backgroundColor: 'rgba(43, 108, 176, 0.1)', color: '#2b6cb0', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', whiteSpace: 'nowrap'}}>✍️ {row.AUTHOR}</div>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

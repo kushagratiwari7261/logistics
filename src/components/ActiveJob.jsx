@@ -384,6 +384,87 @@ const ActiveJob = () => {
   // Load jobs on component mount
   useEffect(() => {
     fetchJobs();
+    
+    // Subscribe to realtime jobs updates (Optimistic / Smart Update)
+    const channel = supabase
+      .channel('public:jobs')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, payload => {
+        setJobs(currentJobs => {
+          if (payload.eventType === 'DELETE') {
+             return currentJobs.filter(j => j.id !== payload.old.id);
+          }
+          
+          const job = payload.new;
+          if (job.status !== 'active') {
+             return currentJobs.filter(j => j.id !== job.id);
+          }
+          
+          let from_loc = '';
+          let to_loc = '';
+          switch(job.job_type) {
+             case 'AIR FREIGHT': from_loc = job.airport_of_departure; to_loc = job.airport_of_destination; break;
+             case 'TRANSPORT': from_loc = job.from_location; to_loc = job.to_location; break;
+             default: from_loc = job.pol; to_loc = job.pod; break;
+          }
+          
+          const safeValue = (value) => value || '';
+          
+          const mappedJob = {
+            id: job.id,
+            jobNo: safeValue(job.job_no),
+            client: safeValue(job.client),
+            from: safeValue(from_loc),
+            to: safeValue(to_loc),
+            createdAt: job.created_at ? new Date(job.created_at).toLocaleDateString() : '',
+            updatedAt: job.updated_at ? new Date(job.updated_at).toLocaleDateString() : '',
+            eta: job.eta ? new Date(job.eta).toLocaleDateString() : '',
+            flight_eta: job.flight_eta ? new Date(job.flight_eta).toLocaleDateString() : '',
+            jobType: safeValue(job.job_type),
+            tradeDirection: safeValue(job.trade_direction),
+            shipper: safeValue(job.shipper),
+            consignee: safeValue(job.consignee),
+            exporter: safeValue(job.exporter),
+            importer: safeValue(job.importer),
+            no_of_packages: job.no_of_packages,
+            gross_weight: job.gross_weight,
+            chargeable_weight: job.chargeable_weight,
+            name_of_airline: safeValue(job.name_of_airline),
+            awb: safeValue(job.awb),
+            airport_of_departure: safeValue(job.airport_of_departure),
+            airport_of_destination: safeValue(job.airport_of_destination),
+            shipper_name: safeValue(job.shipper_name),
+            party_name: safeValue(job.party_name),
+            transporter: safeValue(job.transporter),
+            driver_name: safeValue(job.driver_name),
+            vehicle_billing_amount: job.vehicle_billing_amount,
+            amount: job.amount,
+            volume: job.volume,
+            container_no: safeValue(job.container_no),
+            vessel: safeValue(job.vessel),
+            pol: safeValue(job.pol),
+            pod: safeValue(job.pod),
+            ...job
+          };
+          
+          if (payload.eventType === 'INSERT') {
+             return [mappedJob, ...currentJobs];
+          } else if (payload.eventType === 'UPDATE') {
+             const existingIdx = currentJobs.findIndex(j => j.id === job.id);
+             if (existingIdx >= 0) {
+                 const newJobs = [...currentJobs];
+                 newJobs[existingIdx] = mappedJob;
+                 return newJobs;
+             }
+             return [mappedJob, ...currentJobs];
+          }
+          return currentJobs;
+        });
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchJobs]);
 
   // Adjust max height when jobs change
@@ -549,6 +630,14 @@ const ActiveJob = () => {
     try {
       setLoading(true);
       
+      let userEmail = 'Unknown';
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) userEmail = user.email;
+      } catch (err) {
+        console.warn('Could not fetch user for audit trail', err);
+      }
+      
       // Function to convert empty strings to null for numeric fields
       const cleanNumericValue = (value) => {
         if (value === "" || value === null || value === undefined) {
@@ -657,6 +746,7 @@ const ActiveJob = () => {
       let result;
       if (editingJob) {
         // Update existing job
+        jobData.updated_by = userEmail;
         const { data: updatedJob, error } = await supabase
           .from('jobs')
           .update(jobData)
@@ -667,6 +757,9 @@ const ActiveJob = () => {
         result = updatedJob;
       } else {
         // Create new job
+        jobData.created_by = userEmail;
+        jobData.updated_by = userEmail;
+        
         const { data: newJob, error } = await supabase
           .from('jobs')
           .insert([jobData])
@@ -1280,6 +1373,7 @@ const ActiveJob = () => {
                 <th>To</th>
                 <th>Created At</th>
                 <th>Updated At</th>
+                <th>Author</th>
                 <th>ETA</th>
                 <th>Actions</th>
               </tr>
@@ -1304,6 +1398,10 @@ const ActiveJob = () => {
                     </td>
                     <td>{job.createdAt}</td>
                     <td>{job.updatedAt}</td>
+                    <td>
+                      {job.created_by && <div className="audit-badge" title="Created By">✍️ {job.created_by.split('@')[0]}</div>}
+                      {job.updated_by && job.updated_by !== job.created_by && <div className="audit-badge edit" title="Updated By">🔄 {job.updated_by.split('@')[0]}</div>}
+                    </td>
                     <td>
                       {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
                     </td>
@@ -1333,7 +1431,7 @@ const ActiveJob = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="10" style={{textAlign: 'center', padding: '20px'}}>
+                  <td colSpan="11" style={{textAlign: 'center', padding: '20px'}}>
                     No active jobs found
                   </td>
                 </tr>

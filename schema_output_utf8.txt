@@ -1,0 +1,63 @@
+﻿
+TABLE: shipments
+FIELDS: count, head, error, label, value, icon, id, path, created_at, ascending, destination, status, date, job_no, SNO, INVNO, INVDT, CONSIGNEE, DESTINATION, originalData, shipmentNo, jobNo, client, shipmentType, tradeDirection, por, pof, createdAt, updatedAt, etd, eta, data, shipment_no, freight, payment_status, shipment_type, pod, prefill, name, email, contact, notes, theme, color, current_location, updated_at, location, remarks, estimated_arrival, awb, hbl_no, shipment_date, nullsFirst, shipment_id
+
+TABLE: jobs
+FIELDS: count, head, error, created_at, ascending, id, customer, status, date, jobNo, client, from, to, data, job_no, job_no_display, shipper, consignee, address, por, lcl_fcl, poi, pod, pof, pol, branch, invoice_value, eta, etd, onTimeRate
+
+TABLE: messages
+FIELDS: count, head, error, label, value, icon, id, path, data, conversation_id, created_at, ascending, participants, last_message, unread_count, message_id, sender_id, receiver_id, subject, content, parent_message_id, deleted_at, is_group_message, is_read, read_at
+
+TABLE: organizations
+FIELDS: client
+
+TABLE: vendors
+FIELDS: vendorName, ascending, id, vendor_id, excel_file, excel_path, pdf_file, pdf_path, pan_scan, pan_path, cancelled_cheque
+
+TABLE: vendor_files
+FIELDS: vendor_id, excelFile, name, url, pdfFile, panScan, cancelledCheque, gstRegistration, msmeCertificate, id, error, vendorName, country, address1, address2, city, state, postalCode, contactPerson, telephone, mobile, email
+
+TABLE: vendor-files
+FIELDS: cacheControl, upsert, data, name, url, path, excelFile, pdfFile, panScan, cancelledCheque, gstRegistration, msmeCertificate
+
+TABLE: profiles
+FIELDS: id, username, full_name, avatar_url, email, data, error, conversation_id, created_at, user_id, profile, ascending, message_id, sender, attachments, receiver
+
+TABLE: payments
+FIELDS: id, error, shipment_id, razorpay_payment_id, razorpay_order_id, amount, currency, status, paid_at, payment_status
+
+TABLE: v_monthly_stats
+FIELDS: month, shipments, revenue, month_date, ascending, data
+
+TABLE: v_status_distribution
+FIELDS: name, value, month_date, color, data, ascending
+
+TABLE: v_jobs_by_type
+FIELDS: month, Air, Sea, Road, month_date, ascending, data
+
+TABLE: v_top_clients
+FIELDS: rank, name, shipments, revenue, trend
+
+TABLE: user_settings
+FIELDS: user_id, theme, accent_color, email_notifications, push_notifications, updated_at, onConflict
+
+TABLE: shipment_updates
+FIELDS: id, shipment_id, status, location, remarks, estimated_arrival, error, current_location, updated_at, created_at, ascending
+
+TABLE: message-attachments
+FIELDS: cacheControl, upsert, path, name, size, type, storage_path
+
+TABLE: conversations
+FIELDS: id, data, error, title, created_by, is_group, conversation_id
+
+TABLE: conversation_participants
+FIELDS: user_id, conversation_id, id, data, profile, username, full_name, error
+
+TABLE: message_attachments
+FIELDS: message_id, sender, id, full_name, username, avatar_url, attachments, receiver, file_name, file_size, file_type, storage_path, uploaded_by
+
+TABLE: emails
+FIELDS: message_id, account_id, subject, from_text, to_text, date, text_content, html_content, attachments, has_attachments, attachments_count, updated_at, onConflict, ignoreDuplicates, status, timestamp, cache, services, supabase, emailConfigs, imapConnections, environment, count, success, error, message
+
+TABLE: attachments
+FIELDS: contentType, upsert, data, filename, path, url, size, error
