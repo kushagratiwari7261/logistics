@@ -282,8 +282,10 @@ const PaymentPage = () => {
     });
 
     /* ─── KPIs ─── */
-    const totalPaid = shipments.filter(s => s.payment_status === 'paid').reduce((a, s) => a + (parseFloat(s.freight) || 0), 0);
-    const totalPending = shipments.filter(s => (s.payment_status || 'pending') !== 'paid').reduce((a, s) => a + (parseFloat(s.freight) || 0), 0);
+    const paidShipments = shipments.filter(s => s.payment_status === 'paid');
+    const pendingShipments = shipments.filter(s => (s.payment_status || 'pending') !== 'paid');
+    const totalPaid = paidShipments.reduce((a, s) => a + (parseFloat(s.freight) || 0), 0);
+    const totalPending = pendingShipments.reduce((a, s) => a + (parseFloat(s.freight) || 0), 0);
     const fmt = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
 
     return (
@@ -323,12 +325,12 @@ const PaymentPage = () => {
                     <div className="pay-kpi-value">{shipments.length}</div>
                 </div>
                 <div className="pay-kpi pay-kpi--paid">
-                    <div className="pay-kpi-label">Collected</div>
-                    <div className="pay-kpi-value">{fmt(totalPaid)}</div>
+                    <div className="pay-kpi-label">Collected ({paidShipments.length})</div>
+                    <div className="pay-kpi-value">{totalPaid > 0 ? fmt(totalPaid) : `${paidShipments.length} paid`}</div>
                 </div>
                 <div className="pay-kpi pay-kpi--pending">
-                    <div className="pay-kpi-label">Outstanding</div>
-                    <div className="pay-kpi-value">{fmt(totalPending)}</div>
+                    <div className="pay-kpi-label">Outstanding ({pendingShipments.length})</div>
+                    <div className="pay-kpi-value">{totalPending > 0 ? fmt(totalPending) : `${pendingShipments.length} pending`}</div>
                 </div>
             </div>
 
