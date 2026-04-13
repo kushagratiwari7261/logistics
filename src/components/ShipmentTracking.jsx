@@ -357,7 +357,7 @@ function ShipmentList({ onSelect }) {
         setLoading(true);
         let q = supabase
             .from('shipments')
-            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sbNo,sb_date,sbDate,boe_no,boe_date,trade_direction')
+            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sb_date,boe_no,boe_date,trade_direction')
             .order('updated_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 
