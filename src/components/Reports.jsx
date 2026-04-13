@@ -111,6 +111,7 @@ const Reports = () => {
     const [statusData, setStatusData] = useState(demoStatus)
     const [jobTypeData, setJobTypeData] = useState(demoJobTypes)
     const [topCustomers, setTopCustomers] = useState(demoTopCustomers)
+    const [paymentStats, setPaymentStats] = useState({ collected: 0, pending: 0, cashCount: 0, onlineCount: 0 })
 
     /* ── PDF export ── */
     const downloadPDF = async () => {
@@ -178,6 +179,26 @@ const Reports = () => {
                         : demoKPIs.avgDeliveryDays
 
                     setKpis({ totalShipments, totalRevenue, avgDeliveryDays, onTimeRate: demoKPIs.onTimeRate })
+                }
+
+                /* ── 1b. Payment collection stats ── */
+                const { data: shipRows } = await supabase
+                    .from('shipments')
+                    .select('freight, payment_status, payment_method')
+
+                if (shipRows) {
+                    let collected = 0, pending = 0, cashCount = 0, onlineCount = 0;
+                    shipRows.forEach(s => {
+                        const f = parseFloat(s.freight) || 0;
+                        if (s.payment_status === 'paid') {
+                            collected += f;
+                            if (s.payment_method === 'cash') cashCount++;
+                            else onlineCount++;
+                        } else {
+                            pending += f;
+                        }
+                    });
+                    setPaymentStats({ collected, pending, cashCount, onlineCount });
                 }
 
                 /* ── 2. Monthly volume + revenue ── */
@@ -308,6 +329,14 @@ const Reports = () => {
                 <KPICard
                     label="On-Time Rate" value={`${kpis.onTimeRate}%`}
                     icon={<CheckIcon />} color="teal" trend="+2.1%"
+                />
+                <KPICard
+                    label="Collected" value={`₹${paymentStats.collected.toLocaleString()}`}
+                    icon={<RevenueIcon />} color="green" trend={`${paymentStats.cashCount} cash · ${paymentStats.onlineCount} online`}
+                />
+                <KPICard
+                    label="Pending" value={`₹${paymentStats.pending.toLocaleString()}`}
+                    icon={<ClockIcon />} color="amber" trend="outstanding"
                 />
             </div>
 

@@ -28,6 +28,7 @@ const PaymentPage = () => {
     const [amtDialog, setAmtDialog] = useState(null);  // { shipment }
     const [customAmt, setCustomAmt] = useState('');
     const [amtAction, setAmtAction] = useState(null); // 'razorpay', 'link', 'cash'
+    const [generatedLink, setGeneratedLink] = useState(null); // { url, shipment_no, amount }
     
     const BACKEND_URL = import.meta.env.VITE_WEBSOCKET_URL || "http://localhost:3001";
 
@@ -189,8 +190,9 @@ const PaymentPage = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     amount,
-                    client_email: shipment.email || '',
+                    client_email: shipment.client_email || '',
                     client_contact: shipment.contact || '',
+                    client_name: shipment.client || 'Customer',
                     shipment_no: shipment.shipment_no,
                     reference_id: shipment.id
                 })
@@ -207,7 +209,9 @@ const PaymentPage = () => {
                     status: 'link_generated',
                     payment_method: 'razorpay_link'
                 }]);
-                showToast(`Payment link generated: ${data.short_url}`);
+                // Show share dialog instead of just a toast
+                setGeneratedLink({ url: data.short_url, shipment_no: shipment.shipment_no, amount });
+                showToast(`✓ Payment link generated successfully!`);
                 // Save link url to shipment updates so it's logged
                 await supabase.from('shipment_updates').insert([{
                     shipment_id: shipment.id,
@@ -472,6 +476,53 @@ const PaymentPage = () => {
                         <div className="pay-dialog-actions">
                             <button className="pay-dialog-cancel" onClick={() => setAmtDialog(null)}>Cancel</button>
                             <button className="pay-btn" onClick={confirmCustomAmount}>Proceed to Pay</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Generated Link Share Dialog ─── */}
+            {generatedLink && (
+                <div className="pay-dialog-overlay" onClick={() => setGeneratedLink(null)}>
+                    <div className="pay-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+                        <h3 style={{ marginBottom: '8px' }}>🔗 Payment Link Ready!</h3>
+                        <p style={{ fontSize: '13px', color: '#888', marginBottom: '12px' }}>
+                            Shipment <strong>{generatedLink.shipment_no}</strong> · ₹{parseFloat(generatedLink.amount).toLocaleString()} · Expires in 24 hours
+                        </p>
+                        <div style={{
+                            background: 'var(--bg-surface, #f3f4f6)', padding: '10px 14px',
+                            borderRadius: '8px', fontSize: '13px', wordBreak: 'break-all',
+                            border: '1px solid var(--border, #e5e7eb)', marginBottom: '16px',
+                            fontFamily: 'monospace'
+                        }}>
+                            {generatedLink.url}
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <button
+                                className="pay-btn"
+                                style={{ backgroundColor: '#25D366', flex: 1, minWidth: '120px' }}
+                                onClick={() => {
+                                    const msg = encodeURIComponent(
+                                        `Hi! Please complete your freight payment of ₹${parseFloat(generatedLink.amount).toLocaleString()} for Shipment ${generatedLink.shipment_no}.\n\nPay here (valid 24 hrs): ${generatedLink.url}\n\n— Seal Freight Forwarders`
+                                    );
+                                    window.open(`https://wa.me/?text=${msg}`, '_blank');
+                                }}
+                            >
+                                📱 Share on WhatsApp
+                            </button>
+                            <button
+                                className="pay-btn"
+                                style={{ backgroundColor: '#6366f1', flex: 1, minWidth: '120px' }}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(generatedLink.url);
+                                    showToast('Link copied to clipboard!');
+                                }}
+                            >
+                                📋 Copy Link
+                            </button>
+                        </div>
+                        <div style={{ marginTop: '12px', textAlign: 'right' }}>
+                            <button className="pay-dialog-cancel" onClick={() => setGeneratedLink(null)}>Close</button>
                         </div>
                     </div>
                 </div>
