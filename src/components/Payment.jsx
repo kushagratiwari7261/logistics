@@ -30,7 +30,7 @@ const PaymentPage = () => {
     const [amtAction, setAmtAction] = useState(null); // 'razorpay', 'link', 'cash'
     const [generatedLink, setGeneratedLink] = useState(null); // { url, shipment_no, amount }
     
-    const BACKEND_URL = import.meta.env.VITE_WEBSOCKET_URL || (import.meta.env.PROD ? "https://noida-production.up.railway.app" : "http://localhost:3001");
+    const BACKEND_URL = import.meta.env.VITE_WEBSOCKET_URL || (import.meta.env.PROD ? "" : "http://localhost:3001");
 
     const showToast = (msg, type = 'success') => {
         setToast({ msg, type });
