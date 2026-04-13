@@ -12,8 +12,12 @@ import {
   MessageSquare, 
   BarChart3, 
   Settings,
-  LogOut
+  LogOut,
+  ChevronDown,
+  ChevronRight,
+  UserPlus
 } from 'lucide-react'
+import { useState } from 'react'
 
 const navItems = [
   {
@@ -22,9 +26,20 @@ const navItems = [
     icon: <LayoutDashboard size={20} />,
   },
   {
-    to: '/customers',
-    label: 'Customers',
+    label: 'Business Partner',
     icon: <Users size={20} />,
+    children: [
+      {
+        to: '/vendors',
+        label: 'Vendor',
+        icon: <UserPlus size={16} />,
+      },
+      {
+        to: '/customers',
+        label: 'Customer',
+        icon: <Users size={16} />,
+      },
+    ]
   },
   {
     to: '/new-shipment',
@@ -75,10 +90,19 @@ const navItems = [
 
 const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
   const location = useLocation()
+  const [expandedItems, setExpandedItems] = useState(['Business Partner'])
 
   const handleLogoutClick = async () => { await onLogout() }
   const handleLinkClick = () => { if (mobileMenuOpen) toggleMobileMenu() }
   const isActive = (path) => location.pathname === path
+  
+  const toggleExpand = (label) => {
+    setExpandedItems(prev => 
+      prev.includes(label) 
+        ? prev.filter(item => item !== label)
+        : [...prev, label]
+    )
+  }
 
   // User avatar initials
   const initials = user?.email
@@ -86,17 +110,48 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
     : 'SF'
   const emailDisplay = user?.email ?? 'freight@seal.com'
 
-  const NavItem = ({ item, onClick }) => (
-    <Link
-      to={item.to}
-      className={`nav-link ${isActive(item.to) ? 'active' : ''}`}
-      onClick={onClick}
-    >
-      <span className="nav-icon">{item.icon}</span>
-      <span className="nav-label">{item.label}</span>
-      {isActive(item.to) && <span className="active-indicator" />}
-    </Link>
-  )
+  const NavItem = ({ item, onClick, isSubItem = false }) => {
+    const hasChildren = item.children && item.children.length > 0
+    const isExpanded = expandedItems.includes(item.label)
+    const active = isActive(item.to) || (hasChildren && item.children.some(child => isActive(child.to)))
+
+    if (hasChildren) {
+      return (
+        <div className={`nav-item-group ${isExpanded ? 'active-group' : ''}`}>
+          <button
+            className={`nav-link ${active ? 'active' : ''}`}
+            onClick={() => toggleExpand(item.label)}
+            type="button"
+          >
+            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-label">{item.label}</span>
+            <span className="expand-icon">
+              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </span>
+          </button>
+          {isExpanded && (
+            <div className="sub-menu">
+              {item.children.map((child) => (
+                <NavItem key={child.to} item={child} onClick={onClick} isSubItem={true} />
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        to={item.to}
+        className={`nav-link ${isActive(item.to) ? 'active' : ''} ${isSubItem ? 'sub-nav-link' : ''}`}
+        onClick={onClick}
+      >
+        <span className="nav-icon">{item.icon}</span>
+        <span className="nav-label">{item.label}</span>
+        {isActive(item.to) && <span className="active-indicator" />}
+      </Link>
+    )
+  }
 
   const UserFooter = () => (
     <div className="sidebar-footer">
@@ -142,7 +197,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
           <div className="sidebar-section-label">Main Menu</div>
           <nav className="mobile-nav-menu">
             {navItems.map((item) => (
-              <NavItem key={item.to} item={item} onClick={handleLinkClick} />
+              <NavItem key={item.label} item={item} onClick={handleLinkClick} />
             ))}
           </nav>
           <div className="sidebar-divider" />
@@ -170,7 +225,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
 
         <nav className="nav-menu">
           {navItems.map((item) => (
-            <NavItem key={item.to} item={item} onClick={handleLinkClick} />
+            <NavItem key={item.label} item={item} onClick={handleLinkClick} />
           ))}
         </nav>
 

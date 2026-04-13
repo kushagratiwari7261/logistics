@@ -918,7 +918,8 @@ function App() {
               )}
               <Routes>
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/customers" element={<ProtectedRoute><CustomerPage /></ProtectedRoute>} />
+                <Route path="/vendors" element={<ProtectedRoute><CustomerPage partnerType="vendor" /></ProtectedRoute>} />
+                <Route path="/customers" element={<ProtectedRoute><CustomerPage partnerType="customer" /></ProtectedRoute>} />
                 <Route path="/new-shipment" element={<ProtectedRoute><NewShipments /></ProtectedRoute>} />
                 <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from '../lib/supabaseClient';
 
-const CustomerPage = () => {
+const CustomerPage = ({ partnerType = 'customer' }) => {
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -11,6 +11,9 @@ const CustomerPage = () => {
   const [error, setError] = useState(null);
   const [viewModal, setViewModal] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState(null);
+
+  const displayType = partnerType.charAt(0).toUpperCase() + partnerType.slice(1);
+
   const handleView = (customer) => {
     setViewingCustomer(customer);
     fetchCustomerFiles(customer.id);
@@ -91,21 +94,33 @@ const CustomerPage = () => {
     }
   };
 
-  // Fetch customers from Supabase
+  // Fetch partners from Supabase filtered by type
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('vendors')
         .select('*')
+        .eq('partner_type', partnerType)
         .order('vendorName', { ascending: true });
 
-      if (error) throw error;
-
-      setCustomers(data || []);
-      setFilteredCustomers(data || []);
+      if (error) {
+        // Fallback for when Column doesn't exist yet or other errors
+        console.warn("Error fetching by type, fetching all as fallback:", error);
+        const { data: allData, error: allErr } = await supabase
+          .from('vendors')
+          .select('*')
+          .order('vendorName', { ascending: true });
+        
+        if (allErr) throw allErr;
+        setCustomers(allData || []);
+        setFilteredCustomers(allData || []);
+      } else {
+        setCustomers(data || []);
+        setFilteredCustomers(data || []);
+      }
     } catch (error) {
-      console.error("Error fetching customers:", error);
+      console.error(`Error fetching ${partnerType}s:`, error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -301,12 +316,12 @@ const CustomerPage = () => {
     }
   };
 
-  // Fetch countries on component mount
+  // Fetch countries and partners on component mount or when partnerType changes
   useEffect(() => {
     fetchCustomers();
     fetchCountries();
     ensureBucketExists(); // Ensure bucket exists on component mount
-  }, []);
+  }, [partnerType]);
 
   // Fetch states when country changes
   useEffect(() => {
@@ -426,7 +441,7 @@ const CustomerPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this vendor?")) {
+    if (window.confirm(`Are you sure you want to delete this ${partnerType}?`)) {
       try {
         const { error } = await supabase
           .from('vendors')
@@ -457,20 +472,20 @@ const CustomerPage = () => {
       let customerId;
 
       if (editingCustomer) {
-        // Update existing vendor
+        // Update existing partner
         const { data, error } = await supabase
           .from('vendors')
-          .update(processedData)
+          .update({ ...processedData, partner_type: partnerType })
           .eq('id', editingCustomer.id)
           .select();
 
         if (error) throw error;
         customerId = editingCustomer.id;
       } else {
-        // Insert new vendor
+        // Insert new partner
         const { data, error } = await supabase
           .from('vendors')
-          .insert([processedData])
+          .insert([{ ...processedData, partner_type: partnerType }])
           .select();
 
         if (error) throw error;
@@ -569,10 +584,10 @@ const CustomerPage = () => {
       setShowModal(false);
       setEditingCustomer(null);
 
-      // Refresh the customer list
+      // Refresh the list
       fetchCustomers();
     } catch (error) {
-      console.error("Error saving vendor:", error);
+      console.error(`Error saving ${partnerType}:`, error);
       setError(error.message);
     }
   };
@@ -637,22 +652,22 @@ const CustomerPage = () => {
     </div>
   );
 
-  if (loading) return <div className="loading">Loading vendors...</div>;
+  if (loading) return <div className="loading">Loading {partnerType}s...</div>;
   if (error) return <div className="error">Error: {error}</div>;
 
   return (
     <div className="customer-management">
       <div className="page-header">
-        <h1>Vendor Management</h1>
+        <h1>{displayType} Management</h1>
         <button className="btn btn-primary" onClick={handleAddNew}>
-          Add New Vendor
+          Add New {displayType}
         </button>
       </div>
 
       <div className="search-bar">
         <input
           type="text"
-          placeholder="Search vendors by name, email, or contact person..."
+          placeholder={`Search ${partnerType}s by name, email, or contact person...`}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -662,7 +677,7 @@ const CustomerPage = () => {
         <table className="customers-table">
           <thead>
             <tr>
-              <th>Vendor Name</th>
+              <th>{displayType} Name</th>
               <th>Contact Person</th>
               <th>Email</th>
               <th>Mobile</th>
@@ -706,24 +721,24 @@ const CustomerPage = () => {
               ))
             ) : (<tr>
               <td colSpan="7" className="no-data">
-                No vendors found. {searchTerm ? "Try a different search." : "Add a new vendor to get started."}
+                No {partnerType}s found. {searchTerm ? "Try a different search." : `Add a new ${partnerType} to get started.`}
               </td>
             </tr>
             )}
           </tbody>
         </table>
       </div>
-      {/* View Vendor Details Modal */}
+      {/* View Details Modal */}
       {viewModal && viewingCustomer && (
         <div className="modal-overlay">
           <div className="modal large-modal">
-            <h2>Vendor Details: {viewingCustomer.vendorName}</h2>
+            <h2>{displayType} Details: {viewingCustomer.vendorName}</h2>
             <div className="vendor-details">
               <div className="details-section">
                 <h3>Basic Information</h3>
                 <div className="details-row">
                   <div className="detail-item">
-                    <label>Vendor Name:</label>
+                    <label>{displayType} Name:</label>
                     <span>{viewingCustomer.vendorName}</span>
                   </div>
                   <div className="detail-item">
@@ -989,18 +1004,18 @@ const CustomerPage = () => {
       {showModal && (
         <div className="modal-overlay">
           <div className="modal large-modal">
-            <h2>{editingCustomer ? "Edit Vendor" : "Add New Vendor"}</h2>
+            <h2>{editingCustomer ? `Edit ${displayType}` : `Add New ${displayType}`}</h2>
             <form onSubmit={handleSave} className="vendor-form">
               <div className="form-section">
                 <h3>Basic Information</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Vendor Name *</label>
+                    <label>{displayType} Name *</label>
                     <input
                       name="vendorName"
                       value={formData.vendorName}
                       onChange={handleInputChange}
-                      placeholder="Vendor Name"
+                      placeholder={`${displayType} Name`}
                       required
                     />
                   </div>
