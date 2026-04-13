@@ -192,8 +192,9 @@ app.post("/api/webhooks/shipments", async (req, res) => {
   
   const isStatusUpdate = payload.type === 'UPDATE' && payload.record.status !== payload.old_record.status;
   const isPaymentFailure = payload.type === 'UPDATE' && payload.record.payment_status === 'failed' && payload.old_record.payment_status !== 'failed';
+  const isPaymentSuccess = payload.type === 'UPDATE' && payload.record.payment_status === 'paid' && payload.old_record.payment_status !== 'paid';
   
-  if (isStatusUpdate || isPaymentFailure) {
+  if (isStatusUpdate || isPaymentFailure || isPaymentSuccess) {
     const shipmentId = payload.record.id;
     
     if (!resend) return res.status(200).json({ msg: "Webhook received but Resend not config" });
@@ -313,12 +314,162 @@ app.post("/api/webhooks/shipments", async (req, res) => {
           `
         });
       }
+
+      if (isPaymentSuccess) {
+        const amount = payload.record.freight || payload.record.amount || '0';
+        const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
+        const clientEmail = payload.record.client_email || payload.record.email;
+        const recipients = clientEmail ? [clientEmail, ...allRecipients] : allRecipients;
+
+        await resend.emails.send({
+          from: 'Seal Freight Alerts <alerts@prudata.info>',
+          to: [...new Set(recipients)],
+          subject: "Seal Freight: Payment Received Confirmation",
+          html: `
+            <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f0fdf4; padding: 40px 0;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #bbf7d0;">
+                <div style="background-color: #15803d; padding: 30px; text-align: center;">
+                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                </div>
+                <div style="padding: 40px;">
+                  <h1 style="margin: 0 0 20px; font-size: 22px; font-weight: 700; color: #166534;">Payment Successful</h1>
+                  <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #166534;">Thank you! We have successfully received payment for shipment <strong>#${shipmentId}</strong>.</p>
+                  <div style="margin: 30px 0; padding: 20px; border-left: 4px solid #15803d; background-color: #f0fdf4;">
+                    <p style="margin: 0 0 10px; font-weight: bold; color: #15803d;">Transaction Details:</p>
+                    <p style="margin: 0; font-size: 14px; color: #166534;">Amount: ₹${amount}<br>Client/Vendor: ${vendor}<br>Payment Method: ${payload.record.payment_method || 'Online/Cash'}</p>
+                  </div>
+                  <a href="https://logistics-alpha-steel.vercel.app/dashboard" style="display: inline-block; background-color: #15803d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Check Dashboard</a>
+                </div>
+              </div>
+            </div>
+          `
+        });
+      }
     } catch (err) {
       console.error("Global Webhook Notification Error:", err);
     }
   }
 
   res.status(200).json({ received: true });
+});
+
+/**
+ * Create Payment Link (Razorpay)
+ */
+app.post("/api/payments/generate-link", async (req, res) => {
+  const { amount, client_email, client_contact, shipment_no, reference_id, description } = req.body;
+  
+  const RAZORPAY_KEY_ID = process.env.VITE_RAZORPAY_KEY_ID;
+  const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return res.status(500).json({ error: "Razorpay credentials not configured in backend" });
+  }
+
+  try {
+    const response = await fetch("https://api.razorpay.com/v1/payment_links", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + Buffer.from(RAZORPAY_KEY_ID + ":" + RAZORPAY_KEY_SECRET).toString("base64")
+      },
+      body: JSON.stringify({
+        amount: Math.round(parseFloat(amount) * 100),
+        currency: "INR",
+        accept_partial: false,
+        expire_by: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours expiry
+        reference_id: reference_id?.toString() || shipment_no || "",
+        description: description || `Payment for Shipment ${shipment_no}`,
+        customer: {
+          name: req.body.client_name || "Customer",
+          email: client_email || "",
+          contact: client_contact || ""
+        },
+        notify: {
+          sms: false,
+          email: !!client_email
+        },
+        reminder_enable: true,
+        notes: {
+          shipment_no: shipment_no
+        }
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error?.description || "Failed to create Razorypay link");
+    }
+
+    res.json({ success: true, link_id: data.id, short_url: data.short_url, status: data.status });
+  } catch (err) {
+    console.error("Razorpay link error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Razorpay Webhook
+ * Handles events from Razorpay like payment_link.paid
+ */
+app.post("/api/webhooks/razorpay", express.json(), async (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  try {
+    const crypto = require("crypto");
+    // Verify Razorpay signature if secret is configured
+    if (secret && req.headers['x-razorpay-signature']) {
+      const shasum = crypto.createHmac("sha256", secret);
+      shasum.update(JSON.stringify(req.body));
+      const digest = shasum.digest("hex");
+
+      if (digest !== req.headers["x-razorpay-signature"]) {
+        return res.status(400).json({ error: "Invalid signature" });
+      }
+    }
+
+    const { event, payload } = req.body;
+
+    if (event === "payment_link.paid") {
+      const paymentLink = payload.payment_link.entity;
+      const shipmentId = paymentLink.reference_id;
+
+      if (shipmentId) {
+        // Find shipment by id or shipment_no
+        const { data: shipment } = await supabase
+          .from("shipments")
+          .select("id")
+          .eq("id", shipmentId) // Assuming reference_id was set to shipment.id
+          .single();
+
+        if (shipment) {
+          // Update shipment status -> this triggers our Supabase webhook for Resend mails!
+          await supabase
+            .from("shipments")
+            .update({ payment_status: "paid" })
+            .eq("id", shipment.id);
+            
+          // Record payment transaction
+          await supabase
+            .from("payments")
+            .insert([{
+                shipment_id: shipment.id,
+                amount: paymentLink.amount_paid / 100, // convert from paise
+                currency: "INR",
+                status: "paid",
+                payment_method: "razorpay_link",
+                link_id: paymentLink.id,
+                paid_at: new Date().toISOString()
+            }]);
+        }
+      }
+    }
+
+    res.status(200).json({ status: "ok" });
+  } catch (err) {
+    console.error("Razorpay Webhook Error:", err.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 // Setup Server and Socket.IO

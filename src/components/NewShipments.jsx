@@ -30,6 +30,7 @@ const INITIAL_FORM_DATA = {
   department: '',
   shipmentDate: new Date().toISOString().split('T')[0],
   client: '',
+  client_email: '',
   shipper: '',
   consignee: '',
   address: '',
@@ -741,6 +742,7 @@ const NewShipments = () => {
           department: formatStringForDB(formData.department),
           shipment_date: formatDateForDB(formData.shipmentDate),
           client: formatStringForDB(formData.client),
+          client_email: formatStringForDB(formData.client_email),
           shipper: formatStringForDB(formData.shipper),
           consignee: formatStringForDB(formData.consignee),
           address: formatStringForDB(formData.address),
@@ -1423,6 +1425,16 @@ const NewShipments = () => {
                             +
                           </button>
                         </div>
+                      </div>
+                      <div className="form-group">
+                        <label>Client Email (for payment link)</label>
+                        <input 
+                          type="email" 
+                          name="client_email"
+                          placeholder="client@example.com"
+                          value={formData.client_email}
+                          onChange={handleInputChange}
+                        />
                       </div>
                       <div className="form-group">
                         <label>Shipper</label>

@@ -27,6 +27,9 @@ const PaymentPage = () => {
     /* Amount-override dialog */
     const [amtDialog, setAmtDialog] = useState(null);  // { shipment }
     const [customAmt, setCustomAmt] = useState('');
+    const [amtAction, setAmtAction] = useState(null); // 'razorpay', 'link', 'cash'
+    
+    const BACKEND_URL = import.meta.env.VITE_WEBSOCKET_URL || "http://localhost:3001";
 
     const showToast = (msg, type = 'success') => {
         setToast({ msg, type });
@@ -40,7 +43,7 @@ const PaymentPage = () => {
             setError(null);
             const { data, error } = await supabase
                 .from('shipments')
-                .select('id, shipment_no, job_no, client, freight, payment_status, shipment_type, por, pod')
+                .select('id, shipment_no, job_no, client, client_email, email, freight, payment_status, payment_method, shipment_type, por, pod')
                 .order('created_at', { ascending: false });
             if (error) throw error;
             setShipments(data || []);
@@ -95,7 +98,7 @@ const PaymentPage = () => {
                     /* Update shipment payment_status */
                     const { error: updErr } = await supabase
                         .from('shipments')
-                        .update({ payment_status: 'paid' })
+                        .update({ payment_status: 'paid', payment_method: 'online' })
                         .eq('id', shipment.id);
                     if (updErr) {
                         console.error('Update shipment error:', updErr);
@@ -152,6 +155,101 @@ const PaymentPage = () => {
             /* No freight set → show dialog to enter amount manually */
             setAmtDialog(shipment);
             setCustomAmt('');
+            setAmtAction('razorpay');
+        }
+    };
+
+    const handleGenerateLink = async (shipment) => {
+        const freight = parseFloat(shipment.freight) || 0;
+        if (freight > 0) {
+            executeGenerateLink(shipment, freight);
+        } else {
+            setAmtDialog(shipment);
+            setCustomAmt('');
+            setAmtAction('link');
+        }
+    };
+
+    const handleCashReceived = async (shipment) => {
+        const freight = parseFloat(shipment.freight) || 0;
+        if (freight > 0) {
+            executeCashReceived(shipment, freight);
+        } else {
+            setAmtDialog(shipment);
+            setCustomAmt('');
+            setAmtAction('cash');
+        }
+    };
+
+    const executeGenerateLink = async (shipment, amount) => {
+        try {
+            setPayingId(shipment.id);
+            const res = await fetch(`${BACKEND_URL}/api/payments/generate-link`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    amount,
+                    client_email: shipment.email || '',
+                    client_contact: shipment.contact || '',
+                    shipment_no: shipment.shipment_no,
+                    reference_id: shipment.id
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Save link to database
+                await supabase.from('payments').insert([{
+                    shipment_id: shipment.id,
+                    link_id: data.link_id,
+                    link_url: data.short_url,
+                    amount: parseFloat(amount),
+                    currency: 'INR',
+                    status: 'link_generated',
+                    payment_method: 'razorpay_link'
+                }]);
+                showToast(`Payment link generated: ${data.short_url}`);
+                // Save link url to shipment updates so it's logged
+                await supabase.from('shipment_updates').insert([{
+                    shipment_id: shipment.id,
+                    status: 'Payment Link Generated',
+                    remarks: `Link: ${data.short_url}`,
+                    update_time: new Date().toISOString()
+                }]);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            showToast(`Failed to generate link: ${e.message}`, 'error');
+        } finally {
+            setPayingId(null);
+        }
+    };
+
+    const executeCashReceived = async (shipment, amount) => {
+        if (!window.confirm(`Are you sure you want to mark ₹${amount} as received via Cash?`)) return;
+        try {
+            setPayingId(shipment.id);
+            await supabase.from('payments').insert([{
+                shipment_id: shipment.id,
+                amount: parseFloat(amount),
+                currency: 'INR',
+                status: 'paid',
+                payment_method: 'cash',
+                paid_at: new Date().toISOString()
+            }]);
+            
+            const { error: updErr } = await supabase
+                .from('shipments')
+                .update({ payment_status: 'paid', payment_method: 'cash' })
+                .eq('id', shipment.id);
+            
+            if (updErr) throw updErr;
+            showToast(`✓ Cash payment of ₹${amount} recorded successfully.`);
+            fetchShipments();
+        } catch (e) {
+            showToast(`Failed to record cash payment: ${e.message}`, 'error');
+        } finally {
+            setPayingId(null);
         }
     };
 
@@ -159,8 +257,12 @@ const PaymentPage = () => {
         const amt = parseFloat(customAmt);
         if (!amt || amt <= 0) { showToast('Enter a valid amount greater than 0', 'error'); return; }
         const shipment = amtDialog;
+        const action = amtAction;
         setAmtDialog(null);
-        openRazorpay(shipment, amt);
+        setAmtAction(null);
+        if (action === 'link') executeGenerateLink(shipment, amt);
+        else if (action === 'cash') executeCashReceived(shipment, amt);
+        else openRazorpay(shipment, amt);
     };
 
     /* ─── Filter ─── */
@@ -297,16 +399,41 @@ const PaymentPage = () => {
                                         </td>
                                         <td>
                                             {isPaid ? (
-                                                <span className="pay-done-label">Collected</span>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <span className="pay-done-label">Collected</span>
+                                                    <span className="pay-done-method" style={{fontSize:'12px', color:'#666', display:'block'}}>{s.payment_method === 'cash' ? 'Cash' : 'Online'}</span>
+                                                </div>
                                             ) : (
-                                                <button
-                                                    className="pay-btn"
-                                                    onClick={() => handlePayNow(s)}
-                                                    disabled={payingId === s.id}
-                                                    title={freight <= 0 ? 'No freight set — you can enter a custom amount' : `Pay ₹${freight}`}
-                                                >
-                                                    {payingId === s.id ? 'Opening…' : (freight > 0 ? `Pay ${fmt(freight)}` : 'Pay Now')}
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <button
+                                                        className="pay-btn"
+                                                        onClick={() => handlePayNow(s)}
+                                                        disabled={payingId === s.id}
+                                                        title={freight <= 0 ? 'No freight set — you can enter a custom amount' : `Pay ₹${freight}`}
+                                                    >
+                                                        {payingId === s.id ? 'Opening…' : 'Pay Now'}
+                                                    </button>
+
+                                                    <button
+                                                        className="pay-btn"
+                                                        style={{ backgroundColor: '#2563eb' }}
+                                                        onClick={() => handleGenerateLink(s)}
+                                                        disabled={payingId === s.id}
+                                                        title="Generate 24-hour Payment Link"
+                                                    >
+                                                        {payingId === s.id ? 'Loading...' : 'Generate Link'}
+                                                    </button>
+
+                                                    <button
+                                                        className="pay-btn"
+                                                        style={{ backgroundColor: '#10b981' }}
+                                                        onClick={() => handleCashReceived(s)}
+                                                        disabled={payingId === s.id}
+                                                        title="Mark as offline cash received"
+                                                    >
+                                                        Cash Received
+                                                    </button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>

@@ -1,6 +1,7 @@
 -- Add client_email to jobs and shipments for tracking offline and link generations
 ALTER TABLE IF EXISTS jobs ADD COLUMN IF NOT EXISTS client_email TEXT;
 ALTER TABLE IF EXISTS shipments ADD COLUMN IF NOT EXISTS client_email TEXT;
+ALTER TABLE IF EXISTS shipments ADD COLUMN IF NOT EXISTS payment_method TEXT;
 
 -- Enhance payments table with offline tracking and link features
 ALTER TABLE IF EXISTS payments 
