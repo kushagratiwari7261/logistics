@@ -100,7 +100,7 @@ app.get("/api/cron/greetings", async (req, res) => {
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user => 
       resend.emails.send({
-        from: 'Seal Freight <system@prudata.info>',
+        from: 'Seal Freight Logistics <alerts@prudata.info>',
         to: user.email,
         subject: subject,
         html: `
@@ -152,7 +152,7 @@ app.get("/api/cron/payments", async (req, res) => {
     for (const payment of failedPayments) {
       if (payment.email) {
         await resend.emails.send({
-          from: 'Seal Freight Alerts <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@prudata.info>',
           to: payment.email,
           subject: "Seal Freight: Important Update Regarding Your Payment",
           html: `
@@ -249,7 +249,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
-          from: 'Seal Freight System <system@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@prudata.info>',
           to: allRecipients,
           subject: "Seal Freight: Shipment Status Update",
           html: `
@@ -291,7 +291,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
 
         await resend.emails.send({
-          from: 'Seal Freight Alerts <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@prudata.info>',
           to: allRecipients,
           subject: "Seal Freight: Important Update Regarding A Payment",
           html: `
@@ -322,7 +322,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const recipients = clientEmail ? [clientEmail, ...allRecipients] : allRecipients;
 
         await resend.emails.send({
-          from: 'Seal Freight Alerts <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@prudata.info>',
           to: [...new Set(recipients)],
           subject: "Seal Freight: Payment Received Confirmation",
           html: `

@@ -76,9 +76,9 @@ const PaymentPage = () => {
             key: RAZORPAY_KEY,
             amount: Math.round(parseFloat(amount) * 100),
             currency: 'INR',
-            name: 'Seal Freight Forwarders',
+            name: 'Seal Freight Logistics',
             description: `Freight for ${shipment.shipment_no || shipment.id}`,
-            image: '/seal.png',
+            image: 'https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png',
             handler: async (response) => {
                 try {
                     /* Insert payment record */
@@ -505,7 +505,7 @@ const PaymentPage = () => {
                                 style={{ backgroundColor: '#25D366', flex: 1, minWidth: '120px' }}
                                 onClick={() => {
                                     const msg = encodeURIComponent(
-                                        `Hi! Please complete your freight payment of ₹${parseFloat(generatedLink.amount).toLocaleString()} for Shipment ${generatedLink.shipment_no}.\n\nPay here (valid 24 hrs): ${generatedLink.url}\n\n— Seal Freight Forwarders`
+                                        `Hi! Please complete your freight payment of ₹${parseFloat(generatedLink.amount).toLocaleString()} for Shipment ${generatedLink.shipment_no}.\n\nPay here (valid 24 hrs): ${generatedLink.url}\n\n— Seal Freight Logistics`
                                     );
                                     window.open(`https://wa.me/?text=${msg}`, '_blank');
                                 }}
