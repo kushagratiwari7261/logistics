@@ -43,7 +43,7 @@ const PaymentPage = () => {
             setError(null);
             const { data, error } = await supabase
                 .from('shipments')
-                .select('id, shipment_no, job_no, client, client_email, email, freight, payment_status, payment_method, shipment_type, por, pod')
+                .select('*')
                 .order('created_at', { ascending: false });
             if (error) throw error;
             setShipments(data || []);
