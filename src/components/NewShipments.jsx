@@ -1973,6 +1973,15 @@ const NewShipments = () => {
                       </>
                     )}
 
+                    {formData.pod_attachment && (
+                      <div className="summary-pod-section" style={{ marginTop: '15px', padding: '15px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '8px', border: '1px solid rgba(54, 179, 126, 0.3)', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d', fontWeight: 'bold' }}>
+                          <FileText size={18} /> Proof of Delivery (POD) attached
+                        </div>
+                        {formData.jobNo && <div style={{ fontSize: '0.8rem', color: '#1a7a4d', marginTop: '4px', marginLeft: '26px' }}>Carried over from Job #{formData.jobNo}</div>}
+                      </div>
+                    )}
+
                     <div className="confirmation-checkboxes">
                       <div className="checkbox-item">
                         <input type="checkbox" id="confirm1" required />

@@ -2,7 +2,7 @@
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { UserPlus, PenLine, FileUp, ExternalLink } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 
 // Constants for better maintainability
@@ -983,6 +983,27 @@ const ActiveJob = () => {
           <div className="client-os-info">
             Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
           </div>
+
+          <div className="pod-upload-section" style={{ marginTop: '20px', padding: '15px', border: '1px dashed #2b4df0', borderRadius: '8px', background: 'rgba(43, 77, 240, 0.05)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileUp size={18} /> Proof of Delivery (POD)
+            </h3>
+            <div className="form-group">
+              <label>Upload POD Document (PDF/Image)</label>
+              <input 
+                type="file" 
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                accept=".pdf,image/*"
+                style={{ padding: '8px' }}
+              />
+              {uploading && <div className="upload-progress" style={{ marginTop: '8px', fontSize: '0.8rem', color: '#2b4df0' }}>Uploading: {uploadProgress}%</div>}
+              {formData.pod_attachment && !selectedFile && (
+                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#36b37e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <ExternalLink size={14} /> Existing POD attached
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       );
       
@@ -1052,6 +1073,27 @@ const ActiveJob = () => {
           
           <div className="client-os-info">
             Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
+          </div>
+
+          <div className="pod-upload-section" style={{ marginTop: '20px', padding: '15px', border: '1px dashed #2b4df0', borderRadius: '8px', background: 'rgba(43, 77, 240, 0.05)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileUp size={18} /> Proof of Delivery (POD)
+            </h3>
+            <div className="form-group">
+              <label>Upload POD Document (PDF/Image)</label>
+              <input 
+                type="file" 
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                accept=".pdf,image/*"
+                style={{ padding: '8px' }}
+              />
+              {uploading && <div className="upload-progress" style={{ marginTop: '8px', fontSize: '0.8rem', color: '#2b4df0' }}>Uploading: {uploadProgress}%</div>}
+              {formData.pod_attachment && !selectedFile && (
+                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#36b37e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <ExternalLink size={14} /> Existing POD attached
+                </div>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -1699,6 +1741,14 @@ const ActiveJob = () => {
                             ))}
                           </div>
                         </div>
+
+                        {formData.pod_attachment && (
+                          <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d' }}>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached</strong>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1759,6 +1809,14 @@ const ActiveJob = () => {
                             ))}
                           </div>
                         </div>
+
+                        {formData.pod_attachment && (
+                          <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d' }}>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached</strong>
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
 
