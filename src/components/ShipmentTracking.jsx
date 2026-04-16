@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { 
