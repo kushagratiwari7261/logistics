@@ -1257,7 +1257,7 @@ const NewShipments = () => {
                           target="_blank" 
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          style={{ color: '#2b4df0' }}
+                          className="pod-table-link"
                           title="View POD"
                         >
                           <FileText size={18} />
@@ -1323,8 +1323,8 @@ const NewShipments = () => {
                   <h1>{editingShipment ? 'Edit Shipment' : 'Create Shipment'}</h1>
                   {editingShipment && (
                     <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
-                      {editingShipment.created_by && <span className="audit-badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><UserPlus size={12} /> {editingShipment.created_by.split('@')[0]}</span>}
-                      {editingShipment.updated_by && <span className="audit-badge edit" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)' }}><PenLine size={12} /> {editingShipment.updated_by.split('@')[0]}</span>}
+                      {editingShipment.created_by && <span className="audit-badge"><UserPlus size={12} /> {editingShipment.created_by.split('@')[0]}</span>}
+                      {editingShipment.updated_by && <span className="audit-badge edit"><PenLine size={12} /> {editingShipment.updated_by.split('@')[0]}</span>}
                     </div>
                   )}
                 </div>
@@ -1611,21 +1611,20 @@ const NewShipments = () => {
                     
                     {SpecificFields}
 
-                    <div className="pod-upload-section" style={{ marginTop: '20px', padding: '15px', border: '1px dashed #2b4df0', borderRadius: '8px', background: 'rgba(43, 77, 240, 0.05)' }}>
-                      <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="pod-upload-section">
+                      <h3 className="pod-upload-header">
                         <FileUp size={18} /> Proof of Delivery (POD)
                       </h3>
-                      <div className="form-group">
+                      <div className="pod-upload-input-group">
                         <label>Upload POD Document (PDF/Image)</label>
                         <input 
                           type="file" 
                           onChange={(e) => setSelectedFile(e.target.files[0])}
                           accept=".pdf,image/*"
-                          style={{ padding: '8px' }}
                         />
-                        {uploading && <div className="upload-progress" style={{ marginTop: '8px', fontSize: '0.8rem', color: '#2b4df0' }}>Uploading: {uploadProgress}%</div>}
+                        {uploading && <div className="upload-progress">Uploading: {uploadProgress}%</div>}
                         {formData.pod_attachment && !selectedFile && (
-                          <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#36b37e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <div className="pod-status-badge carried-over">
                             <ExternalLink size={14} /> Existing POD attached (from Job)
                           </div>
                         )}
@@ -1975,11 +1974,11 @@ const NewShipments = () => {
                     )}
 
                     {formData.pod_attachment && (
-                      <div className="summary-pod-section" style={{ marginTop: '15px', padding: '15px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '8px', border: '1px solid rgba(54, 179, 126, 0.3)', marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d', fontWeight: 'bold' }}>
+                      <div className="pod-summary-alert">
+                        <div className="pod-summary-alert-header">
                           <FileText size={18} /> Proof of Delivery (POD) attached
                         </div>
-                        {formData.jobNo && <div style={{ fontSize: '0.8rem', color: '#1a7a4d', marginTop: '4px', marginLeft: '26px' }}>Carried over from Job #{formData.jobNo}</div>}
+                        {formData.jobNo && <div className="pod-summary-alert-note">Carried over from Job #{formData.jobNo}</div>}
                       </div>
                     )}
 
