@@ -407,7 +407,7 @@ const PaymentPage = () => {
                                             {isPaid ? (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                     <span className="pay-done-label">Collected</span>
-                                                    <span className="pay-done-method" style={{fontSize:'12px', color:'#666', display:'block'}}>{s.payment_method === 'cash' ? 'Cash' : 'Online'}</span>
+                                                    <span className="pay-done-method" style={{fontSize:'12px', color:'var(--text-secondary)', display:'block'}}>{s.payment_method === 'cash' ? 'Cash' : 'Online'}</span>
                                                 </div>
                                             ) : (
                                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -488,7 +488,7 @@ const PaymentPage = () => {
                 <div className="pay-dialog-overlay" onClick={() => setGeneratedLink(null)}>
                     <div className="pay-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
                         <h3 style={{ marginBottom: '8px' }}>🔗 Payment Link Ready!</h3>
-                        <p style={{ fontSize: '13px', color: '#888', marginBottom: '12px' }}>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                             Shipment <strong>{generatedLink.shipment_no}</strong> · ₹{parseFloat(generatedLink.amount).toLocaleString()} · Expires in 24 hours
                         </p>
                         <div style={{

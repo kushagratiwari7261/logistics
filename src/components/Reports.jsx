@@ -110,7 +110,7 @@ const Reports = () => {
     const [shipmentData, setShipmentData] = useState(demoShipments)
     const [statusData, setStatusData] = useState(demoStatus)
     const [jobTypeData, setJobTypeData] = useState(demoJobTypes)
-    const [topCustomers, setTopCustomers] = useState(demoTopCustomers)
+    const [topCustomers, setTopCustomers] = useState([])
     const [paymentStats, setPaymentStats] = useState({ collected: 0, pending: 0, cashCount: 0, onlineCount: 0 })
 
     /* ── PDF export ── */
@@ -121,7 +121,7 @@ const Reports = () => {
             const canvas = await html2canvas(pageRef.current, {
                 scale: 2,
                 useCORS: true,
-                backgroundColor: '#0f1117',
+                backgroundColor: document.documentElement.getAttribute('data-theme') === 'light' ? '#f1f5f9' : '#0f1117',
                 logging: false,
             })
             const imgW = 210  // A4 width mm
@@ -167,24 +167,31 @@ const Reports = () => {
                     .gte('job_date', sinceStr)
 
                 if (kpiRows) {
-                    const totalShipments = kpiRows.length
-                    const totalRevenue = kpiRows.reduce((s, r) => s + (r.invoice_value || 0), 0)
-
-                    const withDays = kpiRows.filter(r => r.eta && r.etd)
+                    const totalShipments = kpiRows.length;
+                    
+                    // Fetch all successful payments for revenue
+                    const { data: payRows } = await supabase
+                        .from('payments')
+                        .select('amount')
+                        .eq('status', 'paid');
+                    
+                    const totalRevenue = payRows ? payRows.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) : 0;
+                    
+                    const withDays = kpiRows.filter(r => r.eta && r.etd);
                     const avgDeliveryDays = withDays.length
                         ? +(withDays.reduce((s, r) => {
-                            const diff = (new Date(r.eta) - new Date(r.etd)) / 86400000
-                            return s + Math.abs(diff)
+                            const diff = (new Date(r.eta) - new Date(r.etd)) / 86400000;
+                            return s + Math.abs(diff);
                         }, 0) / withDays.length).toFixed(1)
-                        : demoKPIs.avgDeliveryDays
+                        : 4.2;
 
-                    setKpis({ totalShipments, totalRevenue, avgDeliveryDays, onTimeRate: demoKPIs.onTimeRate })
+                    setKpis({ totalShipments, totalRevenue, avgDeliveryDays, onTimeRate: 91.4 });
                 }
 
                 /* ── 1b. Payment collection stats ── */
                 const { data: shipRows } = await supabase
                     .from('shipments')
-                    .select('freight, payment_status, payment_method')
+                    .select('client, freight, payment_status, payment_method')
 
                 if (shipRows) {
                     let collected = 0, pending = 0, cashCount = 0, onlineCount = 0;
@@ -199,6 +206,28 @@ const Reports = () => {
                         }
                     });
                     setPaymentStats({ collected, pending, cashCount, onlineCount });
+
+                    // FALLBACK: If Top Clients view is empty, derive from shipments
+                    if (!topCustomers || topCustomers.length === 0 || topCustomers.length === 5 && topCustomers[0].name.includes('Apex')) {
+                        const clientAggregation = {};
+                        shipRows.forEach(s => {
+                            if (s.client) {
+                                if (!clientAggregation[s.client]) {
+                                    clientAggregation[s.client] = { name: s.client, shipments: 0, revenue: 0 };
+                                }
+                                clientAggregation[s.client].shipments += 1;
+                                clientAggregation[s.client].revenue += (parseFloat(s.freight) || 0);
+                            }
+                        });
+                        const derivedClients = Object.values(clientAggregation)
+                            .sort((a, b) => b.shipments - a.shipments)
+                            .slice(0, 5)
+                            .map((c, i) => ({ ...c, rank: i + 1, trend: 'New' }));
+                        
+                        if (derivedClients.length > 0) {
+                            setTopCustomers(derivedClients);
+                        }
+                    }
                 }
 
                 /* ── 2. Monthly volume + revenue ── */
@@ -271,8 +300,9 @@ const Reports = () => {
     }, [period, periodMonths])
 
     const fmtRevenue = v => v >= 1000000
-        ? `$${(v / 1000000).toFixed(1)}M`
-        : `$${(v / 1000).toFixed(0)}K`
+        ? `₹${(v / 1000000).toFixed(1)}M`
+        : v >= 1000 ? `₹${(v / 1000).toFixed(0)}K`
+        : `₹${v.toLocaleString()}`
 
     return (
         <div className="rp-page page-container" ref={pageRef}>
@@ -413,7 +443,7 @@ const Reports = () => {
                     <div className="rp-card-head">
                         <div>
                             <h3 className="rp-card-title">Revenue</h3>
-                            <p className="rp-card-sub">Monthly invoice value (USD)</p>
+                            <p className="rp-card-sub">Monthly collections (INR)</p>
                         </div>
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
@@ -421,8 +451,8 @@ const Reports = () => {
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
                             <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false}
-                                tickFormatter={v => `$${v / 1000}K`} />
-                            <Tooltip content={<ChartTooltip prefix="$" />} formatter={v => [`$${(v / 1000).toFixed(0)}K`, 'Revenue']} />
+                                tickFormatter={v => `₹${v / 1000}K`} />
+                            <Tooltip content={<ChartTooltip prefix="₹" />} formatter={v => [`₹${(v / 1000).toFixed(0)}K`, 'Revenue']} />
                             <Bar dataKey="revenue" name="Revenue" radius={[6, 6, 0, 0]}>
                                 {shipmentData.map((_, i) => (
                                     <Cell key={i} fill={`url(#revGrad${i})`} />
@@ -492,7 +522,7 @@ const Reports = () => {
                                     <td className="rp-rank">{c.rank}</td>
                                     <td className="rp-customer-name">{c.name}</td>
                                     <td>{c.shipments}</td>
-                                    <td>${c.revenue.toLocaleString()}</td>
+                                    <td>₹{c.revenue.toLocaleString()}</td>
                                     <td>
                                         <span className={`rp-trend ${c.trend.startsWith('+') ? 'up' : c.trend === '—' ? '' : 'down'}`}>
                                             {c.trend}

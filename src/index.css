@@ -270,3 +270,407 @@ textarea:focus {
   background: var(--bg-surface-2);
   border-color: var(--border);
 }
+
+/* ============================================================
+   COMPREHENSIVE LIGHT THEME OVERRIDES
+   Ensures all text is dark & visible in light mode
+   ============================================================ */
+[data-theme="light"] {
+  /* Force all text elements to use dark colors */
+  color: #0f172a;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6,
+[data-theme="light"] p,
+[data-theme="light"] span,
+[data-theme="light"] label,
+[data-theme="light"] td,
+[data-theme="light"] th,
+[data-theme="light"] li,
+[data-theme="light"] div {
+  color: inherit;
+}
+
+/* ── Payment Page Light Overrides ── */
+[data-theme="light"] .pay-status--paid {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+[data-theme="light"] .pay-status--pending {
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.3);
+}
+
+[data-theme="light"] .pay-kpi--paid .pay-kpi-value {
+  color: #059669;
+}
+
+[data-theme="light"] .pay-kpi--pending .pay-kpi-value {
+  color: #d97706;
+}
+
+[data-theme="light"] .pay-key-warning {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: #d97706;
+  color: #92400e;
+}
+
+[data-theme="light"] .pay-done-method {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .pay-type-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ── Reports Light Overrides ── */
+[data-theme="light"] .rp-tooltip {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .rp-table td {
+  color: #334155;
+}
+
+[data-theme="light"] .rp-customer-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .rp-kpi-value {
+  color: #0f172a;
+}
+
+[data-theme="light"] .rp-donut-val {
+  color: #0f172a;
+}
+
+/* ── Invoice Page Light Override ── */
+[data-theme="light"] .invoice-table th,
+[data-theme="light"] .invoice-table td {
+  color: #334155;
+}
+
+/* ── Shipment Tracking Light Overrides ── */
+[data-theme="light"] .tracking-detail-value {
+  color: #0f172a;
+}
+
+[data-theme="light"] .tracking-detail-label {
+  color: #64748b;
+}
+
+/* ── Settings Page Light Overrides ── */
+[data-theme="light"] .setting-label {
+  color: #0f172a;
+}
+
+[data-theme="light"] .setting-desc {
+  color: #64748b;
+}
+
+/* ── Sidebar Light Overrides ── */
+[data-theme="light"] .sidebar {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .sidebar-user-avatar {
+  color: #fff;
+}
+
+/* ── NewShipments / ActiveJob Light Overrides ── */
+[data-theme="light"] .shipment-table th {
+  background: #f8fafc;
+  color: #334155;
+}
+
+[data-theme="light"] .shipment-table td {
+  color: #334155;
+}
+
+[data-theme="light"] .job-table th {
+  background: #f8fafc;
+  color: #334155;
+}
+
+[data-theme="light"] .job-table td {
+  color: #334155;
+}
+
+/* ── Status Badges: Ensure readability in light mode ── */
+[data-theme="light"] .status-badge.in-transit,
+[data-theme="light"] .status-badge.active,
+[data-theme="light"] .status-badge.in-progress {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+[data-theme="light"] .status-badge.delivered,
+[data-theme="light"] .status-badge.completed {
+  background: #d1fae5;
+  color: #047857;
+}
+
+[data-theme="light"] .status-badge.processing,
+[data-theme="light"] .status-badge.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+[data-theme="light"] .status-badge.cancelled,
+[data-theme="light"] .status-badge.failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ── Global form elements in light ── */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  color: #0f172a;
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* ── Modals/dialogs in light ── */
+[data-theme="light"] .pay-dialog {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .pay-dialog h3 {
+  color: #0f172a;
+}
+
+[data-theme="light"] .pay-dialog p {
+  color: #475569;
+}
+
+[data-theme="light"] .pay-dialog-input {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="light"] .pay-dialog-prefix {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ── Charts in light mode ── */
+[data-theme="light"] .recharts-text {
+  fill: #475569 !important;
+}
+
+[data-theme="light"] .recharts-cartesian-grid line {
+  stroke: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* ── DSR Page Light Overrides ── */
+[data-theme="light"] .dsr-table th {
+  background: #f8fafc;
+  color: #334155;
+}
+
+[data-theme="light"] .dsr-table td {
+  color: #334155;
+}
+
+/* ── Messages Light Overrides ── */
+[data-theme="light"] .message-item {
+  color: #0f172a;
+}
+
+[data-theme="light"] .message-time {
+  color: #64748b;
+}
+
+/* ── Loading overlay light ── */
+[data-theme="light"] .rp-loading-overlay {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Tab buttons in light ── */
+[data-theme="light"] .rp-tab {
+  color: #64748b;
+}
+
+[data-theme="light"] .rp-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Customer Page / General table Light ── */
+[data-theme="light"] table th {
+  color: #475569;
+}
+
+[data-theme="light"] table td {
+  color: #334155;
+}
+
+/* ── Activity Table Light Overrides ── */
+[data-theme="light"] .audit-badge {
+  color: #475569;
+}
+
+/* ── Change Password Light ── */
+[data-theme="light"] .change-password-title {
+  color: #0f172a;
+}
+
+/* ── Revenue format in light (₹ symbol) ── */
+[data-theme="light"] .pay-amount {
+  color: #0f172a;
+}
+
+/* ============================================================
+   POD (Proof of Delivery) — Theme Overrides
+   Used in ActiveJob.jsx & NewShipments.jsx
+   ============================================================ */
+
+/* ── Dark Theme (default) ── */
+.pod-upload-header {
+  color: var(--brand-primary, #818cf8);
+}
+
+.pod-upload-header svg {
+  color: var(--brand-primary, #818cf8);
+}
+
+.pod-status-badge {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.pod-status-badge.carried-over {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.pod-preview-link {
+  color: var(--brand-primary, #818cf8);
+}
+
+.pod-preview-link:hover {
+  color: var(--brand-primary, #a5b4fc);
+}
+
+.pod-table-link {
+  color: var(--brand-primary, #818cf8);
+}
+
+.pod-table-link:hover {
+  color: var(--brand-primary, #a5b4fc);
+}
+
+.pod-summary-alert {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.pod-summary-alert-header {
+  color: #34d399;
+}
+
+.pod-summary-alert-note {
+  color: #6ee7b7;
+}
+
+.pod-upload-section {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.03), rgba(99, 102, 241, 0.08));
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.pod-upload-section:hover {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.12));
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* ── Light Theme POD Overrides ── */
+[data-theme="light"] .pod-upload-header {
+  color: #4f46e5;
+}
+
+[data-theme="light"] .pod-upload-header svg {
+  color: #4f46e5;
+}
+
+[data-theme="light"] .pod-upload-section {
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.03), rgba(79, 70, 229, 0.06));
+  border-color: rgba(79, 70, 229, 0.3);
+}
+
+[data-theme="light"] .pod-upload-section:hover {
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.05), rgba(79, 70, 229, 0.1));
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+[data-theme="light"] .pod-upload-input-group label {
+  color: #475569;
+}
+
+[data-theme="light"] .pod-upload-input-group input[type="file"] {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .pod-status-badge {
+  background: rgba(5, 150, 105, 0.1);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+[data-theme="light"] .pod-status-badge.carried-over {
+  background: rgba(79, 70, 229, 0.08);
+  color: #4338ca;
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
+[data-theme="light"] .pod-preview-link {
+  color: #4f46e5;
+}
+
+[data-theme="light"] .pod-preview-link:hover {
+  color: #4338ca;
+}
+
+[data-theme="light"] .pod-table-link {
+  color: #4f46e5;
+}
+
+[data-theme="light"] .pod-table-link:hover {
+  color: #4338ca;
+}
+
+[data-theme="light"] .pod-summary-alert {
+  background: rgba(5, 150, 105, 0.06);
+  border-color: rgba(5, 150, 105, 0.2);
+}
+
+[data-theme="light"] .pod-summary-alert-header {
+  color: #047857;
+}
+
+[data-theme="light"] .pod-summary-alert-note {
+  color: #065f46;
+}
