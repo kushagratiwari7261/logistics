@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } fro
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
+import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
 
 // Lazy load PDFGenerator to reduce initial bundle size

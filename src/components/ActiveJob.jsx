@@ -2,8 +2,9 @@
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
+import { FileUp, ExternalLink, FileText } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
+import { supabase } from '../lib/supabaseClient';
 
 // Constants for better maintainability
 const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
