@@ -10,10 +10,16 @@ window.addEventListener('unload', (event) => {
 });
 
 import React from 'react';
+import { Buffer } from 'buffer';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './index.css';
+
+// ✅ Polyfill Buffer for the browser environment (required by PDF rendering and Supabase)
+if (typeof window !== 'undefined') {
+  window.Buffer = Buffer;
+}
 
 // ✅ Prevent React StrictMode remounts causing page-like refreshes
 const root = ReactDOM.createRoot(document.getElementById('root'));
