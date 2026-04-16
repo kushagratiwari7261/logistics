@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useFileUpload } from '../hooks/useFileUpload';
 import { 
   Radio, 
   Save, 
@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   Truck,
   CheckCircle,
-  Users
+  Users,
+  ExternalLink
 } from 'lucide-react';
 import { STATUS_STEPS, STATUS_COLORS } from '../constants/shipment';
 import ShipmentMap from './ShipmentMap';
@@ -140,6 +141,7 @@ function StatusUpdateForm({ shipment, onUpdated }) {
 function ShipmentDetail({ shipment, onBack, onRefresh }) {
     const [updates, setUpdates] = useState([]);
     const [loadingUpdates, setLoadingUpdates] = useState(true);
+    const { getFileUrl } = useFileUpload();
 
     const fetchUpdates = useCallback(async () => {
         setLoadingUpdates(true);
@@ -322,6 +324,21 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
                                 <span className="st-info-value">{value}</span>
                             </div>
                         ))}
+                        {shipment.pod_attachment && (
+                            <div className="st-info-row" style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+                                <span className="st-info-label">Proof of Delivery (POD)</span>
+                                <span className="st-info-value">
+                                    <a 
+                                        href={getFileUrl(shipment.pod_attachment, 'pod-attachments')} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#6366f1', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', fontWeight: 'bold' }}
+                                    >
+                                        <ExternalLink size={14} /> View Document
+                                    </a>
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="st-divider" />
@@ -357,7 +374,7 @@ function ShipmentList({ onSelect }) {
         setLoading(true);
         let q = supabase
             .from('shipments')
-            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sb_date,boe_no,boe_date,trade_direction')
+            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sb_date,boe_no,boe_date,trade_direction,pod_attachment')
             .order('updated_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 

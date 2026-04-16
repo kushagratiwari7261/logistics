@@ -6,7 +6,7 @@ export const useFileUpload = () => {
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState(null);
 
-  const uploadFile = async (file, userId) => {
+  const uploadFile = async (file, userId, bucketName = 'message-attachments') => {
     setUploading(true);
     setProgress(10);
     setUploadError(null);
@@ -20,7 +20,7 @@ export const useFileUpload = () => {
       setProgress(30);
 
       const { data, error } = await supabase.storage
-        .from('message-attachments')
+        .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,        // fail on collision so we know about it
@@ -53,13 +53,12 @@ export const useFileUpload = () => {
   };
 
   /**
-   * Returns the public URL for a file in the message-attachments bucket.
-   * Works whether the bucket is public or not (signed URL fallback).
+   * Returns the public URL for a file in a storage bucket.
    */
-  const getFileUrl = (filePath) => {
+  const getFileUrl = (filePath, bucketName = 'message-attachments') => {
     if (!filePath) return null;
     const { data } = supabase.storage
-      .from('message-attachments')
+      .from(bucketName)
       .getPublicUrl(filePath);
     return data?.publicUrl ?? null;
   };
@@ -67,19 +66,19 @@ export const useFileUpload = () => {
   /**
    * Get a short-lived signed URL (1 hour) — use this if the bucket is private.
    */
-  const getSignedUrl = async (filePath) => {
+  const getSignedUrl = async (filePath, bucketName = 'message-attachments') => {
     if (!filePath) return null;
     const { data, error } = await supabase.storage
-      .from('message-attachments')
+      .from(bucketName)
       .createSignedUrl(filePath, 3600);
     if (error) console.error('Signed URL error:', error);
     return data?.signedUrl ?? null;
   };
 
-  const deleteFile = async (filePath) => {
+  const deleteFile = async (filePath, bucketName = 'message-attachments') => {
     try {
       const { error } = await supabase.storage
-        .from('message-attachments')
+        .from(bucketName)
         .remove([filePath]);
       if (error) throw error;
     } catch (err) {

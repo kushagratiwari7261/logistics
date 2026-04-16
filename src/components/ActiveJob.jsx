@@ -2,8 +2,8 @@
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { UserPlus, PenLine } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink } from 'lucide-react';
+import { useFileUpload } from '../hooks/useFileUpload';
 
 // Constants for better maintainability
 const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
@@ -130,7 +130,8 @@ const INITIAL_FORM_DATA = {
   driver_mobile_no: '',
   bill_no: '',
   bill_date: '',
-  amount: ''
+  amount: '',
+  pod_attachment: ''
 };
 
 const INITIAL_ORG_FORM_DATA = {
@@ -169,6 +170,8 @@ const ActiveJob = () => {
   const [jobToDelete, setJobToDelete] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobSummary, setShowJobSummary] = useState(false);
+  const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // ============ FIX 1: RESTORE STATE ON MOUNT ============
   useEffect(() => {
@@ -624,11 +627,21 @@ const ActiveJob = () => {
       setLoading(true);
       
       let userEmail = 'Unknown';
+      let userId = 'anon';
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) userEmail = user.email;
+        if (user) {
+          userEmail = user.email;
+          userId = user.id;
+        }
       } catch (err) {
         console.warn('Could not fetch user for audit trail', err);
+      }
+
+      let podUrl = formData.pod_attachment;
+      if (selectedFile) {
+        const uploadResult = await uploadFile(selectedFile, userId, 'pod-attachments');
+        podUrl = uploadResult.path;
       }
       
       // Function to convert empty strings to null for numeric fields
@@ -732,6 +745,7 @@ const ActiveJob = () => {
         
         job_type: jobType,
         trade_direction: tradeDirection,
+        pod_attachment: podUrl,
         status: 'active',
         updated_at: new Date().toISOString()
       };
@@ -763,6 +777,7 @@ const ActiveJob = () => {
       
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
       handleCancel();
+      setSelectedFile(null);
       sessionStorage.removeItem('editing_job');
       sessionStorage.removeItem('creating_job');
       
@@ -866,6 +881,7 @@ const ActiveJob = () => {
       bill_no: safeValue(job.bill_no),
       bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
       amount: safeValue(job.amount),
+      pod_attachment: safeValue(job.pod_attachment),
     };
     
     setFormData(formDataFromJob);
@@ -1106,6 +1122,27 @@ const ActiveJob = () => {
           <div className="client-os-info">
             Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
           </div>
+
+          <div className="pod-upload-section" style={{ marginTop: '20px', padding: '15px', border: '1px dashed #2b4df0', borderRadius: '8px', background: 'rgba(43, 77, 240, 0.05)' }}>
+            <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileUp size={18} /> Proof of Delivery (POD)
+            </h3>
+            <div className="form-group">
+              <label>Upload POD Document (PDF/Image)</label>
+              <input 
+                type="file" 
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                accept=".pdf,image/*"
+                style={{ padding: '8px' }}
+              />
+              {uploading && <div className="upload-progress" style={{ marginTop: '8px', fontSize: '0.8rem', color: '#2b4df0' }}>Uploading: {uploadProgress}%</div>}
+              {formData.pod_attachment && !selectedFile && (
+                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#36b37e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <ExternalLink size={14} /> Existing POD attached
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       );
     }
@@ -1184,6 +1221,21 @@ const ActiveJob = () => {
                      getValue(selectedJob.eta)}
                   </span>
                 </div>
+                {selectedJob.pod_attachment && (
+                  <div className="summary-row" style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+                    <span className="label">Proof of Delivery (POD):</span>
+                    <span className="value">
+                      <a 
+                        href={getFileUrl(selectedJob.pod_attachment, 'pod-attachments')} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', fontWeight: 'bold' }}
+                      >
+                        <ExternalLink size={14} /> View Document
+                      </a>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -1367,6 +1419,7 @@ const ActiveJob = () => {
                 <th>Updated At</th>
                 <th>Author</th>
                 <th>ETA</th>
+                <th>POD</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1396,6 +1449,20 @@ const ActiveJob = () => {
                     </td>
                     <td>
                       {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
+                    </td>
+                    <td>
+                      {job.pod_attachment ? (
+                        <a 
+                          href={getFileUrl(job.pod_attachment, 'pod-attachments')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: '#2b4df0' }}
+                          title="View POD"
+                        >
+                          <FileText size={18} />
+                        </a>
+                      ) : '—'}
                     </td>
                     <td className="actions-cell">
                       <button 

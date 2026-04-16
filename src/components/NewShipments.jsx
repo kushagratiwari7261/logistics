@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import { supabase } from '../lib/supabaseClient';
-import { UserPlus, PenLine } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
+import { useFileUpload } from '../hooks/useFileUpload';
 import './NewShipments.css';
 
 // Lazy load PDFGenerator to reduce initial bundle size
@@ -112,6 +112,7 @@ const INITIAL_FORM_DATA = {
   billNo: '',
   billDate: '',
   ccPort: '',
+  pod_attachment: '',
 };
 
 const INITIAL_ORG_FORM_DATA = {
@@ -134,7 +135,6 @@ const NewShipments = () => {
   const [activeStep, setActiveStep] = useState(1);
   const [shipmentType, setShipmentType] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
-  const [amount, setAmount] = useState("27.22");
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [shipments, setShipments] = useState([]);
@@ -148,14 +148,13 @@ const NewShipments = () => {
   const [generatePDF, setGeneratePDF] = useState(false);
   const [pdfShipmentData, setPdfShipmentData] = useState(null);
   
-  // ============ FIX: Remove complex PDF state management ============
   const tableContainerRef = useRef(null);
-  const [maxHeight, setMaxHeight] = useState('auto');
   
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
+  const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
+  const [selectedFile, setSelectedFile] = useState(null);
 
-  // ============ FIX 1: RESTORE STATE ON MOUNT ============
   useEffect(() => {
     const savedEditingState = sessionStorage.getItem('editing_shipment');
     const savedCreatingState = sessionStorage.getItem('creating_shipment');
@@ -186,7 +185,6 @@ const NewShipments = () => {
     }
   }, []);
 
-  // ============ FIX 2: AUTO-SAVE STATE TO SESSIONSTORAGE ============
   useEffect(() => {
     if (showShipmentForm && editingShipment) {
       sessionStorage.setItem('editing_shipment', JSON.stringify({
@@ -207,7 +205,6 @@ const NewShipments = () => {
     }
   }, [showShipmentForm, editingShipment, formData, shipmentType, activeStep]);
 
-  // ============ FIX 3: OPTIMIZE BEFOREUNLOAD ============
   useEffect(() => {
     if (!showShipmentForm) return;
 
@@ -225,14 +222,12 @@ const NewShipments = () => {
     };
   }, [showShipmentForm, formData.client, formData.shipper, formData.consignee]);
 
-  // Define required fields for each step
   const requiredFields = useMemo(() => ({
     1: ['shipmentType'],
     2: [],
     3: []
   }), []);
 
-  // ============ FIX: Optimize filtered jobs ============
   const [filteredJobs, setFilteredJobs] = useState([]);
 
   useEffect(() => {
@@ -243,7 +238,6 @@ const NewShipments = () => {
     }
   }, [jobs, shipmentType]);
 
-  // ============ FIX: Optimize fetch functions ============
   const fetchJobs = async () => {
     try {
       setIsLoadingJobs(true);
@@ -290,6 +284,7 @@ const NewShipments = () => {
         job_type: job.job_type || '',
         trade_direction: job.trade_direction || 'EXPORT',
         mtd_registration_no: job.mtd_registration_no || '',
+        pod_attachment: job.pod_attachment || '',
 
         // Air Freight fields
         airport_of_departure: job.airport_of_departure || '',
@@ -345,7 +340,6 @@ const NewShipments = () => {
     }
   };
 
-  // Fetch shipments from Supabase
   const fetchShipments = async () => {
     try {
       setLoading(true);
@@ -387,12 +381,10 @@ const NewShipments = () => {
     }
   }, [shipmentType, jobs, formData.jobNo]);
 
-  // Load jobs and shipments on component mount
   useEffect(() => {
     fetchJobs();
     fetchShipments();
     
-    // Subscribe to realtime shipments updates
     const channel = supabase
       .channel('public:shipments')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, payload => {
@@ -493,6 +485,7 @@ const NewShipments = () => {
           remarks: data.remarks || prev.remarks,
           hs_code: data.hs_code || prev.hs_code,
           mtdRegistrationNo: data.mtd_registration_no || prev.mtdRegistrationNo,
+          pod_attachment: data.pod_attachment || prev.pod_attachment,
 
           airport_of_departure: data.airport_of_departure || prev.airport_of_departure,
           airport_of_destination: data.airport_of_destination || prev.airport_of_destination,
@@ -548,7 +541,6 @@ const NewShipments = () => {
     }
   };
 
-  // Validate current step before proceeding
   const validateStep = useCallback((step) => {
     const errors = {};
     const fieldsToValidate = requiredFields[step];
@@ -590,6 +582,7 @@ const NewShipments = () => {
     setEditingShipment(null);
     setValidationErrors({});
     setFormData(INITIAL_FORM_DATA);
+    setSelectedFile(null);
     
     sessionStorage.removeItem('editing_shipment');
     sessionStorage.removeItem('creating_shipment');
@@ -663,20 +656,16 @@ const NewShipments = () => {
     }
   }, [orgFormData, validationErrors]);
 
-  // ============ CRITICAL FIX: PDF Data Preparation ============
   const preparePDFData = (shipmentData, result, isEditing) => {
-    // Ensure all required fields for PDFGenerator are present
     return {
       ...shipmentData,
       shipmentNo: isEditing ? (editingShipment.shipment_no || editingShipment.shipmentNo) : (result?.[0]?.shipment_no || `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`),
       mtdNumber: isEditing ? (editingShipment.shipment_no || editingShipment.shipmentNo) : (result?.[0]?.shipment_no || `MTD-${result?.[0]?.id?.toString().padStart(6, '0') || 'DOCUMENT'}`),
-      // Map fields that PDFGenerator expects
       hs_code: shipmentData.hs_code || '',
       gross_weight: shipmentData.gross_weight || '',
       net_weight: shipmentData.net_weight || '',
       volume: shipmentData.volume || '',
       job_no: shipmentData.job_no || '',
-      // Add default values for missing fields
       shipper_tel: '',
       shipper_fax: '',
       consignee_address: shipmentData.address || '',
@@ -708,11 +697,21 @@ const NewShipments = () => {
         setLoading(true);
         
         let userEmail = 'Unknown';
+        let userId = 'anon';
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (user) userEmail = user.email;
+          if (user) {
+            userEmail = user.email;
+            userId = user.id;
+          }
         } catch (err) {
           console.warn('Could not fetch user for audit trail', err);
+        }
+
+        let podUrl = formData.pod_attachment;
+        if (selectedFile) {
+          const uploadResult = await uploadFile(selectedFile, userId, 'pod-attachments');
+          podUrl = uploadResult.path;
         }
         
         const formatDateForDB = (dateValue) => {
@@ -773,6 +772,7 @@ const NewShipments = () => {
           mtd_registration_no: formatStringForDB(formData.mtdRegistrationNo),
           shipment_type: shipmentType,
           trade_direction: formatStringForDB(formData.tradeDirection),
+          pod_attachment: podUrl,
           updated_at: new Date().toISOString(),
           
           airport_of_departure: formatStringForDB(formData.airport_of_departure),
@@ -836,7 +836,6 @@ const NewShipments = () => {
           if (error) throw error;
           result = updatedShipment;
         } else {
-          // ============ NEW: Generate Sequential Shipment No ============
           const { count, error: countErr } = await supabase
             .from('shipments')
             .select('*', { count: 'exact', head: true });
@@ -855,7 +854,6 @@ const NewShipments = () => {
           result = newShipment;
         }
         
-        // ============ FIX: Prepare proper PDF data ============
         const preparedPDFData = preparePDFData(cleanShipmentData, result, !!editingShipment);
         setPdfShipmentData(preparedPDFData);
         setGeneratePDF(true);
@@ -873,7 +871,7 @@ const NewShipments = () => {
         setLoading(false);
       }
     }
-  }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel]);
+  }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel, selectedFile, uploadFile]);
 
   const handleEditShipment = useCallback((shipment) => {
     setEditingShipment(shipment);
@@ -913,6 +911,7 @@ const NewShipments = () => {
       remarks: shipment.remarks,
       tradeDirection: shipment.trade_direction || 'EXPORT',
       mtdRegistrationNo: shipment.mtd_registration_no || '',
+      pod_attachment: shipment.pod_attachment || '',
       
       airport_of_departure: shipment.airport_of_departure,
       airport_of_destination: shipment.airport_of_destination,
@@ -991,7 +990,6 @@ const NewShipments = () => {
     setShowDeleteModal(true);
   }, []);
 
-  // ============ FIX: Memoize specific fields ============
   const SpecificFields = useMemo(() => {
     if (!shipmentType) return null;
     
@@ -1142,7 +1140,6 @@ const NewShipments = () => {
 
   return (
     <div className="new-shipment-container">
-      {/* ============ FIX: Simple PDF Download Section ============ */}
       {generatePDF && pdfShipmentData && (
         <div style={{ 
           textAlign: 'center', 
@@ -1213,7 +1210,6 @@ const NewShipments = () => {
         </div>
       )}
       
-      {/* Shipment List View */}
       <div className="card expandable-card">
         <div className="table-header">
           <h2>Current Shipments</h2>
@@ -1236,6 +1232,7 @@ const NewShipments = () => {
                 <th>POR</th>
                 <th>POF</th>
                 <th>Author</th>
+                <th>POD</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1252,6 +1249,20 @@ const NewShipments = () => {
                       {shipment.created_by && <div className="audit-badge" title={`Created By: ${shipment.created_by}`}><UserPlus size={12} /> {shipment.created_by.split('@')[0]}</div>}
                       {shipment.updated_by && <div className="audit-badge edit" title={`Updated By: ${shipment.updated_by}`}><PenLine size={12} /> {shipment.updated_by.split('@')[0]}</div>}
                     </td>
+                    <td>
+                      {shipment.pod_attachment ? (
+                        <a 
+                          href={getFileUrl(shipment.pod_attachment, 'pod-attachments')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: '#2b4df0' }}
+                          title="View POD"
+                        >
+                          <FileText size={18} />
+                        </a>
+                      ) : '—'}
+                    </td>
                     <td className="actions-cell">
                       <button 
                         className="edit-btn"
@@ -1267,7 +1278,6 @@ const NewShipments = () => {
                       >
                         Delete
                       </button>
-                      {/* ============ FIX: Simple PDF button - always shown ============ */}
                       <Suspense fallback={<span style={{ color: '#666' }}>PDF...</span>}>
                         <PDFDownloadLink
                           document={<PDFGenerator shipmentData={shipment} />}
@@ -1293,7 +1303,7 @@ const NewShipments = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" style={{textAlign: 'center', padding: '20px'}}>
+                  <td colSpan="8" style={{textAlign: 'center', padding: '20px'}}>
                     No shipments found
                   </td>
                 </tr>
@@ -1303,7 +1313,6 @@ const NewShipments = () => {
         </div>
       </div>
 
-      {/* Shipment Creation/Edit Form Modal */}
       {showShipmentForm && (
         <div className="modal-overlay">
           <div className="modal-content job-modal">
@@ -1320,7 +1329,6 @@ const NewShipments = () => {
                 </div>
               </div>
 
-              {/* Progress Steps */}
               <div className="progress-steps">
                 {STEPS.map((step, index) => (
                   <div 
@@ -1339,7 +1347,6 @@ const NewShipments = () => {
                 </div>
               </div>
 
-              {/* Step Content */}
               <div className="step-content">
                 {activeStep === 1 && (
                   <div className="shipment-type-selection">
@@ -1365,7 +1372,6 @@ const NewShipments = () => {
                   <div className="port-details-form">
                     <h2>Port Details</h2>
                     
-                    {/* Trade Direction Selection */}
                     {shipmentType && TRADE_DIRECTIONS[shipmentType] && (
                       <div className="form-group">
                         <label>Trade Direction</label>
@@ -1602,8 +1608,28 @@ const NewShipments = () => {
                       </div>
                     </div>
                     
-                    {/* Render specific fields based on shipment type */}
                     {SpecificFields}
+
+                    <div className="pod-upload-section" style={{ marginTop: '20px', padding: '15px', border: '1px dashed #2b4df0', borderRadius: '8px', background: 'rgba(43, 77, 240, 0.05)' }}>
+                      <h3 style={{ fontSize: '1rem', marginBottom: '10px', color: '#2b4df0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileUp size={18} /> Proof of Delivery (POD)
+                      </h3>
+                      <div className="form-group">
+                        <label>Upload POD Document (PDF/Image)</label>
+                        <input 
+                          type="file" 
+                          onChange={(e) => setSelectedFile(e.target.files[0])}
+                          accept=".pdf,image/*"
+                          style={{ padding: '8px' }}
+                        />
+                        {uploading && <div className="upload-progress" style={{ marginTop: '8px', fontSize: '0.8rem', color: '#2b4df0' }}>Uploading: {uploadProgress}%</div>}
+                        {formData.pod_attachment && !selectedFile && (
+                          <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#36b37e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <ExternalLink size={14} /> Existing POD attached (from Job)
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     
                     <div className="client-os-info">
                       Client O/S: Credit Term: CASH | Total O/S: 46000 | Over Due O/S: 46000
@@ -1750,7 +1776,6 @@ const NewShipments = () => {
                       </div>
                     </div>
 
-                    {/* Air Freight Specific Fields */}
                     {shipmentType === 'AIR FREIGHT' && (
                       <>
                         <div className="divider"></div>
@@ -1806,7 +1831,6 @@ const NewShipments = () => {
                       </>
                     )}
 
-                    {/* Land/Transport Freight Specific Fields */}
                     {shipmentType === 'TRANSPORT' && (
                       <>
                         <div className="divider"></div>
@@ -1826,7 +1850,6 @@ const NewShipments = () => {
                       </>
                     )}
 
-                    {/* Sea Freight Specific Fields */}
                     {shipmentType === 'SEA FREIGHT' && (
                       <>
                         <div className="divider"></div>
@@ -1950,7 +1973,6 @@ const NewShipments = () => {
                       </>
                     )}
 
-                    {/* Checkbox Section */}
                     <div className="confirmation-checkboxes">
                       <div className="checkbox-item">
                         <input type="checkbox" id="confirm1" required />
@@ -1979,7 +2001,6 @@ const NewShipments = () => {
                 )}
               </div>
 
-              {/* Navigation Buttons */}
               <div className="navigation-buttons">
                 <button className="cancel-button" onClick={handleCancel}>
                   X Cancel
@@ -2005,7 +2026,6 @@ const NewShipments = () => {
             </div>
           </div>
 
-          {/* Organization Creation Modal */}
           {showOrgModal && (
             <div className="modal-overlay">
               <div className="modal-content org-modal">
