@@ -78,9 +78,9 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
                 <div style="background-color: ${themeColor}; padding: 30px; text-align: center;">
                   <img src="${SEAL_LOGO}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
-                <div style="padding: 40px;">
-                  <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${title}</h1>
-                  <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${body}</p>
+                 <div style="padding: 40px;">
+                   <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">Updates for your Portal</h1>
+                   <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${body}</p>
                   
                   ${actionLink ? `
                   <div style="text-align: center; margin-top: 30px;">
@@ -134,16 +134,16 @@ app.get("/api/cron/greetings", async (req, res) => {
 
     const getGreetingAndBody = () => {
       if (type === 'morning') return {
-        greeting: "Good Morning",
-        body: "Have a productive day ahead with Seal Freight. We are here to keep your logistics moving smoothly."
+        greeting: "Good morning",
+        body: "Your daily logistics summary is ready. All systems are operating normally."
       };
       if (type === 'afternoon') return {
-        greeting: "Good Afternoon",
-        body: "Checking in to ensure your operations are running smoothly this afternoon."
+        greeting: "Good afternoon",
+        body: "Mid-day system diagnostic completed. All operations are running smoothly."
       };
       return {
-        greeting: "Good Night",
-        body: "The system is okay. All your shipments and data are secure. Sleep well, we've got you covered."
+        greeting: "Hello",
+        body: "System integrity check: All shipments and data are secure. All services online."
       };
     };
 
@@ -164,9 +164,9 @@ app.get("/api/cron/greetings", async (req, res) => {
               <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
                 <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
               </div>
-              <div style="padding: 40px;">
-                <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${greeting}, ${user.full_name || 'there'}!</h1>
-                <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${bodyText}</p>
+               <div style="padding: 40px;">
+                 <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${greeting},</h1>
+                 <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${bodyText}</p>
                 <div style="padding: 20px; background-color: #f3f4f6; border-radius: 8px; text-align: center;">
                   <p style="margin: 0; font-size: 14px; font-weight: 600; color: #374151;">System Status: <span style="color: #10b981;">● Online & Secure</span></p>
                 </div>
