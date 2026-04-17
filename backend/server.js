@@ -141,7 +141,7 @@ app.get("/api/test-notification", async (req, res) => {
 });
 
 // --- NOTIFICATION UTILS ---
-const SEAL_LOGO = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
+const SEAL_LOGO = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
 /**
  * Universal email sender with Seal Freight branding
@@ -240,7 +240,7 @@ app.get("/api/cron/greetings", async (req, res) => {
     const subject = getSubject();
     const { greeting, body: bodyText } = getGreetingAndBody();
 
-    const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
+  const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user =>
@@ -292,7 +292,7 @@ app.get("/api/cron/payments", async (req, res) => {
     if (error) throw error;
     if (!failedPayments || failedPayments.length === 0) return res.json({ msg: "No failed payments today" });
 
-    const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
+  const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
     for (const payment of failedPayments) {
       if (payment.email) {
@@ -333,7 +333,7 @@ app.get("/api/cron/payments", async (req, res) => {
  */
 app.post("/api/webhooks/shipments", async (req, res) => {
   const payload = req.body;
-  const logoUrl = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
+  const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
   const isStatusUpdate = payload.type === 'UPDATE' && payload.record.status !== payload.old_record.status;
   const isPaymentFailure = payload.type === 'UPDATE' && payload.record.payment_status === 'failed' && payload.old_record.payment_status !== 'failed';

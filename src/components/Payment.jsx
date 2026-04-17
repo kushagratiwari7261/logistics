@@ -78,7 +78,7 @@ const PaymentPage = () => {
             currency: 'INR',
             name: 'Seal Freight Logistics',
             description: `Freight for ${shipment.shipment_no || shipment.id}`,
-            image: 'https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png',
+            image: 'https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png',
             handler: async (response) => {
                 try {
                     /* Insert payment record */

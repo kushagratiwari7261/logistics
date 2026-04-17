@@ -1,23 +1,14 @@
 // src/lib/supabaseClient.js
 import { createClient } from '@supabase/supabase-js'
 
-// The proxy URL (Cloudflare Worker) — handles REST/HTTP but NOT WebSockets
+// The proxy URL (Cloudflare Worker) — handles REST, Auth, and WebSockets (Realtime)
 const proxyUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// The real Supabase URL — needed for WebSocket (realtime) connections
-// Extracted from the JWT ref claim: xgihvwtiaqkpusrdvclk
-const REAL_SUPABASE_URL = 'https://xgihvwtiaqkpusrdvclk.supabase.co'
-
-// Create client with the REAL Supabase URL so realtime WebSocket works.
-// Route all HTTP/REST calls through the Cloudflare Workers proxy via custom fetch.
-export const supabase = createClient(REAL_SUPABASE_URL, supabaseAnonKey, {
+// Initialize the client with the Proxy URL directly.
+// The Cloudflare Worker will route all requests to the real Supabase backend.
+export const supabase = createClient(proxyUrl, supabaseAnonKey, {
   global: {
-    fetch: (url, options) => {
-      // Redirect all HTTP requests through the Cloudflare Workers proxy
-      const proxiedUrl = url.toString().replace(REAL_SUPABASE_URL, proxyUrl)
-      return fetch(proxiedUrl, options)
-    },
     headers: { 'x-client-info': 'seal-freight' },
   },
   realtime: {
