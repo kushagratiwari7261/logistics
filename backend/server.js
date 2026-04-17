@@ -31,6 +31,18 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Flexible CORS setup
+app.use(
+  cors({
+    origin: "*", 
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 // --- Setup Server and Socket.IO (Moved to top for reliability) ---
