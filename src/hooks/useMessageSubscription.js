@@ -9,7 +9,7 @@ const getSocketUrl = () => {
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   return isLocal 
     ? 'http://localhost:3001' 
-    : 'https://noida-production.up.railway.app';
+    : 'https://logistics-production-5141.up.railway.app';
 };
 
 export const socket = io(getSocketUrl(), {
