@@ -131,7 +131,7 @@ function App() {
 
       try {
         console.log(`🔥 Warming up messaging server at: ${serverUrl}`);
-        if (serverUrl) await fetch(`${serverUrl}/health`);
+        if (serverUrl) await fetch(`${serverUrl}/api/health`);
       } catch (err) {
         console.warn('⚠️ Server warmup ping failed (it might still be starting up)');
       }
