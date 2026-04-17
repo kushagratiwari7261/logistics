@@ -465,6 +465,62 @@ app.post("/api/webhooks/jobs", async (req, res) => {
     res.status(200).json({ received: true });
 });
 
+/**
+ * Webhook: Peer-to-Peer Tasks (Tickets)
+ */
+app.post("/api/webhooks/tasks", async (req, res) => {
+    const payload = req.body;
+    const { type, record, old_record } = payload;
+    
+    // Check if task is being newly assigned
+    const isNewTask = record.receiver_id && (!old_record || record.receiver_id !== old_record.receiver_id);
+    
+    if (isNewTask) {
+        try {
+            // 1. Fetch receiver & sender profiles
+            const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
+            const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', record.sender_id).single();
+            
+            if (receiver && receiver.email) {
+                const senderName = sender?.full_name || 'A team member';
+                
+                // 2. Send Email with "raised a ticket" context
+                await sendSealEmail({
+                    to: receiver.email,
+                    subject: `New Ticket Raised: ${record.title}`,
+                    title: `Hello ${receiver.full_name || 'Team Member'},`,
+                    body: `${senderName} has raised a ticket for you: \n\n"${record.description || 'No additional instructions provided.'}"`,
+                    actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
+                    actionText: "Open Task Manager",
+                    type: 'assignment'
+                });
+
+                // 3. Emit Socket.io event for real-time app notification
+                io.to(record.receiver_id).emit("new_notification", {
+                    title: "New Ticket Received",
+                    message: `${senderName} assigned you: ${record.title}`,
+                    type: 'task',
+                    task_id: record.id,
+                    timestamp: new Date().toISOString()
+                });
+
+                // 4. Save to persistent notifications table
+                await supabase.from('notifications').insert([{
+                    user_id: record.receiver_id,
+                    title: "New Ticket Received",
+                    message: `${senderName} assigned you: ${record.title}`,
+                    type: 'task',
+                    metadata: { task_id: record.id }
+                }]);
+            }
+        } catch (err) {
+            console.error("Task Webhook Error:", err);
+        }
+    }
+
+    res.status(200).json({ received: true });
+});
+
 // --- SCHEDULED TASKS (Daily Reminders & Deadlines) ---
 
 cron.schedule('0 9 * * *', async () => {

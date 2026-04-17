@@ -1,48 +1,66 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { 
-  Briefcase, 
-  User, 
-  Calendar, 
-  Search, 
+  Plus,
+  Send,
+  Inbox,
   CheckCircle2, 
   Clock, 
   AlertCircle,
-  Filter
+  User,
+  Calendar,
+  MessageSquare,
+  MoreVertical,
+  X,
+  Target
 } from 'lucide-react'
-import Header from './Header'
 
 const JobAllocation = ({ user }) => {
-  const [jobs, setJobs] = useState([])
+  const [tasksReceived, setTasksReceived] = useState([])
+  const [tasksSent, setTasksSent] = useState([])
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [updatingId, setUpdatingId] = useState(null)
+  const [activeTab, setActiveTab] = useState('received') // 'received' or 'sent'
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  // Form State
+  const [newTicket, setNewTicket] = useState({
+    receiver_id: '',
+    title: '',
+    description: '',
+    priority: 'Medium',
+    deadline_at: ''
+  })
 
   useEffect(() => {
+    if (!user?.id) return
     fetchData()
-  }, [])
+    subscribeToTasks()
+  }, [user?.id])
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch unassigned or all active jobs
-      const { data: jobsData, error: jobsError } = await supabase
-        .from('jobs')
-        .select('*')
+      // 1. Fetch profiles for assignment
+      const { data: profilesData } = await supabase.from('profiles').select('id, full_name, email')
+      setProfiles(profilesData || [])
+
+      // 2. Fetch Tasks received
+      const { data: received } = await supabase
+        .from('tasks')
+        .select('*, sender:profiles!sender_id(full_name, email)')
+        .eq('receiver_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      // 3. Fetch Tasks sent
+      const { data: sent } = await supabase
+        .from('tasks')
+        .select('*, receiver:profiles!receiver_id(full_name, email)')
+        .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
 
-      // Fetch potential assignees (profiles)
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-
-      if (jobsError) throw jobsError
-      if (profilesError) throw profilesError
-
-      setJobs(jobsData || [])
-      setProfiles(profilesData || [])
+      setTasksReceived(received || [])
+      setTasksSent(sent || [])
     } catch (err) {
       console.error('Fetch error:', err.message)
     } finally {
@@ -50,193 +68,297 @@ const JobAllocation = ({ user }) => {
     }
   }
 
-  const handleAssign = async (jobId, userId) => {
-    setUpdatingId(jobId)
-    try {
-      const deadline = new Date()
-      deadline.setDate(deadline.getDate() + 7) // Default 7 day deadline
+  const subscribeToTasks = () => {
+    const channel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchData()
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }
 
-      const { error } = await supabase
-        .from('jobs')
-        .update({ 
-          assigned_to: userId,
-          deadline_at: deadline.toISOString(),
-          status: 'Assigned'
-        })
-        .eq('id', jobId)
+  const handleCreateTicket = async (e) => {
+    e.preventDefault()
+    if (!newTicket.receiver_id || !newTicket.title) return
+
+    try {
+      const { error } = await supabase.from('tasks').insert([{
+        ...newTicket,
+        sender_id: user.id,
+        status: 'Pending'
+      }])
 
       if (error) throw error
       
-      // Update local state
-      setJobs(prev => prev.map(job => 
-        job.id === jobId 
-          ? { ...job, assigned_to: userId, status: 'Assigned', deadline_at: deadline.toISOString() } 
-          : job
-      ))
+      setShowCreateModal(false)
+      setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
+      fetchData()
     } catch (err) {
-      alert('Error assigning job: ' + err.message)
-    } finally {
-      setUpdatingId(null)
+      alert('Error raising ticket: ' + err.message)
     }
   }
 
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = (job.job_no?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (job.customer?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-    const matchesFilter = filterStatus === 'all' || 
-                         (filterStatus === 'unassigned' && !job.assigned_to) ||
-                         (filterStatus === 'assigned' && job.assigned_to)
-    return matchesSearch && matchesFilter
-  })
+  const updateTaskStatus = async (taskId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId)
+      
+      if (error) throw error
+      fetchData()
+    } catch (err) {
+      alert('Error updating task: ' + err.message)
+    }
+  }
+
+  const TaskCard = ({ task, isSent }) => (
+    <div style={{
+      background: 'var(--bg-surface)',
+      borderRadius: 16,
+      border: '1px solid var(--border)',
+      padding: 20,
+      position: 'relative',
+      transition: 'all 0.2s',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ 
+          fontSize: 11, 
+          fontWeight: 800, 
+          textTransform: 'uppercase', 
+          padding: '4px 8px', 
+          borderRadius: 6,
+          background: task.priority === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(79, 70, 229, 0.1)',
+          color: task.priority === 'High' ? '#ef4444' : 'var(--brand-primary)'
+        }}>
+          {task.priority} Priority
+        </span>
+        <span style={{ 
+          fontSize: 12, 
+          fontWeight: 600, 
+          color: task.status === 'Completed' ? 'var(--success)' : '#f59e0b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4
+        }}>
+          {task.status === 'Completed' ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+          {task.status}
+        </span>
+      </div>
+
+      <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{task.title}</h3>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        {task.description}
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 16, marginTop: 'auto' }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700 }}>
+          {isSent ? (task.receiver?.full_name?.slice(0,2) || '??') : (task.sender?.full_name?.slice(0,2) || '??')}
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+            {isSent ? `To: ${task.receiver?.full_name || 'User'}` : `From: ${task.sender?.full_name || 'User'}`}
+          </p>
+          <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)' }}>
+            Raised on {new Date(task.created_at).toLocaleDateString()}
+          </p>
+        </div>
+        
+        {!isSent && task.status !== 'Completed' && (
+          <button 
+            onClick={() => updateTaskStatus(task.id, 'Completed')}
+            style={{ 
+              background: 'var(--success)', 
+              color: '#fff', 
+              border: 'none', 
+              borderRadius: 8, 
+              padding: '6px 12px', 
+              fontSize: 11, 
+              fontWeight: 700, 
+              cursor: 'pointer' 
+            }}
+          >
+            Mark Done
+          </button>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="page-container">
-      <div className="page-header-section" style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>Job Allocation</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Assign team members to active tracking jobs and set deadlines.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Task Manager</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Raise and track tickets for your team members.</p>
+        </div>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          style={{ 
+            background: 'var(--brand-gradient)', 
+            color: '#fff', 
+            border: 'none', 
+            borderRadius: 12, 
+            padding: '12px 20px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 8, 
+            fontWeight: 700, 
+            cursor: 'pointer',
+            boxShadow: '0 10px 20px var(--brand-glow)'
+          }}
+        >
+          <Plus size={18} /> Raise Ticket
+        </button>
       </div>
 
-      <div style={{ 
-        display: 'flex', 
-        gap: 16, 
-        marginBottom: 24,
-        flexWrap: 'wrap'
-      }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
-          <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search by Job ID or Customer..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 16px 12px 48px',
-              borderRadius: 12,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: 14
-            }}
-          />
-        </div>
-        
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['all', 'unassigned', 'assigned'].map(status => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: filterStatus === status ? 'var(--brand-primary)' : 'var(--bg-surface)',
-                color: filterStatus === status ? '#fff' : 'var(--text-secondary)',
-                fontSize: 13,
-                fontWeight: 600,
-                textTransform: 'capitalize',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+      <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
+        <button 
+          onClick={() => setActiveTab('received')}
+          style={{ 
+            padding: '12px 16px', 
+            background: 'none', 
+            border: 'none', 
+            borderBottom: activeTab === 'received' ? '2px solid var(--brand-primary)' : '2px solid transparent',
+            color: activeTab === 'received' ? 'var(--brand-primary)' : 'var(--text-muted)',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <Inbox size={18} /> My Tasks ({tasksReceived.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('sent')}
+          style={{ 
+            padding: '12px 16px', 
+            background: 'none', 
+            border: 'none', 
+            borderBottom: activeTab === 'sent' ? '2px solid var(--brand-primary)' : '2px solid transparent',
+            color: activeTab === 'sent' ? 'var(--brand-primary)' : 'var(--text-muted)',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <Send size={18} /> Raised by Me ({tasksSent.length})
+        </button>
       </div>
 
-      {loading ? (
-        <div style={{ padding: 100, textAlign: 'center' }}>
-          <div className="loading-spinner" style={{ margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--text-muted)' }}>Loading jobs for allocation...</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
-          {filteredJobs.length === 0 ? (
-            <div style={{ gridColumn: '1/-1', padding: 80, textAlign: 'center', background: 'var(--bg-surface)', borderRadius: 20, border: '1px dashed var(--border)' }}>
-              <AlertCircle size={40} style={{ color: 'var(--text-muted)', marginBottom: 16, opacity: 0.5 }} />
-              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>No matching jobs found</h3>
-              <p style={{ color: 'var(--text-muted)' }}>Try adjusting your filters or search term.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          (activeTab === 'received' ? tasksReceived : tasksSent).length === 0 ? (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, opacity: 0.5 }}>
+              <Target size={48} style={{ marginBottom: 16 }} />
+              <p>No tasks found in this section.</p>
             </div>
-          ) : filteredJobs.map(job => (
-            <div key={job.id} style={{
-              background: 'var(--bg-surface)',
-              borderRadius: 20,
-              border: '1px solid var(--border)',
-              padding: 24,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              cursor: 'default'
-            }} onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)'
-              e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.08)'
-            }} onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.03)'
-            }}>
+          ) : (activeTab === 'received' ? tasksReceived : tasksSent).map(task => (
+            <TaskCard key={task.id} task={task} isSent={activeTab === 'sent'} />
+          ))
+        )}
+      </div>
+
+      {/* CREATE MODAL */}
+      {showCreateModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', width: '100%', maxWidth: 500, borderRadius: 24, boxShadow: '0 25px 50px rgba(0,0,0,0.2), 0 0 0 1px var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Raise New Ticket</h2>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={24} /></button>
+            </div>
+            
+            <form onSubmit={handleCreateTicket} style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div style={{ padding: '4px 10px', background: 'rgba(79, 70, 229, 0.1)', color: 'var(--brand-primary)', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
-                    JOB #{job.job_no || job.id.slice(0, 8)}
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 6, 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: job.assigned_to ? 'var(--success)' : '#f59e0b'
-                  }}>
-                    {job.assigned_to ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                    {job.assigned_to ? 'Assigned' : 'Awaiting Allocation'}
-                  </div>
-                </div>
-                <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{job.customer || 'Unknown Customer'}</h3>
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>{job.por || 'N/A'} → {job.pod || 'N/A'}</p>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>Assign To</label>
+                <select 
+                  required
+                  value={newTicket.receiver_id}
+                  onChange={e => setNewTicket({...newTicket, receiver_id: e.target.value})}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)' }}
+                >
+                  <option value="">Select a team member</option>
+                  {profiles.filter(p => p.id !== user.id).map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+                  ))}
+                </select>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
-                  Assign To
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <select
-                    value={job.assigned_to || ''}
-                    onChange={(e) => handleAssign(job.id, e.target.value)}
-                    disabled={updatingId === job.id}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px 10px 36px',
-                      borderRadius: 10,
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-surface-2)',
-                      color: 'var(--text-primary)',
-                      fontSize: 14,
-                      cursor: updatingId === job.id ? 'wait' : 'pointer'
-                    }}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>Task Title</label>
+                <input 
+                  required
+                  type="text"
+                  placeholder="e.g., Update shipment docs"
+                  value={newTicket.title}
+                  onChange={e => setNewTicket({...newTicket, title: e.target.value})}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>Instructions</label>
+                <textarea 
+                  rows={3}
+                  placeholder="Describe what needs to be done..."
+                  value={newTicket.description}
+                  onChange={e => setNewTicket({...newTicket, description: e.target.value})}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)', resize: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>Priority</label>
+                  <select 
+                    value={newTicket.priority}
+                    onChange={e => setNewTicket({...newTicket, priority: e.target.value})}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)' }}
                   >
-                    <option value="">Unassigned</option>
-                    {profiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
-                    ))}
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
                   </select>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>Deadline</label>
+                  <input 
+                    type="date"
+                    value={newTicket.deadline_at}
+                    onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)' }}
+                  />
+                </div>
               </div>
 
-              {job.deadline_at && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-surface-2)', padding: '10px 16px', borderRadius: 12 }}>
-                  <Calendar size={14} color="var(--brand-primary)" />
-                  <span>Deadline: <strong>{new Date(job.deadline_at).toLocaleDateString()}</strong></span>
-                </div>
-              )}
-            </div>
-          ))}
+              <button 
+                type="submit"
+                style={{ marginTop: 12, background: 'var(--brand-gradient)', color: '#fff', border: 'none', borderRadius: 12, padding: '16px', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 10px 20px var(--brand-glow)' }}
+              >
+                Raise Ticket
+              </button>
+            </form>
+          </div>
         </div>
       )}
+
+      <style>{`
+        .page-container {
+          padding: 40px;
+          animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }
