@@ -15,7 +15,8 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  ClipboardCheck
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -65,6 +66,11 @@ const navItems = [
     to: '/job-orders',
     label: 'Job Orders',
     icon: <Briefcase size={20} />,
+  },
+  {
+    to: '/job-allocation',
+    label: 'Job Allocation',
+    icon: <ClipboardCheck size={20} />,
   },
   {
     to: '/messages',
@@ -154,66 +160,93 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
   }
 
   const UserFooter = () => (
-    <div style={{
-      padding: '20px',
-      borderTop: '1px solid var(--border-subtle)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      marginTop: 'auto'
-    }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: '50%',
-        background: 'var(--brand-gradient)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontSize: 13, fontWeight: 700
-      }}>
-        {initials}
+    <div className="sidebar-footer">
+      <div className="sidebar-user-badge">
+        <div className="sidebar-user-avatar">{initials}</div>
+        <div className="sidebar-user-info">
+          <div className="sidebar-user-name">{emailDisplay}</div>
+          <div className="sidebar-user-role">Freight Admin</div>
+        </div>
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emailDisplay}</div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Freight Administrator</div>
-      </div>
+      <div className="sidebar-status-dot">System Online</div>
     </div>
   )
 
   return (
     <>
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo-icon">
-            <Ship size={24} />
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button
+          className={`hamburger-btn ${mobileMenuOpen ? 'active' : ''}`}
+          onClick={toggleMobileMenu}
+          aria-label="Menu"
+        >
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+        </button>
+        <div className="mobile-logo">
+          <img src={sealLogo} alt="Seal Freight" className="logo-text-image" />
+        </div>
+      </div>
+
+      {/* Mobile Overlay */}
+      <div
+        className={`mobile-menu-overlay ${mobileMenuOpen ? 'active' : ''}`}
+        onClick={toggleMobileMenu}
+      >
+        <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
+          <div className="sidebar-logo-section">
+            <img src={sealLogo} alt="Seal Freight" className="logo-text-image" />
+            <div className="sidebar-brand-tag">Logistics Platform</div>
           </div>
-          <div className="logo-text">Seal Freight</div>
+          <div className="sidebar-section-label">Main Menu</div>
+          <nav className="mobile-nav-menu">
+            {navItems.map((item) => (
+              <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+            ))}
+          </nav>
+          <div className="sidebar-divider" />
+          <button onClick={handleLogoutClick} className="nav-link logout-btn" type="button">
+            <span className="nav-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+              </svg>
+            </span>
+            <span className="nav-label">Logout</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-logo-section">
+          <div className="logo-glow">
+            <img src={sealLogo} alt="Seal Freight" className="logo-text-image" />
+          </div>
+          <div className="sidebar-brand-tag">Logistics Platform</div>
         </div>
 
-        <nav className="sidebar-nav">
-          <div className="nav-section">
-            <h3 className="nav-section-title">Main Fleet</h3>
-            {navItems.map((item) => (
-              <Link 
-                key={item.label}
-                to={item.to || '#'} 
-                className={`nav-item ${isActive(item.to) ? 'active' : ''}`}
-                onClick={handleLinkClick}
-              >
-                <span style={{ opacity: isActive(item.to) ? 1 : 0.7 }}>{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
+        <div className="sidebar-section-label">Main Menu</div>
+
+        <nav className="nav-menu">
+          {navItems.map((item) => (
+            <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+          ))}
         </nav>
 
-        <UserFooter />
-        
-        <button 
-          onClick={handleLogoutClick} 
-          className="nav-item"
-          style={{ margin: '0 16px 16px', border: 'none', background: 'none', width: 'auto', color: '#ef4444' }}
-        >
-          <LogOut size={18} />
-          <span>Logout</span>
+        <div className="sidebar-divider" />
+
+        <button onClick={handleLogoutClick} className="nav-link logout-btn" type="button">
+          <span className="nav-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+            </svg>
+          </span>
+          <span className="nav-label">Logout</span>
         </button>
+
+        <UserFooter />
       </aside>
     </>
   )
