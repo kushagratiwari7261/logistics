@@ -109,12 +109,33 @@ function App() {
   // --- Notification System State ---
   const [inAppNotifications, setInAppNotifications] = useState([])
   const notificationAudio = useRef(null)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
 
-  // Initialize Audio
+  // Initialize and Unlock Audio (Browsers require a user gesture to play sound)
   useEffect(() => {
-    notificationAudio.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+    // Current notification sound from mixkit (might be blocked by some ISPs)
+    const soundUrl = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
+    notificationAudio.current = new Audio(soundUrl)
     notificationAudio.current.volume = 0.5
-  }, [])
+
+    const unlockAudio = () => {
+      if (notificationAudio.current && !audioUnlocked) {
+        // 'Prime' the audio element for later use
+        notificationAudio.current.play()
+          .then(() => {
+            notificationAudio.current.pause()
+            notificationAudio.current.currentTime = 0
+            setAudioUnlocked(true)
+            console.log('🔊 Audio system unlocked by user gesture')
+            window.removeEventListener('click', unlockAudio)
+          })
+          .catch(err => console.warn('🔇 Audio unlock failed:', err))
+      }
+    }
+
+    window.addEventListener('click', unlockAudio)
+    return () => window.removeEventListener('click', unlockAudio)
+  }, [audioUnlocked])
 
   // Wake up the backend server (on free tiers like Render/Railway it might be sleeping)
   useEffect(() => {

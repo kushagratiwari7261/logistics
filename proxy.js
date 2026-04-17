@@ -39,9 +39,14 @@ export default {
     // --- 2. Handle WebSocket Upgrades (Socket.io / Supabase Realtime) ---
     const upgradeHeader = request.headers.get("Upgrade");
     if (upgradeHeader === "websocket") {
-      return fetch(targetUrl, { 
-        headers: request.headers, 
-        method: "GET" 
+      console.log(`🔌 WebSocket Upgrade Request for: ${targetUrl}`);
+      
+      // For Supabase Realtime, we must ensure 'sec-websocket-key' is handled by the fetch
+      // Cloudflare's fetch() handles the handshake automatically if websocket: true is NOT set 
+      // but the Upgrade header IS present.
+      return fetch(targetUrl, {
+        headers: request.headers,
+        method: "GET"
       });
     }
 

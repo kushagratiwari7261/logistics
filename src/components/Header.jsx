@@ -50,7 +50,10 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         setUnreadCount(c => c + 1)
         // Note: Sound and Toast are handled in App.jsx via Socket.io for immediate response
       })
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log(`📡 Notification channel status for ${user.id}:`, status);
+        if (err) console.error('❌ Notification channel error:', err);
+      })
 
     return () => {
       supabase.removeChannel(channel)

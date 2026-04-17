@@ -186,7 +186,7 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
                   <img src="${SEAL_LOGO}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                  <div style="padding: 40px;">
-                   <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">Updates for your Portal</h1>
+                   <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${title || 'Seal Freight Update'}</h1>
                    <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${body}</p>
                   
                   ${actionLink ? `
@@ -538,11 +538,11 @@ app.post("/api/webhooks/jobs", async (req, res) => {
         // 2. Send Email
         await sendSealEmail({
           to: profile.email,
-          subject: "New Job Allocated",
-          title: `Hello ${profile.full_name || 'Team Member'},`,
-          body: `A new job has been allocated to you (Job ID: ${record.job_no || record.id}). Please log in to the portal to review the details and start work.`,
+          subject: "Job Allocation Request",
+          title: "New Job Allocation Request",
+          body: `You have received a new job allocation (Job ID: ${record.job_no || record.id}). Please review the details in your dashboard.`,
           actionLink: "https://logistics-alpha-steel.vercel.app/dashboard",
-          actionText: "View My Jobs",
+          actionText: "Open Dashboard",
           type: 'assignment'
         });
 
@@ -594,11 +594,11 @@ app.post("/api/webhooks/tasks", async (req, res) => {
         // 2. Send Email with "raised a ticket" context
         await sendSealEmail({
           to: receiver.email,
-          subject: `New Ticket Raised: ${record.title}`,
-          title: `Hello ${receiver.full_name || 'Team Member'},`,
-          body: `${senderName} has raised a ticket for you: \n\n"${record.description || 'No additional instructions provided.'}"`,
+          subject: "Ticket Allocation Request",
+          title: "New Ticket Received",
+          body: `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,
           actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
-          actionText: "Open Task Manager",
+          actionText: "Open Dashboard",
           type: 'assignment'
         });
 
