@@ -21,7 +21,7 @@ import './Settings.css'
 
 
 const Settings = ({ user }) => {
-    const [colorMode, setColorMode] = useState('dark')
+    const [colorMode, setColorMode] = useState('light')
     const [accentColor, setAccentColor] = useState('indigo')
     const [sidebarCompact, setSidebarCompact] = useState(false)
     const [emailNotif, setEmailNotif] = useState(true)
@@ -44,16 +44,16 @@ const Settings = ({ user }) => {
                 console.warn('Error loading remote prefs:', error);
             } else if (data) {
                 console.log('✅ Remote preferences found:', data);
-                setColorMode(data.theme ?? 'dark');
+                setColorMode(data.theme ?? 'light');
                 setAccentColor(data.accent_color ?? 'indigo');
                 setEmailNotif(data.email_notifications ?? true);
                 setPushNotif(data.push_notifications ?? false);
                 
-                applyColorMode(data.theme ?? 'dark');
+                applyColorMode(data.theme ?? 'light');
                 applyAccent(data.accent_color ?? 'indigo');
                 
                 // Keep local storage in sync
-                localStorage.setItem('sf_color_mode', data.theme ?? 'dark');
+                localStorage.setItem('sf_color_mode', data.theme ?? 'light');
                 localStorage.setItem('sf_accent_color', data.accent_color ?? 'indigo');
                 
                 setLoading(false);
@@ -63,7 +63,7 @@ const Settings = ({ user }) => {
 
         // Fallback to local storage if not logged in or no record found
         console.log('Falling back to local storage preferences');
-        const lm = localStorage.getItem('sf_color_mode') ?? 'dark'
+        const lm = localStorage.getItem('sf_color_mode') ?? 'light'
         const la = localStorage.getItem('sf_accent_color') ?? 'indigo'
         const lsc = localStorage.getItem('sf_sidebar_compact') === 'true'
         const le = localStorage.getItem('sf_email_notif') !== 'false'

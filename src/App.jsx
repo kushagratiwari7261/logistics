@@ -197,7 +197,7 @@ function App() {
         localStorage.setItem('sf_accent_color', data.accent_color);
       } else {
         // Fallback to local storage if no settings in Supabase yet
-        const localTheme = localStorage.getItem('sf_color_mode') || 'dark';
+        const localTheme = localStorage.getItem('sf_color_mode') || 'light';
         const localAccent = localStorage.getItem('sf_accent_color') || 'indigo';
         applyColorMode(localTheme);
         applyAccent(localAccent);

@@ -121,10 +121,10 @@ export default function TrackShipment() {
     ].filter(([, v]) => v);
 
     return (
-        <div className="st-root public-tracking" style={{ background: '#f8fafc', color: '#1e293b' }}>
+        <div className="st-root public-tracking" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
             <div className="st-detail">
                 {/* Header */}
-                <div className="st-detail-header" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <div className="st-detail-header" style={{ boxShadow: 'var(--shadow-sm)' }}>
                     <div className="st-detail-title">
                         <h2>{shipment.shipment_no || `MTD-${String(shipment.id).slice(0, 8).toUpperCase()}`}</h2>
                         <span className="st-status-chip" style={{ background: statusColor }}>
