@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react'
 import { Plus, Briefcase, Clock, Bell, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 
+const Header = ({ createNewShipment, creatActiveJob, user }) => {
+  const [now, setNow] = useState(new Date())
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
