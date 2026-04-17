@@ -4,11 +4,11 @@ import { io } from 'socket.io-client';
 // Intelligent URL detection
 const getSocketUrl = () => {
   if (import.meta.env.VITE_WEBSOCKET_URL) return import.meta.env.VITE_WEBSOCKET_URL;
-  
+
   // Default fallbacks based on environment
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  return isLocal 
-    ? 'http://localhost:3001' 
+  return isLocal
+    ? 'http://localhost:3001'
     : 'https://logistics-production-5141.up.railway.app';
 };
 
