@@ -971,7 +971,7 @@ function App() {
                 <Route path="/dsr" element={<ProtectedRoute><DSRPage /></ProtectedRoute>} />
                 <Route path="/job-orders" element={<ProtectedRoute><ActiveJob /></ProtectedRoute>} />
                 <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-                <Route path="/job-allocation" element={<ProtectedRoute><JobAllocation /></ProtectedRoute>} />
+                <Route path="/job-allocation" element={<ProtectedRoute><JobAllocation user={user} /></ProtectedRoute>} />
                 <Route path="/messages" element={<ProtectedRoute><MessagesMain user={user} key={user?.id} /></ProtectedRoute>} />
                 <Route path="*" element={
                   <div className="page-container">
