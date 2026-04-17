@@ -81,6 +81,9 @@ import Reports from './components/Reports'
 import ShipmentTracking from './components/ShipmentTracking'
 import PaymentPage from './components/Payment'
 import sealLogo from './seal.png'
+import { Bell, CheckCircle2, X } from 'lucide-react'
+import { socket } from './hooks/useMessageSubscription'
+import { supabase } from './lib/supabaseClient'
 
 import { supabase } from './lib/supabaseClient'
 import ForgotPassword from './components/ForgotPassword'
@@ -103,6 +106,16 @@ function App() {
   const [isStatsLoading, setIsStatsLoading] = useState(false)
   const [isJobsLoading, setIsJobsLoading] = useState(false)
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false)
+
+  // --- Notification System State ---
+  const [inAppNotifications, setInAppNotifications] = useState([])
+  const notificationAudio = useRef(null)
+
+  // Initialize Audio
+  useEffect(() => {
+    notificationAudio.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+    notificationAudio.current.volume = 0.5
+  }, [])
 
   // Wake up the backend server (on free tiers like Render/Railway it might be sleeping)
   useEffect(() => {
@@ -145,6 +158,36 @@ function App() {
     console.log('Redirect allowed to:', targetPath);
     return true;
   }, []);
+
+  // Handle Real-time Job Notifications
+  useEffect(() => {
+    if (!user?.id) return
+
+    const handleNewNotification = (data) => {
+      console.log('🔔 New real-time notification:', data)
+      
+      // Play sound
+      if (notificationAudio.current) {
+        notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e))
+      }
+
+      // Add to toast queue
+      const id = Date.now()
+      setInAppNotifications(prev => [...prev, { ...data, id }])
+
+      // Auto-remove after 6 seconds
+      setTimeout(() => {
+        setInAppNotifications(prev => prev.filter(n => n.id !== id))
+      }, 6000)
+    }
+
+    socket.emit('join', user.id)
+    socket.on('new_notification', handleNewNotification)
+
+    return () => {
+      socket.off('new_notification', handleNewNotification)
+    }
+  }, [user?.id])
 
   // Enhanced local cleanup function
   const performLocalCleanup = useCallback(async () => {

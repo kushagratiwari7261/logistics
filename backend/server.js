@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import cron from 'node-cron';
 
 // Prevent missing dotenv crash in production
 try {
@@ -48,6 +49,60 @@ app.use(express.json());
 app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "websocket-messaging" });
 });
+
+// --- NOTIFICATION UTILS ---
+const SEAL_LOGO = "https://xgihvwtiaqkpusrdvclk.supabase.co/storage/v1/object/public/assets/seal.png";
+
+/**
+ * Universal email sender with Seal Freight branding
+ */
+async function sendSealEmail({ to, subject, title, body, actionLink, actionText, type = 'info' }) {
+    if (!resend || !to) return;
+    
+    const colors = {
+        assignment: '#4f46e5',
+        reminder: '#f59e0b',
+        deadline: '#dc2626',
+        info: '#4f46e5'
+    };
+    const themeColor = colors[type] || colors.info;
+
+    try {
+        await resend.emails.send({
+            from: 'Seal Freight Logistics <alerts@prudata.info>',
+            to: Array.isArray(to) ? to : [to],
+            subject: `Seal Freight: ${subject}`,
+            html: `
+            <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="background-color: ${themeColor}; padding: 30px; text-align: center;">
+                  <img src="${SEAL_LOGO}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                </div>
+                <div style="padding: 40px;">
+                  <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${title}</h1>
+                  <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${body}</p>
+                  
+                  ${actionLink ? `
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${actionLink}" style="display: inline-block; background-color: ${themeColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      ${actionText || 'View Details'}
+                    </a>
+                  </div>
+                  ` : ''}
+                </div>
+                <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 Seal Freight Logistics. This is an automated notification.</p>
+                </div>
+              </div>
+            </div>
+            `
+        });
+        return true;
+    } catch (err) {
+        console.error("Email send error:", err);
+        return false;
+    }
+}
 
 // --- NOTIFICATION ENDPOINTS ---
 
@@ -351,6 +406,127 @@ app.post("/api/webhooks/shipments", async (req, res) => {
   }
 
   res.status(200).json({ received: true });
+});
+
+/**
+ * Webhook: Job Allocation
+ */
+app.post("/api/webhooks/jobs", async (req, res) => {
+    const payload = req.body;
+    const { type, record, old_record } = payload;
+    
+    // Check if job was assigned or re-assigned
+    const isNewAssignment = record.assigned_to && (!old_record || record.assigned_to !== old_record.assigned_to);
+    
+    if (isNewAssignment) {
+        try {
+            // 1. Fetch user email
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', record.assigned_to)
+                .single();
+            
+            if (profile && profile.email) {
+                // 2. Send Email
+                await sendSealEmail({
+                    to: profile.email,
+                    subject: "New Job Allocated",
+                    title: `Hello ${profile.full_name || 'Team Member'},`,
+                    body: `A new job has been allocated to you (Job ID: ${record.job_no || record.id}). Please log in to the portal to review the details and start work.`,
+                    actionLink: "https://logistics-alpha-steel.vercel.app/dashboard",
+                    actionText: "View My Jobs",
+                    type: 'assignment'
+                });
+
+                // 3. Emit Socket.io event for real-time app notification
+                io.to(record.assigned_to).emit("new_notification", {
+                    title: "New Job Assigned",
+                    message: `You have been assigned to Job #${record.job_no || record.id}`,
+                    type: 'assignment',
+                    job_id: record.id,
+                    timestamp: new Date().toISOString()
+                });
+
+                // 4. Save to notifications table
+                await supabase.from('notifications').insert([{
+                    user_id: record.assigned_to,
+                    title: "New Job Assigned",
+                    message: `You have been assigned to Job #${record.job_no || record.id}`,
+                    type: 'assignment',
+                    job_id: record.id
+                }]);
+            }
+        } catch (err) {
+            console.error("Job Webhook Error:", err);
+        }
+    }
+
+    res.status(200).json({ received: true });
+});
+
+// --- SCHEDULED TASKS (Daily Reminders & Deadlines) ---
+
+cron.schedule('0 9 * * *', async () => {
+    console.log("⏰ Running daily job reminders...");
+    
+    try {
+        // Find active jobs with assignments and upcoming deadlines
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const { data: activeJobs } = await supabase
+            .from('jobs')
+            .select('*, profiles(email, full_name)')
+            .not('assigned_to', 'is', null)
+            .neq('status', 'completed');
+
+        if (!activeJobs) return;
+
+        for (const job of activeJobs) {
+            const assignee = job.profiles;
+            if (!assignee || !assignee.email) continue;
+
+            const deadline = job.deadline_at ? new Date(job.deadline_at) : null;
+            
+            // 1. Daily Reminder (Basic)
+            await sendSealEmail({
+                to: assignee.email,
+                subject: "Daily Job Reminder",
+                title: "You have a job allocated",
+                body: `This is a daily reminder for Job #${job.job_no || job.id}. Please ensure progress is tracked in the system.`,
+                actionLink: "https://logistics-alpha-steel.vercel.app/dashboard",
+                type: 'reminder'
+            });
+
+            // 2. Deadline approaching (within 24 hours)
+            if (deadline && deadline > today && deadline <= tomorrow) {
+                await sendSealEmail({
+                    to: assignee.email,
+                    subject: "Immediate Action: Deadline Approaching",
+                    title: "Action Required: Job Deadline",
+                    body: `The deadline for Job #${job.job_no || job.id} is in less than 24 hours (${deadline.toLocaleDateString()}). Please complete the task or update the status.`,
+                    actionLink: "https://logistics-alpha-steel.vercel.app/dashboard",
+                    type: 'deadline'
+                });
+            }
+
+            // 3. Job Ended
+            if (deadline && deadline < today) {
+                await sendSealEmail({
+                    to: assignee.email,
+                    subject: "Job Timeframe Ended",
+                    title: "Notification: Job Overdue",
+                    body: `The allocated timeframe for Job #${job.job_no || job.id} has ended. If the work is still in progress, please update the deadline.`,
+                    actionLink: "https://logistics-alpha-steel.vercel.app/dashboard",
+                    type: 'deadline'
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Daily Cron Error:", err);
+    }
 });
 
 /**
