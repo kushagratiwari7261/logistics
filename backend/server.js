@@ -57,6 +57,23 @@ const io = new Server(server, {
 
 app.set('socketio', io); // Attach to app for potential use in routes
 
+// --- Socket.io Connection Logic ---
+io.on("connection", (socket) => {
+  console.log(`🔌 New client connected: ${socket.id}`);
+
+  // When a user logs in, they join a room named after their Supabase UUID
+  socket.on("join", (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`👤 User joined room: ${userId} (Socket: ${socket.id})`);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
+  });
+});
+
 // Root route - Friendly landing page
 app.get("/", (req, res) => {
   res.send(`
