@@ -21,6 +21,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         skipWaiting: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 3000000, // Increase limit to 3MB to handle larger JS bundles
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
