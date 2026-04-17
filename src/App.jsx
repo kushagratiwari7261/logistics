@@ -84,8 +84,6 @@ import sealLogo from './seal.png'
 import { Bell, CheckCircle2, X } from 'lucide-react'
 import { socket } from './hooks/useMessageSubscription'
 import { supabase } from './lib/supabaseClient'
-
-import { supabase } from './lib/supabaseClient'
 import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import TrackShipment from './components/TrackShipment'
