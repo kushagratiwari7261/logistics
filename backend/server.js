@@ -69,8 +69,21 @@ app.get("/api/health", (req, res) => {
 
 // Test endpoint to verify everything works
 app.get("/api/test-notification", async (req, res) => {
-  const { userId, email } = req.query;
-  if (!userId) return res.status(400).json({ error: "userId required" });
+  let { userId, email } = req.query;
+  
+  // If only email is provided, try to find the userId
+  if (!userId && email) {
+    console.log(`🔍 Looking up userId for email: ${email}`);
+    const { data: profile } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle();
+    if (profile) {
+      userId = profile.id;
+      console.log(`✅ Found userId: ${userId}`);
+    } else {
+      return res.status(404).json({ error: "User profile not found for this email" });
+    }
+  }
+
+  if (!userId) return res.status(400).json({ error: "userId or email required" });
 
   console.log(`🧪 Running manual notification test for user: ${userId}`);
   let results = { socket: false, email: false, db: false };
