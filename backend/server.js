@@ -31,23 +31,75 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+app.use(express.json());
 
-// Flexible CORS setup
-app.use(
-  cors({
+// --- Setup Server and Socket.IO (Moved to top for reliability) ---
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
     origin: "*", 
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
-  })
-);
+  },
+});
 
-app.use(express.json());
+app.set('socketio', io); // Attach to app for potential use in routes
 
 // Basic health check routes
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", service: "websocket-messaging" });
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    service: "websocket-messaging",
+    socketConnected: io.engine.clientsCount,
+    resendConfigured: !!resend
+  });
+});
+
+// Test endpoint to verify everything works
+app.get("/api/test-notification", async (req, res) => {
+  const { userId, email } = req.query;
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  console.log(`🧪 Running manual notification test for user: ${userId}`);
+  let results = { socket: false, email: false, db: false };
+
+  // 1. Test Socket
+  try {
+    io.to(userId).emit("new_notification", {
+      title: "Test Popup Success",
+      message: "If you see this, your live notifications are working!",
+      type: 'info',
+      timestamp: new Date().toISOString()
+    });
+    results.socket = true;
+  } catch (e) { results.socket = e.message; }
+
+  // 2. Test DB
+  try {
+    await supabase.from('notifications').insert([{
+      user_id: userId,
+      title: "Test Bell Notification",
+      message: "This confirms your notification database is connected.",
+      type: 'info'
+    }]);
+    results.db = true;
+  } catch (e) { results.db = e.message; }
+
+  // 3. Test Email
+  if (email && resend) {
+    try {
+      await sendSealEmail({
+        to: email,
+        subject: "Manual Notification Test",
+        title: "Test Successful",
+        body: "This is a test email to confirm your Resend configuration is working.",
+        type: 'info'
+      });
+      results.email = true;
+    } catch (e) { results.email = e.message; }
+  }
+
+  res.json({ msg: "Test complete", results });
 });
 
 // --- NOTIFICATION UTILS ---
@@ -413,7 +465,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
  */
 app.post("/api/webhooks/jobs", async (req, res) => {
     const payload = req.body;
-    const { type, record, old_record } = payload;
+    console.log(`📡 WEBHOOK: Received Job allocation. Type: ${type}, Record:`, record.id);
     
     // Check if job was assigned or re-assigned
     const isNewAssignment = record.assigned_to && (!old_record || record.assigned_to !== old_record.assigned_to);
@@ -470,8 +522,8 @@ app.post("/api/webhooks/jobs", async (req, res) => {
  */
 app.post("/api/webhooks/tasks", async (req, res) => {
     const payload = req.body;
-    const { type, record, old_record } = payload;
-    
+    console.log(`📡 WEBHOOK: Received Task allocation. Type: ${type}, Record:`, record.id);
+
     // Check if task is being newly assigned
     const isNewTask = record.receiver_id && (!old_record || record.receiver_id !== old_record.receiver_id);
     
@@ -704,16 +756,7 @@ app.post("/api/webhooks/razorpay", express.json(), async (req, res) => {
   }
 });
 
-// Setup Server and Socket.IO
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", 
-    methods: ["GET", "POST", "OPTIONS"],
-    credentials: true,
-  },
-});
-
+// --- Socket.IO Connection Handler ---
 io.on("connection", (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
 

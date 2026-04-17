@@ -33,6 +33,9 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
     }
 
     fetchNotifications()
+    
+    // Fallback: Poll for new notifications every 10 seconds in case real-time fails
+    const pollId = setInterval(fetchNotifications, 10000)
 
     // Real-time subscription for notifications
     const channel = supabase
@@ -51,6 +54,7 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
 
     return () => {
       supabase.removeChannel(channel)
+      clearInterval(pollId)
     }
   }, [user?.id])
 
