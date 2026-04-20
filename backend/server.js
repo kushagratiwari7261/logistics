@@ -520,6 +520,10 @@ app.post("/api/webhooks/shipments", async (req, res) => {
  */
 app.post("/api/webhooks/jobs", async (req, res) => {
   const payload = req.body;
+  const { type, record, old_record } = payload;
+  
+  if (!record) return res.status(400).json({ error: "Missing record in payload" });
+
   console.log(`📡 WEBHOOK: Received Job allocation. Type: ${type}, Record:`, record.id);
 
   // Check if job was assigned or re-assigned
@@ -528,16 +532,26 @@ app.post("/api/webhooks/jobs", async (req, res) => {
   if (isNewAssignment) {
     try {
       // 1. Fetch user email
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('id', record.assigned_to)
-        .single();
+      let email = record.assigned_to?.includes('@') ? record.assigned_to : null;
+      let fullName = 'Team Member';
 
-      if (profile && profile.email) {
+      if (!email) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', record.assigned_to)
+          .single();
+        
+        if (profile) {
+          email = profile.email;
+          fullName = profile.full_name || fullName;
+        }
+      }
+
+      if (email) {
         // 2. Send Email
         await sendSealEmail({
-          to: profile.email,
+          to: email,
           subject: "Job Allocation Request",
           title: "New Job Allocation Request",
           body: `You have received a new job allocation (Job ID: ${record.job_no || record.id}). Please review the details in your dashboard.`,
@@ -577,6 +591,10 @@ app.post("/api/webhooks/jobs", async (req, res) => {
  */
 app.post("/api/webhooks/tasks", async (req, res) => {
   const payload = req.body;
+  const { type, record, old_record } = payload;
+
+  if (!record) return res.status(400).json({ error: "Missing record in payload" });
+
   console.log(`📡 WEBHOOK: Received Task allocation. Type: ${type}, Record:`, record.id);
 
   // Check if task is being newly assigned
@@ -585,15 +603,25 @@ app.post("/api/webhooks/tasks", async (req, res) => {
   if (isNewTask) {
     try {
       // 1. Fetch receiver & sender profiles
-      const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
+      let receiverEmail = record.receiver_id?.includes('@') ? record.receiver_id : null;
+      let receiverName = 'Team Member';
+
+      if (!receiverEmail) {
+        const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
+        if (receiver) {
+          receiverEmail = receiver.email;
+          receiverName = receiver.full_name || receiverName;
+        }
+      }
+
       const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', record.sender_id).single();
 
-      if (receiver && receiver.email) {
+      if (receiverEmail) {
         const senderName = sender?.full_name || 'A team member';
 
         // 2. Send Email with "raised a ticket" context
         await sendSealEmail({
-          to: receiver.email,
+          to: receiverEmail,
           subject: "Ticket Allocation Request",
           title: "New Ticket Received",
           body: `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,

@@ -147,11 +147,33 @@ const JobAllocation = ({ user }) => {
     }
   }
 
+  const [showPastDeadlines, setShowPastDeadlines] = useState(false)
+
   const filteredTasks = useMemo(() => {
     const list = activeTab === 'received' ? tasksReceived : tasksSent
-    if (!searchQuery) return list
-    return list.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.description?.toLowerCase().includes(searchQuery.toLowerCase()))
-  }, [activeTab, tasksReceived, tasksSent, searchQuery])
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const filtered = list.filter(t => {
+      // Search filter
+      const matchesSearch = !searchQuery || 
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      if (!matchesSearch) return false
+
+      // Deadline filter (if specifically requested to not show past days)
+      if (!showPastDeadlines && t.deadline_at) {
+        const deadline = new Date(t.deadline_at)
+        deadline.setHours(23, 59, 59, 999) // End of the deadline day
+        if (deadline < today) return false
+      }
+
+      return true
+    })
+
+    return filtered
+  }, [activeTab, tasksReceived, tasksSent, searchQuery, showPastDeadlines])
 
   if (errorMsg) {
     return (
@@ -202,12 +224,21 @@ const JobAllocation = ({ user }) => {
 
       {/* TABS */}
       <nav className="task-tabs">
-        <button onClick={() => setActiveTab('received')} className={activeTab === 'received' ? 'active' : ''}>
-          <Inbox size={18} /> My Queue <span>{tasksReceived.length}</span>
-        </button>
-        <button onClick={() => setActiveTab('sent')} className={activeTab === 'sent' ? 'active' : ''}>
-          <Send size={18} /> Raised by Me <span>{tasksSent.length}</span>
-        </button>
+        <div className="tab-group">
+          <button onClick={() => setActiveTab('received')} className={activeTab === 'received' ? 'active' : ''}>
+            <Inbox size={18} /> My Queue <span>{tasksReceived.length}</span>
+          </button>
+          <button onClick={() => setActiveTab('sent')} className={activeTab === 'sent' ? 'active' : ''}>
+            <Send size={18} /> Raised by Me <span>{tasksSent.length}</span>
+          </button>
+        </div>
+        
+        <div className="filter-options">
+          <label className="checkbox-pill">
+            <input type="checkbox" checked={!showPastDeadlines} onChange={() => setShowPastDeadlines(!showPastDeadlines)} />
+            <span>Hide Past Deadlines</span>
+          </label>
+        </div>
       </nav>
 
       {/* GRID AREA */}
@@ -326,7 +357,12 @@ const JobAllocation = ({ user }) => {
                   <label>Hard Deadline</label>
                   <div className="input-pill">
                     <Calendar size={18} />
-                    <input type="date" value={newTicket.deadline_at} onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} />
+                    <input 
+                      type="date" 
+                      min={new Date().toISOString().split('T')[0]}
+                      value={newTicket.deadline_at} 
+                      onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
+                    />
                   </div>
                 </div>
 
@@ -359,11 +395,18 @@ const JobAllocation = ({ user }) => {
         
         .action-trigger-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 100px; padding: 15px 35px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; gap: 10px; align-items: center; box-shadow: 0 15px 40px var(--brand-glow); }
         
-        .task-tabs { display: flex; gap: 40px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+        .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+        .tab-group { display: flex; gap: 40px; }
         .task-tabs button { background: none; border: none; padding: 20px 0; color: var(--text-muted); font-weight: 800; font-size: 16px; cursor: pointer; position: relative; display: flex; align-items: center; gap: 12px; }
         .task-tabs button span { background: var(--bg-surface); padding: 2px 10px; border-radius: 6px; font-size: 11px; }
         .task-tabs button.active { color: var(--brand-primary); }
         .task-tabs button.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: var(--brand-primary); border-radius: 2px; }
+        
+        .filter-options { display: flex; align-items: center; gap: 20px; }
+        .checkbox-pill { display: flex; align-items: center; gap: 10px; cursor: pointer; background: var(--bg-surface); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); transition: all 0.2s; user-select: none; }
+        .checkbox-pill:hover { border-color: var(--brand-primary); }
+        .checkbox-pill input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-primary); }
+        .checkbox-pill span { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
         
         .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 30px; }
         
