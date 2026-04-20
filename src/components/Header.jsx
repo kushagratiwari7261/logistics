@@ -165,9 +165,8 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
                 style={{ position: 'fixed', inset: 0, zIndex: 998 }} 
                 onClick={() => setShowNotifications(false)} 
               />
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: 12,
-                width: 320, maxHeight: 400, background: 'var(--bg-surface)',
+              <div className="notification-dropdown" style={{
+                background: 'var(--bg-surface)',
                 borderRadius: 16, border: '1px solid var(--border)',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.15)', zIndex: 999,
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -187,6 +186,26 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
                     animation: bellPulse 0.5s ease-in-out;
                   }
                   .notification-trigger:hover { transform: scale(1.1); }
+                  
+                  .notification-dropdown {
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    margin-top: 12px;
+                    width: 320px;
+                    max-height: 400px;
+                  }
+                  
+                  @media (max-width: 768px) {
+                    .notification-dropdown {
+                      position: fixed;
+                      top: 10%;
+                      left: 5%;
+                      right: 5%;
+                      width: 90%;
+                      max-height: 80vh;
+                    }
+                  }
                 `}</style>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Notifications</h3>

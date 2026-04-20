@@ -469,6 +469,35 @@ const JobAllocation = ({ user }) => {
           .top-banner { flex-direction: column; align-items: flex-start; gap: 30px; }
           .task-grid { grid-template-columns: 1fr; }
         }
+
+        @media (max-width: 768px) {
+          .page-container { padding: 15px; }
+          .brand-h1 { font-size: 32px; }
+          .top-banner { margin-bottom: 30px; }
+          .banner-right { width: 100%; flex-direction: column; align-items: stretch; gap: 15px; }
+          .search-pill { min-width: 100%; width: 100%; box-sizing: border-box; }
+          .action-trigger-btn { justify-content: center; width: 100%; box-sizing: border-box; }
+          
+          .task-tabs { flex-direction: column; align-items: stretch; gap: 15px; margin-bottom: 25px; }
+          .tab-group { flex-direction: column; gap: 10px; width: 100%; }
+          .task-tabs button { justify-content: space-between; padding: 15px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; margin: 0; box-sizing: border-box; }
+          .task-tabs button.active { border-color: var(--brand-primary); background: rgba(79, 70, 229, 0.05); }
+          .task-tabs button.active::after { display: none; }
+          .filter-options { width: 100%; }
+          .checkbox-pill { width: 100%; justify-content: center; box-sizing: border-box; }
+          
+          .ticket-card { padding: 25px; }
+          .ticket-name { font-size: 18px; }
+          
+          /* Modal */
+          .modal-backdrop { padding: 15px; align-items: flex-start; overflow-y: auto; }
+          .ticket-modal { margin: 20px auto; max-width: 100%; }
+          .modal-top { padding: 20px; }
+          .m-text h2 { font-size: 22px; }
+          .m-form { padding: 20px; gap: 20px; }
+          .form-split { grid-template-columns: 1fr; gap: 20px; }
+          .deploy-btn { padding: 18px; font-size: 16px; }
+        }
       `}</style>
     </motion.div>
   )
