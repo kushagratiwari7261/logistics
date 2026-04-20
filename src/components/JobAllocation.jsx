@@ -317,11 +317,11 @@ const JobAllocation = ({ user }) => {
               </div>
 
               <form onSubmit={handleCreateTicket} className="m-form">
-                <div className="form-split">
+                <div className="form-row">
                   <div className="f-group">
                     <label>Personnel Assignment</label>
-                    <div className="select-pill">
-                      <User size={18} />
+                    <div className="select-wrapper">
+                      <User size={16} />
                       <select required value={newTicket.receiver_id} onChange={e => setNewTicket({...newTicket, receiver_id: e.target.value})}>
                         <option value="">Select individual...</option>
                         {profiles.filter(p => p.id !== user.id).map(p => (
@@ -332,43 +332,49 @@ const JobAllocation = ({ user }) => {
                   </div>
                   <div className="f-group">
                     <label>Urgency Level</label>
-                    <select className="pill-bare" value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})}>
-                      <option value="Low">Low (Strategic)</option>
-                      <option value="Medium">Medium (Operational)</option>
-                      <option value="High">High (Tactical)</option>
-                    </select>
+                    <div className="select-wrapper">
+                      <Zap size={16} />
+                      <select value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})}>
+                        <option value="Low">Low Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="High">High Priority</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
                 <div className="f-group">
                   <label>Ticket Objective</label>
-                  <div className="input-pill">
-                    <Sparkles size={18} />
-                    <input required type="text" placeholder="Short objective summary..." value={newTicket.title} onChange={e => setNewTicket({...newTicket, title: e.target.value})} />
+                  <div className="input-field">
+                    <Sparkles size={16} />
+                    <input required type="text" placeholder="What needs to be done?" value={newTicket.title} onChange={e => setNewTicket({...newTicket, title: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="f-group">
-                  <label>Extended Context</label>
-                  <textarea rows={4} placeholder="Detailed instructions for the personnel..." value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} />
+                  <label>Additional Context</label>
+                  <textarea rows={3} placeholder="Provide details, links or instructions..." value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} />
                 </div>
 
-                <div className="f-group">
-                  <label>Hard Deadline</label>
-                  <div className="input-pill">
-                    <Calendar size={18} />
-                    <input 
-                      type="date" 
-                      min={new Date().toISOString().split('T')[0]}
-                      value={newTicket.deadline_at} 
-                      onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
-                    />
+                <div className="form-row">
+                  <div className="f-group">
+                    <label>Hard Deadline</label>
+                    <div className="input-field">
+                      <Calendar size={16} />
+                      <input 
+                        type="date" 
+                        min={new Date().toISOString().split('T')[0]}
+                        value={newTicket.deadline_at} 
+                        onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
+                      />
+                    </div>
+                  </div>
+                  <div className="f-group flex-end">
+                    <button type="submit" disabled={isSubmitting} className="submit-ticket-btn">
+                      {isSubmitting ? 'Publishing...' : 'Publish Ticket'} <ArrowRight size={18} />
+                    </button>
                   </div>
                 </div>
-
-                <button type="submit" disabled={isSubmitting} className="deploy-btn">
-                  Publish Ticket <ArrowRight size={20} />
-                </button>
               </form>
             </motion.div>
           </div>
@@ -432,35 +438,54 @@ const JobAllocation = ({ user }) => {
         .complete-btn { background: #10b981; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
         
         /* --- MODAL --- */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); display: flex; align-items: center; justifyContent: center; z-index: 10000; padding: 30px; }
-        .ticket-modal { background: var(--bg-surface); width: 100%; maxWidth: 650px; border-radius: 40px; position: relative; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); }
-        .modal-glow-line { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
+        .ticket-modal { background: var(--bg-surface); width: 100%; max-width: 850px; border-radius: 40px; position: relative; overflow: hidden; box-shadow: 0 50px 150px rgba(0,0,0,0.6); border: 1px solid var(--border); }
+        .modal-glow-line { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--brand-primary), transparent); opacity: 0.6; }
         
-        .modal-top { padding: 40px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-surface-2); }
-        .m-text h2 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.04em; }
-        .m-text p { margin: 5px 0 0; color: var(--text-muted); font-size: 14px; }
-        .m-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 10px; }
+        .modal-top { padding: 40px 60px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-surface-2); }
+        .m-text h2 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); }
+        .m-text p { margin: 6px 0 0; color: var(--text-secondary); font-size: 15px; }
+        .m-close { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; cursor: pointer; color: var(--text-muted); padding: 12px; display: flex; transition: all 0.2s; }
+        .m-close:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); transform: rotate(90deg); }
         
-        .m-form { padding: 40px 50px; display: flex; flexDirection: column; gap: 30px; }
-        .form-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .m-form { padding: 50px 60px; display: flex; flex-direction: column; gap: 32px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .flex-end { display: flex; align-items: flex-end; }
         
-        .f-group label { display: block; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
-        .select-pill, .input-pill { position: relative; display: flex; align-items: center; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 0 16px; transition: all 0.2s; }
-        .select-pill:focus-within, .input-pill:focus-within { border-color: var(--brand-primary); background: var(--bg-surface); }
+        .f-group label { display: block; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 12px; }
         
-        .select-pill select, .input-pill input, .m-form textarea { width: 100%; border: none; background: none; padding: 16px 10px; color: var(--text-primary); font-size: 15px; font-weight: 600; outline: none; }
-        .select-pill svg, .input-pill svg { opacity: 0.5; color: var(--brand-primary); }
-        .pill-bare { width: 100%; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; color: var(--text-primary); font-weight: 600; outline: none; }
+        .select-wrapper, .input-field { position: relative; display: flex; align-items: center; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 0 20px; transition: all 0.2s; }
+        .select-wrapper:focus-within, .input-field:focus-within { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); }
         
-        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 20px; width: 100%; resize: none; margin-bottom: 0; }
-        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); }
+        .select-wrapper select, .input-field input, .m-form textarea { width: 100%; border: none; background: none; padding: 20px 10px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none; font-family: inherit; }
+        .select-wrapper svg, .input-field svg { color: var(--brand-primary); opacity: 0.8; flex-shrink: 0; width: 20px; height: 20px; }
+        
+        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 24px; padding: 20px 24px; width: 100%; resize: none; transition: all 0.2s; }
+        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); }
 
-        .deploy-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 20px; padding: 22px; font-weight: 900; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 15px 35px var(--brand-glow); transition: all 0.2s; }
-        .deploy-btn:active { transform: scale(0.98); }
-        .deploy-btn:disabled { opacity: 0.7; pointer-events: none; }
+        .submit-ticket-btn { 
+          width: 100%;
+          background: var(--brand-gradient); 
+          color: #fff; 
+          border: none; 
+          border-radius: 20px; 
+          padding: 22px 35px; 
+          font-weight: 900; 
+          font-size: 18px; 
+          cursor: pointer; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          gap: 12px; 
+          box-shadow: 0 20px 40px var(--brand-glow); 
+          transition: all 0.3s; 
+        }
+        .submit-ticket-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 30px 60px var(--brand-glow); }
+        .submit-ticket-btn:active { transform: translateY(0) scale(1); }
+        .submit-ticket-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
         .void-state { grid-column: 1/-1; padding: 100px; text-align: center; opacity: 0.5; }
-        .loading-stage { height: 400px; display: flex; flex-direction: column; align-items: center; justifyContent: center; gap: 20px; }
+        .loading-stage { height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
         .loading-orbit { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -471,36 +496,30 @@ const JobAllocation = ({ user }) => {
         }
 
         @media (max-width: 768px) {
-          .page-container { padding: 15px; }
+          .page-container { padding: 20px 15px; }
           .brand-h1 { font-size: 32px; }
           .top-banner { margin-bottom: 30px; }
           .banner-right { width: 100%; flex-direction: column; align-items: stretch; gap: 15px; }
-          .search-pill { min-width: 100%; width: 100%; box-sizing: border-box; }
-          .action-trigger-btn { justify-content: center; width: 100%; box-sizing: border-box; }
+          .search-pill { min-width: 100%; width: 100%; }
+          .action-trigger-btn { justify-content: center; width: 100%; }
           
-          .task-tabs { flex-direction: column; align-items: stretch; gap: 15px; margin-bottom: 25px; }
-          .tab-group { flex-direction: column; gap: 10px; width: 100%; }
-          .task-tabs button { justify-content: space-between; padding: 15px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; margin: 0; box-sizing: border-box; }
-          .task-tabs button.active { border-color: var(--brand-primary); background: rgba(79, 70, 229, 0.05); }
+          .task-tabs { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 25px; }
+          .tab-group { flex-direction: column; gap: 8px; width: 100%; }
+          .task-tabs button { justify-content: space-between; padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; margin: 0; }
+          .task-tabs button.active { border-color: var(--brand-primary); background: var(--brand-glow); }
           .task-tabs button.active::after { display: none; }
-          .filter-options { width: 100%; }
-          .checkbox-pill { width: 100%; justify-content: center; box-sizing: border-box; }
+          .filter-options { width: 100%; justify-content: center; }
           
-          .ticket-card { padding: 25px; width: 100%; box-sizing: border-box; }
-          .ticket-name { font-size: 18px; }
+          .ticket-card { padding: 24px; width: 100%; }
           
-          /* Modal & Form Fixes */
-          .modal-backdrop { padding: 10px; align-items: flex-start; overflow-y: auto; }
-          .ticket-modal { margin: 10px auto; max-width: 100%; border-radius: 24px; }
-          .modal-top { padding: 20px; }
-          .m-text h2 { font-size: 20px; }
-          .m-text p { font-size: 12px; }
-          .m-form { padding: 20px; gap: 15px; }
-          .form-split { grid-template-columns: 1fr; gap: 15px; }
-          
-          .select-pill select, .input-pill input, .m-form textarea, .pill-bare { padding: 12px 10px; font-size: 14px; }
-          .f-group label { font-size: 10px; margin-bottom: 6px; }
-          .deploy-btn { padding: 16px; font-size: 16px; border-radius: 16px; }
+          /* Modal Mobile */
+          .modal-backdrop { padding: 10px; align-items: center; }
+          .ticket-modal { border-radius: 24px; max-height: 95vh; display: flex; flex-direction: column; }
+          .modal-top { padding: 20px 24px; }
+          .m-text h2 { font-size: 18px; }
+          .m-form { padding: 20px 24px; gap: 16px; overflow-y: auto; }
+          .form-row { grid-template-columns: 1fr; gap: 16px; }
+          .submit-ticket-btn { margin-top: 10px; }
         }
       `}</style>
     </motion.div>
