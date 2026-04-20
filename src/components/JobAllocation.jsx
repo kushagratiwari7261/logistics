@@ -30,6 +30,7 @@ const JobAllocation = ({ user }) => {
   const [errorMsg, setErrorMsg] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
   const [lastSync, setLastSync] = useState(new Date())
   
   // Form State
@@ -114,7 +115,7 @@ const JobAllocation = ({ user }) => {
     }
     
     setTasksSent(prev => [optimisticTask, ...prev])
-    setShowCreateModal(false)
+    // setShowCreateModal(false) -> Removed so we can show success animation in modal
     setActiveTab('sent')
 
     try {
@@ -128,7 +129,14 @@ const JobAllocation = ({ user }) => {
       
       // Update the optimistic item with real data
       setTasksSent(prev => prev.map(t => t.id === tempId ? { ...data, receiver: optimisticTask.receiver } : t))
-      setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
+      
+      // SHOW SUCCESS ANIMATION
+      setIsSuccess(true)
+      setTimeout(() => {
+        setIsSuccess(false)
+        setShowCreateModal(false)
+        setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
+      }, 2000)
     } catch (err) {
       setTasksSent(prev => prev.filter(t => t.id !== tempId))
       alert('Sync Fail: ' + err.message)
@@ -310,73 +318,99 @@ const JobAllocation = ({ user }) => {
               
               <div className="modal-top">
                 <div className="m-text">
-                  <h2>Raise Operational Ticket</h2>
-                  <p>Assign critical tasks with direct delivery.</p>
+                  <h2>{isSuccess ? 'Ticket Dispatched' : 'Raise Operational Ticket'}</h2>
+                  <p>{isSuccess ? 'The personnel will be notified instantly.' : 'Assign critical tasks with direct delivery.'}</p>
                 </div>
-                <button onClick={() => setShowCreateModal(false)} className="m-close"><X /></button>
+                {!isSuccess && (
+                  <button onClick={() => setShowCreateModal(false)} className="m-close"><X /></button>
+                )}
               </div>
 
-              <form onSubmit={handleCreateTicket} className="m-form">
-                <div className="form-split">
-                  <div className="f-group">
-                    <label>Personnel Assignment</label>
-                    <div className="select-pill">
-                      <User size={18} />
-                      <select required value={newTicket.receiver_id} onChange={e => setNewTicket({...newTicket, receiver_id: e.target.value})}>
-                        <option value="">Select individual...</option>
-                        {profiles.filter(p => p.id !== user.id).map(p => (
-                          <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
-                        ))}
-                      </select>
+              {isSuccess ? (
+                <div className="success-state">
+                  <motion.div 
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                    className="success-ring"
+                  >
+                    <CheckCircle2 size={80} color="#10b981" />
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    Request Sent Successfully
+                  </motion.p>
+                </div>
+              ) : (
+                <form onSubmit={handleCreateTicket} className="m-form">
+                  <div className="form-split">
+                    <div className="f-group">
+                      <label>Personnel Assignment</label>
+                      <div className="select-pill">
+                        <User size={18} />
+                        <select required value={newTicket.receiver_id} onChange={e => setNewTicket({...newTicket, receiver_id: e.target.value})}>
+                          <option value="">Select individual...</option>
+                          {profiles.filter(p => p.id !== user.id).map(p => (
+                            <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="f-group">
+                      <label>Urgency Level</label>
+                      <div className="select-pill">
+                        <AlertCircle size={18} />
+                        <select value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})}>
+                          <option value="Low">Low (Strategic)</option>
+                          <option value="Medium">Medium (Operational)</option>
+                          <option value="High">High (Tactical)</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
+
                   <div className="f-group">
-                    <label>Urgency Level</label>
-                    <select className="pill-bare" value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})}>
-                      <option value="Low">Low (Strategic)</option>
-                      <option value="Medium">Medium (Operational)</option>
-                      <option value="High">High (Tactical)</option>
-                    </select>
+                    <label>Ticket Objective</label>
+                    <div className="input-pill">
+                      <Sparkles size={18} />
+                      <input required type="text" placeholder="Short objective summary..." value={newTicket.title} onChange={e => setNewTicket({...newTicket, title: e.target.value})} />
+                    </div>
                   </div>
-                </div>
 
-                <div className="f-group">
-                  <label>Ticket Objective</label>
-                  <div className="input-pill">
-                    <Sparkles size={18} />
-                    <input required type="text" placeholder="Short objective summary..." value={newTicket.title} onChange={e => setNewTicket({...newTicket, title: e.target.value})} />
+                  <div className="f-group">
+                    <label>Extended Context</label>
+                    <textarea rows={4} placeholder="Detailed instructions for the personnel..." value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} />
                   </div>
-                </div>
 
-                <div className="f-group">
-                  <label>Extended Context</label>
-                  <textarea rows={4} placeholder="Detailed instructions for the personnel..." value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} />
-                </div>
-
-                <div className="f-group">
-                  <label>Hard Deadline</label>
-                  <div className="input-pill">
-                    <Calendar size={18} />
-                    <input 
-                      type="date" 
-                      min={new Date().toISOString().split('T')[0]}
-                      value={newTicket.deadline_at} 
-                      onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
-                    />
+                  <div className="form-split">
+                    <div className="f-group">
+                      <label>Hard Deadline</label>
+                      <div className="input-pill">
+                        <Calendar size={18} />
+                        <input 
+                          type="date" 
+                          min={new Date().toISOString().split('T')[0]}
+                          value={newTicket.deadline_at} 
+                          onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={isSubmitting} className="deploy-btn">
+                      {isSubmitting ? 'Syncing...' : 'Publish Ticket'} <ArrowRight size={20} />
+                    </button>
                   </div>
-                </div>
-
-                <button type="submit" disabled={isSubmitting} className="deploy-btn">
-                  Publish Ticket <ArrowRight size={20} />
-                </button>
-              </form>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
       <style>{`
-        .page-container { padding: 50px 80px; min-height: 100vh; background: var(--bg-surface-2); }
+        .page-container { padding: 50px 80px; min-height: 100vh; background: var(--bg-surface-2); transition: all 0.3s; }
         
         .top-banner { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 50px; }
         
@@ -393,11 +427,12 @@ const JobAllocation = ({ user }) => {
         .search-pill input { border: none; background: none; padding: 14px 10px; width: 100%; color: var(--text-primary); outline: none; font-weight: 600; }
         .search-pill svg { opacity: 0.4; }
         
-        .action-trigger-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 100px; padding: 15px 35px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; gap: 10px; align-items: center; box-shadow: 0 15px 40px var(--brand-glow); }
+        .action-trigger-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 100px; padding: 15px 35px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; gap: 10px; align-items: center; box-shadow: 0 15px 40px var(--brand-glow); transition: all 0.2s; }
+        .action-trigger-btn:hover { transform: translateY(-3px); box-shadow: 0 20px 50px var(--brand-glow); }
         
-        .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+        .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; overflow-x: auto; padding-bottom: 2px; }
         .tab-group { display: flex; gap: 40px; }
-        .task-tabs button { background: none; border: none; padding: 20px 0; color: var(--text-muted); font-weight: 800; font-size: 16px; cursor: pointer; position: relative; display: flex; align-items: center; gap: 12px; }
+        .task-tabs button { background: none; border: none; padding: 20px 0; color: var(--text-muted); font-weight: 800; font-size: 16px; cursor: pointer; position: relative; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
         .task-tabs button span { background: var(--bg-surface); padding: 2px 10px; border-radius: 6px; font-size: 11px; }
         .task-tabs button.active { color: var(--brand-primary); }
         .task-tabs button.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: var(--brand-primary); border-radius: 2px; }
@@ -410,7 +445,8 @@ const JobAllocation = ({ user }) => {
         
         .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 30px; }
         
-        .ticket-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 32px; padding: 32px; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border-top: 6px solid #4f46e5; }
+        .ticket-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 32px; padding: 32px; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border-top: 6px solid #4f46e5; transition: all 0.3s; }
+        .ticket-card:hover { transform: translateY(-10px); box-shadow: 0 30px 60px rgba(0,0,0,0.08); }
         .ticket-card.high { border-top-color: #ef4444; }
         .ticket-card.low { border-top-color: #10b981; }
         
@@ -429,45 +465,65 @@ const JobAllocation = ({ user }) => {
         .p-name { display: block; font-size: 14px; font-weight: 800; color: var(--text-primary); }
         .p-role { font-size: 11px; color: var(--text-muted); }
         
-        .complete-btn { background: #10b981; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+        .complete-btn { background: #10b981; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; transition: all 0.2s; }
+        .complete-btn:hover { background: #059669; }
         
         /* --- MODAL --- */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); display: flex; align-items: center; justifyContent: center; z-index: 10000; padding: 30px; }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); display: flex; align-items: center; justifyContent: center; z-index: 10000; padding: 20px; }
         .ticket-modal { background: var(--bg-surface); width: 100%; maxWidth: 650px; border-radius: 40px; position: relative; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .success-state { padding: 80px 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+        .success-ring { background: rgba(16, 185, 129, 0.1); padding: 40px; border-radius: 50%; border: 2px solid rgba(16, 185, 129, 0.2); margin-bottom: 10px; }
+        .success-state p { font-size: 24px; font-weight: 900; color: var(--text-primary); letter-spacing: -0.02em; }
+
         .modal-glow-line { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); }
         
         .modal-top { padding: 40px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-surface-2); }
         .m-text h2 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.04em; }
         .m-text p { margin: 5px 0 0; color: var(--text-muted); font-size: 14px; }
-        .m-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 10px; }
+        .m-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 10px; transition: all 0.2s; }
+        .m-close:hover { color: #ef4444; transform: rotate(90deg); }
         
         .m-form { padding: 40px 50px; display: flex; flexDirection: column; gap: 30px; }
-        .form-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; }
         
         .f-group label { display: block; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
         .select-pill, .input-pill { position: relative; display: flex; align-items: center; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 0 16px; transition: all 0.2s; }
-        .select-pill:focus-within, .input-pill:focus-within { border-color: var(--brand-primary); background: var(--bg-surface); }
+        .select-pill:focus-within, .input-pill:focus-within { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 4px var(--brand-glow); }
         
         .select-pill select, .input-pill input, .m-form textarea { width: 100%; border: none; background: none; padding: 16px 10px; color: var(--text-primary); font-size: 15px; font-weight: 600; outline: none; }
         .select-pill svg, .input-pill svg { opacity: 0.5; color: var(--brand-primary); }
-        .pill-bare { width: 100%; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; color: var(--text-primary); font-weight: 600; outline: none; }
         
-        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 20px; width: 100%; resize: none; margin-bottom: 0; }
-        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); }
+        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 20px; width: 100%; resize: none; margin-bottom: 0; transition: all 0.2s; }
+        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 4px var(--brand-glow); }
 
-        .deploy-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 20px; padding: 22px; font-weight: 900; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 15px 35px var(--brand-glow); transition: all 0.2s; }
+        .deploy-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 20px; padding: 18px; font-weight: 900; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 15px 35px var(--brand-glow); transition: all 0.2s; }
+        .deploy-btn:hover { transform: translateY(-3px); box-shadow: 0 20px 50px var(--brand-glow); }
         .deploy-btn:active { transform: scale(0.98); }
         .deploy-btn:disabled { opacity: 0.7; pointer-events: none; }
 
         .void-state { grid-column: 1/-1; padding: 100px; text-align: center; opacity: 0.5; }
-        .loading-stage { height: 400px; display: flex; flex-direction: column; align-items: center; justifyContent: center; gap: 20px; }
-        .loading-orbit { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s infinite linear; }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 1024px) {
-          .page-container { padding: 30px; }
-          .top-banner { flex-direction: column; align-items: flex-start; gap: 30px; }
-          .task-grid { grid-template-columns: 1fr; }
+          .page-container { padding: 40px; }
+          .brand-h1 { font-size: 42px; }
+        }
+
+        @media (max-width: 768px) {
+          .page-container { padding: 30px 20px; }
+          .top-banner { flex-direction: column; align-items: flex-start; gap: 25px; margin-bottom: 30px; }
+          .brand-h1 { font-size: 32px; }
+          .banner-right { width: 100%; flex-direction: column; align-items: stretch; }
+          .search-pill { min-width: 0; width: 100%; }
+          .action-trigger-btn { justify-content: center; }
+          .task-grid { grid-template-columns: 1fr; gap: 20px; }
+          .task-tabs { gap: 20px; }
+          .tab-group { gap: 20px; }
+          .filter-options { width: 100%; justify-content: space-between; padding: 10px 0; }
+          
+          .modal-top { padding: 25px; }
+          .m-form { padding: 25px; gap: 20px; }
+          .form-split { grid-template-columns: 1fr; gap: 20px; }
         }
       `}</style>
     </motion.div>
