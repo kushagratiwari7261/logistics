@@ -462,6 +462,25 @@ function App() {
     if (isAuthenticated) {
       console.log('User authenticated, fetching dashboard data...');
       fetchDashboardData();
+
+      // --- REAL-TIME DASHBOARD SYNC ---
+      // Listen to ANY changes in shipments or jobs to keep the dashboard counts/lists fresh
+      console.log('📡 Setting up global dashboard sync...');
+      const dashChannel = supabase
+        .channel('dashboard-global-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, (payload) => {
+          console.log('🔄 Shipment change detected, refreshing dashboard...', payload.eventType);
+          fetchDashboardData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
+          console.log('🔄 Job change detected, refreshing dashboard...', payload.eventType);
+          fetchDashboardData();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(dashChannel);
+      };
     }
   }, [isAuthenticated]);
 

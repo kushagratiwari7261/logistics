@@ -363,7 +363,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
 
     try {
       // Fetch all users to notify everyone as requested
-      const { data: profiles } = await supabase.from('profiles').select('email');
+      const { data: profiles } = await supabase.from('profiles').select('id, email');
       const allRecipients = profiles ? profiles.map(p => p.email).filter(e => e && e.includes('@')) : [];
 
       if (allRecipients.length === 0) {
@@ -507,6 +507,25 @@ app.post("/api/webhooks/shipments", async (req, res) => {
           `
         });
       }
+
+      // --- GLOBAL DASHBOARD BELL NOTIFICATION ---
+      // Insert a notification record for ALL users so the bell rings globally
+      if (profiles && profiles.length > 0) {
+        const notificationRecords = profiles.map(p => ({
+          user_id: p.id,
+          title: isStatusUpdate ? "Shipment Status Updated" : (isPaymentFailure ? "Payment Failed" : "Payment Successful"),
+          message: isStatusUpdate 
+            ? `Shipment #${payload.record.shipment_id || shipmentId} changed to ${payload.record.status}`
+            : `Payment ${payload.record.payment_status} for Shipment #${payload.record.shipment_id || shipmentId}`,
+          type: 'shipment_update',
+          metadata: { shipment_id: shipmentId }
+        }));
+
+        if (notificationRecords.length > 0) {
+          await supabase.from('notifications').insert(notificationRecords);
+        }
+      }
+      console.log(`✅ Webhook: Notified ${allRecipients.length} users via email and dashboard bell.`);
     } catch (err) {
       console.error("Global Webhook Notification Error:", err);
     }
@@ -524,10 +543,29 @@ app.post("/api/webhooks/jobs", async (req, res) => {
   
   if (!record) return res.status(400).json({ error: "Missing record in payload" });
 
-  console.log(`📡 WEBHOOK: Received Job allocation. Type: ${type}, Record:`, record.id);
+  console.log(`📡 WEBHOOK: Received Job Event. Type: ${type}, Record:`, record.id);
 
-  // Check if job was assigned or re-assigned
-  const isNewAssignment = record.assigned_to && (!old_record || record.assigned_to !== old_record.assigned_to);
+  // 1. Handle Global Notification for NEW JOBS
+  if (type === 'INSERT') {
+    try {
+      const { data: profiles } = await supabase.from('profiles').select('id');
+      if (profiles) {
+        const globalNotifications = profiles.map(p => ({
+          user_id: p.id,
+          title: "New Global Job Logged",
+          message: `A new job #${record.job_no || record.id} has been created for ${record.client || 'a customer'}.`,
+          type: 'assignment',
+          job_id: record.id
+        }));
+        await supabase.from('notifications').insert(globalNotifications);
+      }
+    } catch (err) {
+      console.error("Global Job Notification Error:", err);
+    }
+  }
+
+  // 2. Check if job was assigned or re-assigned (for targeted notification)
+  const isNewAssignment = record.assigned_to && (type === 'INSERT' || (old_record && record.assigned_to !== old_record.assigned_to));
 
   if (isNewAssignment) {
     try {

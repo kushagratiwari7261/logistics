@@ -46,9 +46,17 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         table: 'notifications',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        setNotifications(prev => [payload.new, ...prev])
-        setUnreadCount(c => c + 1)
-        // Note: Sound and Toast are handled in App.jsx via Socket.io for immediate response
+        console.log('🔔 New notification received via Supabase:', payload.new);
+        setNotifications(prev => [payload.new, ...prev]);
+        setUnreadCount(c => c + 1);
+        
+        // Trigger pulse animation
+        const bell = document.getElementById('notification-bell-icon');
+        if (bell) {
+          bell.classList.remove('pulse-animation');
+          void bell.offsetWidth; // Trigger reflow
+          bell.classList.add('pulse-animation');
+        }
       })
       .subscribe((status, err) => {
         console.log(`📡 Notification channel status for ${user.id}:`, status);
@@ -127,14 +135,15 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         {/* Notification Bell */}
         <div style={{ position: 'relative' }}>
           <button 
+            id="notification-bell-icon"
             onClick={() => setShowNotifications(!showNotifications)}
+            className="notification-trigger"
             style={{
               background: 'none', border: 'none', padding: 8, cursor: 'pointer',
               color: 'var(--text-secondary)', transition: 'transform 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
             <Bell size={20} />
             {unreadCount > 0 && (
@@ -169,6 +178,15 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
                     from { opacity: 0; transform: translateY(-10px) scale(0.95); }
                     to { opacity: 1; transform: translateY(0) scale(1); }
                   }
+                  @keyframes bellPulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.4); color: #ef4444; }
+                    100% { transform: scale(1); }
+                  }
+                  .pulse-animation {
+                    animation: bellPulse 0.5s ease-in-out;
+                  }
+                  .notification-trigger:hover { transform: scale(1.1); }
                 `}</style>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Notifications</h3>
