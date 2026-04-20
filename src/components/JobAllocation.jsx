@@ -486,17 +486,21 @@ const JobAllocation = ({ user }) => {
           .filter-options { width: 100%; }
           .checkbox-pill { width: 100%; justify-content: center; box-sizing: border-box; }
           
-          .ticket-card { padding: 25px; }
+          .ticket-card { padding: 25px; width: 100%; box-sizing: border-box; }
           .ticket-name { font-size: 18px; }
           
-          /* Modal */
-          .modal-backdrop { padding: 15px; align-items: flex-start; overflow-y: auto; }
-          .ticket-modal { margin: 20px auto; max-width: 100%; }
+          /* Modal & Form Fixes */
+          .modal-backdrop { padding: 10px; align-items: flex-start; overflow-y: auto; }
+          .ticket-modal { margin: 10px auto; max-width: 100%; border-radius: 24px; }
           .modal-top { padding: 20px; }
-          .m-text h2 { font-size: 22px; }
-          .m-form { padding: 20px; gap: 20px; }
-          .form-split { grid-template-columns: 1fr; gap: 20px; }
-          .deploy-btn { padding: 18px; font-size: 16px; }
+          .m-text h2 { font-size: 20px; }
+          .m-text p { font-size: 12px; }
+          .m-form { padding: 20px; gap: 15px; }
+          .form-split { grid-template-columns: 1fr; gap: 15px; }
+          
+          .select-pill select, .input-pill input, .m-form textarea, .pill-bare { padding: 12px 10px; font-size: 14px; }
+          .f-group label { font-size: 10px; margin-bottom: 6px; }
+          .deploy-btn { padding: 16px; font-size: 16px; border-radius: 16px; }
         }
       `}</style>
     </motion.div>
