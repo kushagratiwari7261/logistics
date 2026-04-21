@@ -1279,26 +1279,27 @@ const NewShipments = () => {
                       >
                         Delete
                       </button>
-                      <Suspense fallback={<span style={{ color: '#666' }}>PDF...</span>}>
-                        <PDFDownloadLink
-                          document={<PDFGenerator shipmentData={shipment} />}
-                          fileName={`${shipment.shipmentNo}.pdf`}
-                          style={{
-                            display: 'inline-block',
-                            padding: '4px 12px',
-                            backgroundColor: '#28a745',
-                            color: 'white',
-                            textDecoration: 'none',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            marginLeft: '5px'
-                          }}
-                        >
-                          {({ loading }) => loading ? '...' : 'PDF'}
-                        </PDFDownloadLink>
-                      </Suspense>
+                      <button
+                        className="pdf-btn"
+                        onClick={() => {
+                          setPdfShipmentData(shipment);
+                          setGeneratePDF(true);
+                        }}
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 12px',
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          textDecoration: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          marginLeft: '5px'
+                        }}
+                      >
+                        PDF
+                      </button>
                     </td>
                   </tr>
                 ))

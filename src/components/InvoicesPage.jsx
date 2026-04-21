@@ -13,6 +13,8 @@ const InvoicesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterDate, setFilterDate] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   
   // Shipment types for filtering
   const SHIPMENT_TYPES = ['ALL', 'AIR FREIGHT', 'SEA FREIGHT', 'TRANSPORT', 'OTHERS'];
@@ -275,19 +277,15 @@ const InvoicesPage = () => {
                 </div>
                 
                 <div className="invoice-actions">
-                  <Suspense fallback={<span>Loading PDF...</span>}>
-                    <PDFDownloadLink
-                      document={<PDFGenerator shipmentData={invoice} />}
-                      fileName={`${invoice.shipmentNo}_Invoice.pdf`}
-                      className="download-btn"
-                    >
-                      {({ loading }) => (
-                        <>
-                          {loading ? 'Generating...' : 'Download Invoice'}
-                        </>
-                      )}
-                    </PDFDownloadLink>
-                  </Suspense>
+                  <button
+                    className="download-btn"
+                    onClick={() => {
+                      setSelectedInvoice(invoice);
+                      setShowPdfModal(true);
+                    }}
+                  >
+                    Download Invoice
+                  </button>
                 </div>
               </div>
               
@@ -322,6 +320,53 @@ const InvoicesPage = () => {
           </div>
         )}
       </div>
+
+      {/* PDF Download Modal */}
+      {showPdfModal && selectedInvoice && (
+        <div className="pdf-modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white', borderRadius: '12px', padding: '24px',
+            maxWidth: '400px', width: '90%', textAlign: 'center'
+          }}>
+            <h3 style={{ marginBottom: '10px', color: '#0066cc' }}>
+              Download Invoice
+            </h3>
+            <p style={{ marginBottom: '15px', color: '#555' }}>
+              {selectedInvoice.shipmentNo}
+            </p>
+            <Suspense fallback={<div style={{ color: '#666' }}>Preparing PDF...</div>}>
+              <PDFDownloadLink
+                document={<PDFGenerator shipmentData={selectedInvoice} />}
+                fileName={`${selectedInvoice.shipmentNo}_Invoice.pdf`}
+                className="download-btn"
+                style={{
+                  display: 'inline-block', padding: '10px 24px',
+                  backgroundColor: '#0066cc', color: 'white',
+                  textDecoration: 'none', borderRadius: '6px',
+                  fontWeight: 'bold', marginBottom: '10px'
+                }}
+              >
+                {({ loading: pdfLoading }) => pdfLoading ? 'Generating PDF...' : 'Download PDF'}
+              </PDFDownloadLink>
+            </Suspense>
+            <div style={{ marginTop: '10px' }}>
+              <button
+                onClick={() => { setShowPdfModal(false); setSelectedInvoice(null); }}
+                style={{
+                  padding: '8px 16px', backgroundColor: '#f0f0f0',
+                  border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="page-footer">

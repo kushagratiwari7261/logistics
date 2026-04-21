@@ -221,12 +221,16 @@ const PDFGenerator = ({ shipmentData = {} }) => {
     return (
       <Document>
         <Page size="A4" style={styles.page}>
-          {/* Logo with absolute path fallback */}
-          <Image 
-            style={styles.logo} 
-            src={logo}
-            cache={false}
-          />
+          {/* Logo with null guard to prevent crash */}
+          {logo ? (
+            <Image 
+              style={styles.logo} 
+              src={logo}
+              cache={false}
+            />
+          ) : (
+            <View style={styles.logo} />
+          )}
           
           {/* Header */}
           <Text style={styles.header}>MULTIMODAL TRANSPORT DOCUMENT</Text>
