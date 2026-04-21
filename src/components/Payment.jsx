@@ -2,16 +2,39 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import './Payment.css';
 
-/* ─── Load Razorpay SDK ─── */
-const loadRazorpay = () =>
+/* ─── Load Razorpay SDK (with timeout + retry for mobile networks) ─── */
+const loadRazorpayScript = (timeoutMs = 10000) =>
     new Promise((resolve) => {
         if (window.Razorpay) { resolve(true); return; }
+        // Remove any stale/failed script tag first
+        const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+        if (existing) existing.remove();
         const s = document.createElement('script');
         s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        s.onload = () => resolve(true);
-        s.onerror = () => resolve(false);
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        let settled = false;
+        const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+        s.onload = () => done(true);
+        s.onerror = () => done(false);
+        // Timeout guard — mobile networks can hang without triggering onerror
+        setTimeout(() => done(false), timeoutMs);
         document.body.appendChild(s);
     });
+
+const loadRazorpay = async (retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+        const ok = await loadRazorpayScript(10000);
+        if (ok && window.Razorpay) return true;
+        if (i < retries) {
+            // Short pause before retry
+            await new Promise(r => setTimeout(r, 1500));
+            // Clear cached window.Razorpay on failed partial load
+            delete window.Razorpay;
+        }
+    }
+    return false;
+};
 
 const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
 
@@ -64,9 +87,10 @@ const PaymentPage = () => {
             showToast('Razorpay key not set. Add VITE_RAZORPAY_KEY_ID to your .env and restart.', 'error');
             return;
         }
+        showToast('Loading payment gateway…', 'success');
         const loaded = await loadRazorpay();
         if (!loaded) {
-            showToast('Could not load Razorpay SDK. Check internet connection.', 'error');
+            showToast('Could not load payment gateway. Check your internet connection and try again.', 'error');
             return;
         }
 

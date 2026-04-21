@@ -7,20 +7,38 @@ import { supabase } from '../lib/supabaseClient';
 const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
 /**
- * Dynamically loads the Razorpay checkout script
+ * Dynamically loads the Razorpay checkout script.
+ * Includes a timeout guard and up to 2 automatic retries for mobile networks.
  */
-export const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-        if (window.Razorpay) {
-            resolve(true);
-            return;
-        }
+const _loadScript = (timeoutMs = 10000) =>
+    new Promise((resolve) => {
+        if (window.Razorpay) { resolve(true); return; }
+        // Remove any stale/failed script tag before re-injecting
+        const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+        if (existing) existing.remove();
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        let settled = false;
+        const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+        script.onload = () => done(true);
+        script.onerror = () => done(false);
+        // Timeout guard — mobile networks can hang without triggering onerror
+        setTimeout(() => done(false), timeoutMs);
         document.body.appendChild(script);
     });
+
+export const loadRazorpayScript = async (retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+        const ok = await _loadScript(10000);
+        if (ok && window.Razorpay) return true;
+        if (i < retries) {
+            await new Promise(r => setTimeout(r, 1500));
+            delete window.Razorpay; // clear partial load
+        }
+    }
+    return false;
 };
 
 /**

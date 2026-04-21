@@ -18,6 +18,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet" />
+  <!-- Razorpay: preconnect + preload so mobile browsers fetch it early -->
+  <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
+  <link rel="preload" href="https://checkout.razorpay.com/v1/checkout.js" as="script" crossorigin />
   <!-- Restore saved theme before first paint -->
   <script>
     (function () {
