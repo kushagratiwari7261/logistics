@@ -67,32 +67,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     declaration: false
   });
 
-  // Function to ensure bucket exists
-  const ensureBucketExists = async () => {
-    try {
-      // Try to list buckets to check if our bucket exists
-      const { data: buckets, error } = await supabase.storage.listBuckets();
-
-      if (error && !error.message.includes('bucket')) {
-        throw error;
-      }
-
-      const bucketExists = buckets?.some(bucket => bucket.name === 'vendor-files');
-
-      if (!bucketExists) {
-        // Create the bucket if it doesn't exist
-        const { error: createError } = await supabase.storage.createBucket('vendor-files', {
-          public: true,
-          fileSizeLimit: 52428800, // 50MB limit
-        });
-
-        if (createError) throw createError;
-        console.log('Bucket created successfully');
-      }
-    } catch (error) {
-      console.error('Error ensuring bucket exists:', error);
-    }
-  };
 
   // Fetch partners from Supabase filtered by type
   const fetchCustomers = async () => {
@@ -163,8 +137,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       setUploading(true);
       setUploadProgress(prev => ({ ...prev, [fileType]: 0 }));
 
-      // Ensure bucket exists before uploading
-      await ensureBucketExists();
 
       // Generate a unique file name
       const fileExt = file.name.split('.').pop();
@@ -176,7 +148,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         .from('vendor-files')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: false
         });
 
       if (uploadError) throw uploadError;
@@ -320,7 +292,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
   useEffect(() => {
     fetchCustomers();
     fetchCountries();
-    ensureBucketExists(); // Ensure bucket exists on component mount
   }, [partnerType]);
 
   // Fetch states when country changes
