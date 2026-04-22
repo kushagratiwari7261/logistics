@@ -325,7 +325,6 @@ const ActiveJob = () => {
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -400,9 +399,6 @@ const ActiveJob = () => {
           }
           
           const job = payload.new;
-          if (job.status !== 'active') {
-             return currentJobs.filter(j => j.id !== job.id);
-          }
           
           let from_loc = '';
           let to_loc = '';
