@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient('https://polished-scene-7169.prudata-tech.workers.dev', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0em15eGlnY2hxY2thbWV3emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg1NzUyMzcsImV4cCI6MjA1NDE1MTIzN30.OonssaxHyYHD_qIXYLGs9YVvAh5u8iRoz2Rf-HnO8');
+const supabase = createClient('https://web-production-bc5b0b.up.railway.app', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0em15eGlnY2hxY2thbWV3emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg1NzUyMzcsImV4cCI6MjA1NDE1MTIzN30.OonssaxHyYHD_qIXYLGs9YVvAh5u8iRoz2Rf-HnO8');
 
 async function checkSchema() {
     const { data: cols, error: colErr } = await supabase
