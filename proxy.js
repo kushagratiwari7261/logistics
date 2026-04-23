@@ -4,7 +4,7 @@
  * Target: Railway Backend and Supabase
  */
 
-const BACKEND_URL = "https://web-production-bc5b0b.up.railway.app";
+const BACKEND_URL = "https://logistics-production-5141.up.railway.app";
 const SUPABASE_BASE_URL = "https://xgihvwtiaqkpusrdvclk.supabase.co";
 
 export default {
