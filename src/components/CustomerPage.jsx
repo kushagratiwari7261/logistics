@@ -718,7 +718,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
                   <td>{customer.mobile}</td>
                   <td>{customer.city}</td>
                   <td>{customer.country}</td>
-                  <td>
+                  <td className="actions-cell">
                     <button
                       className="btn btn-sm btn-outline"
                       onClick={(e) => {
@@ -1565,6 +1565,14 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           color: var(--text-primary);
         }
 
+        .actions-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          white-space: nowrap;
+          border-bottom: 1px solid var(--border) !important;
+        }
+
         .customers-table th {
           background-color: var(--bg-inset);
           color: var(--text-secondary);
@@ -1595,7 +1603,14 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         .btn:hover { opacity: 0.85; }
 
         .btn-primary { background-color: var(--brand-primary); color: #fff; }
-        .btn-secondary { background-color: var(--text-secondary); color: #fff; }
+        .btn-secondary { 
+          background-color: var(--bg-inset); 
+          color: var(--text-primary);
+          border: 1px solid var(--border-strong);
+        }
+        .btn-secondary:hover {
+          background-color: var(--border);
+        }
         .btn-outline {
           background-color: transparent;
           border: 1px solid var(--brand-primary);
