@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Plus, Briefcase, Clock, Bell, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react'
+import { Plus, Briefcase, Clock, Bell, CheckCircle2, AlertTriangle, Info, X, UserPlus, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const Header = ({ createNewShipment, creatActiveJob, user }) => {
+  const navigate = useNavigate()
   const [now, setNow] = useState(new Date())
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
@@ -130,6 +132,26 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         >
           <Briefcase size={16} />
           New Job
+        </button>
+
+        <button
+          className="primary-button"
+          onClick={() => navigate('/vendors?add=true')}
+          id="header-add-vendor-btn"
+          style={{ background: 'var(--brand-secondary)', boxShadow: 'var(--shadow-md)' }}
+        >
+          <UserPlus size={16} />
+          Add Vendor
+        </button>
+
+        <button
+          className="primary-button"
+          onClick={() => navigate('/customers?add=true')}
+          id="header-add-customer-btn"
+          style={{ background: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)' }}
+        >
+          <Users size={16} />
+          Add Customer
         </button>
 
         {/* Notification Bell */}

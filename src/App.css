@@ -6,7 +6,9 @@
 /* ── Shell ─────────────────────────────────────────────────── */
 .dashboard-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg-base);
 }
 
@@ -25,6 +27,7 @@
   padding: 40px 32px 32px;
   width: 100%;
   max-width: 1440px;
+  box-sizing: border-box;
   animation: pageIn 0.3s ease forwards;
 }
 
@@ -858,12 +861,16 @@
   }
 
   .header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     width: 100%;
-    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .header-actions .primary-button {
     width: 100%;
+    padding: 10px 8px;
+    font-size: 11px;
     justify-content: center;
   }
 }

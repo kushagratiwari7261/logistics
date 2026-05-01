@@ -86,7 +86,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           .from('vendors')
           .select('*')
           .order('createdat', { ascending: false });
-        
+
         if (allErr) throw allErr;
         setCustomers(allData || []);
         setFilteredCustomers(allData || []);
@@ -107,6 +107,16 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       fetchCustomerFiles(editingCustomer.id);
     }
   }, [editingCustomer]);
+
+  // Handle auto-opening modal via URL parameter (for Header quick-actions)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('add') === 'true') {
+      handleAddNew();
+      // Remove the parameter from URL without refreshing
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [partnerType]); // Re-run when switching between vendor/customer pages
 
   const fetchCustomerFiles = async (customerId) => {
     try {
@@ -369,9 +379,9 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     try {
       const cleanCity = cityName.trim().replace(/[^a-zA-Z]/g, '');
       if (cleanCity.length < 3) return;
-      
+
       const prefix = cleanCity.substring(0, 3).toUpperCase();
-      
+
       // Fetch existing counts for this prefix
       const { data, error } = await supabase
         .from('vendors')
@@ -390,7 +400,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
             return match ? parseInt(match[0]) : 0;
           })
           .filter(n => !isNaN(n));
-        
+
         if (serials.length > 0) {
           nextSerial = Math.max(...serials) + 1;
         }
@@ -683,13 +693,15 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         </button>
       </div>
 
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder={`Search ${partnerType}s by number, name, email, or contact person...`}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div className="search-bar-sticky">
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder={`Search ${partnerType}s by number, name, email, or contact person...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="customers-table-container">
@@ -709,8 +721,8 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
 
           <tbody>
             {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer) => (
-                <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer' }}>
+              filteredCustomers.map((customer, index) => (
+                <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer', animationDelay: `${index * 0.03}s` }} className="row-animate">
                   <td>{customer.vendor_no || 'N/A'}</td>
                   <td>{customer.vendorName}</td>
                   <td>{customer.contactPerson}</td>
@@ -741,7 +753,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
                 </tr>
               ))
             ) : (<tr>
-              <td colSpan="7" className="no-data">
+              <td colSpan="8" className="no-data">
                 No {partnerType}s found. {searchTerm ? "Try a different search." : `Add a new ${partnerType} to get started.`}
               </td>
             </tr>
@@ -1512,6 +1524,12 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           font-family: 'Inter', Arial, sans-serif;
           background-color: var(--bg-base);
           color: var(--text-primary);
+          box-sizing: border-box;
+          width: 100%;
+        }
+
+        .customer-management * {
+          box-sizing: border-box;
         }
 
         .page-header {
@@ -1535,7 +1553,17 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           background-clip: text;
         }
 
-        .search-bar { margin-bottom: 20px; }
+        /* Sticky search bar */
+        .search-bar-sticky {
+          position: -webkit-sticky;
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          background: var(--bg-base);
+          padding-bottom: 4px;
+        }
+
+        .search-bar { margin-bottom: 16px; }
 
         .search-bar input {
           width: 100%;
@@ -1547,12 +1575,21 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           font-size: 14px;
           box-sizing: border-box;
         }
-        .search-bar input:focus { outline: none; border-color: var(--brand-primary); }
+        .search-bar input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--brand-glow); }
 
-        .customers-table-container { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+        .customers-table-container {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          width: 100%;
+          max-width: 100%;
+          display: block;
+        }
 
         .customers-table {
           width: 100%;
+          min-width: 820px;
           border-collapse: collapse;
           background-color: var(--bg-surface);
         }
@@ -1563,6 +1600,16 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           text-align: left;
           border-bottom: 1px solid var(--border);
           color: var(--text-primary);
+          white-space: nowrap;
+        }
+
+        /* Row fade-in animation */
+        @keyframes rowFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .row-animate {
+          animation: rowFadeIn 0.25s ease both;
         }
 
         .actions-cell {
@@ -1599,6 +1646,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           font-weight: 600;
           margin-right: 8px;
           transition: opacity 0.15s;
+          white-space: nowrap;
         }
         .btn:hover { opacity: 0.85; }
 
@@ -1788,33 +1836,61 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
           border: 1px solid var(--border);
         }
 
+        /* File upload */
+        .file-upload-container {
+          margin-bottom: 16px;
+        }
+
         /* ── Responsive ── */
         @media screen and (max-width: 1024px) {
           .customer-management { padding: 16px; }
-          .customers-table { min-width: 700px; }
         }
 
         @media screen and (max-width: 768px) {
-          .customer-management { padding: 10px; }
+          .customer-management { 
+            padding: 10px; 
+            width: 100%;
+          }
 
           .page-header {
             flex-direction: column;
             gap: 12px;
-            align-items: flex-start;
+            align-items: stretch;
+            padding: 16px;
           }
-          .page-header h1 { font-size: 20px; }
-          .page-header button { width: 100%; }
+          .page-header h1 { font-size: 18px; text-align: left; margin: 0; }
+          .page-header .btn { 
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+          }
 
-          .search-bar input { font-size: 14px; }
+          .search-bar-sticky {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-base);
+            padding-top: 4px;
+          }
+          .search-bar input { font-size: 14px; padding: 9px 12px; }
 
-          /* Make table scroll horizontally */
           .customers-table-container {
+            width: 100%;
+            max-width: 100%;
             overflow-x: auto;
+            display: block;
             -webkit-overflow-scrolling: touch;
           }
-          .customers-table { min-width: 600px; }
+
+          .customers-table { 
+            min-width: 800px; 
+          }
           .customers-table th,
-          .customers-table td { padding: 9px 10px; font-size: 12px; }
+          .customers-table td { padding: 10px 12px; font-size: 13px; }
 
           /* Modal */
           .modal-overlay { align-items: flex-end; }
@@ -1841,15 +1917,15 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
 
           /* Details view */
           .details-row { flex-direction: column; gap: 10px; }
-
           .vendor-details, .form-section { gap: 14px; }
         }
 
         @media screen and (max-width: 480px) {
-          .customer-management { padding: 8px; }
+          .customer-management { padding: 6px; }
+          .page-header { padding: 10px 12px; }
+          .page-header h1 { font-size: 15px; }
           .customers-table th,
-          .customers-table td { padding: 7px 8px; font-size: 11px; }
-          .btn { padding: 7px 12px; font-size: 12px; }
+          .customers-table td { padding: 7px 8px; font-size: 12px; }
           .btn-sm { padding: 4px 8px; font-size: 11px; }
         }
       `}</style>
