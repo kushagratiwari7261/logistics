@@ -1579,12 +1579,30 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
 
         .customers-table-container {
           overflow-x: auto;
+          overflow-y: auto;
+          max-height: calc(100vh - 220px);
           -webkit-overflow-scrolling: touch;
           border-radius: 10px;
           border: 1px solid var(--border);
           width: 100%;
           max-width: 100%;
           display: block;
+        }
+
+        /* Transparent Custom Scrollbar */
+        .customers-table-container::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .customers-table-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .customers-table-container::-webkit-scrollbar-thumb {
+          background: rgba(150, 150, 150, 0.3);
+          border-radius: 10px;
+        }
+        .customers-table-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(150, 150, 150, 0.6);
         }
 
         .customers-table {
@@ -1621,12 +1639,16 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         }
 
         .customers-table th {
+          position: sticky;
+          top: 0;
+          z-index: 10;
           background-color: var(--bg-inset);
           color: var(--text-secondary);
           font-weight: 600;
           font-size: 12px;
           text-transform: uppercase;
           letter-spacing: 0.05em;
+          box-shadow: 0 1px 0 var(--border);
         }
 
         .customers-table tr:hover { background-color: var(--nav-hover-bg); }
