@@ -64,6 +64,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     msmeVendor: "",
     msmeCertificationDate: "",
     msmeRegNo: "",
+    vendor_no: "",
     declaration: false
   });
 
@@ -76,7 +77,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         .from('vendors')
         .select('*')
         .eq('partner_type', partnerType)
-        .order('vendorName', { ascending: true });
+        .order('createdat', { ascending: false });
 
       if (error) {
         // Fallback for when Column doesn't exist yet or other errors
@@ -84,7 +85,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         const { data: allData, error: allErr } = await supabase
           .from('vendors')
           .select('*')
-          .order('vendorName', { ascending: true });
+          .order('createdat', { ascending: false });
         
         if (allErr) throw allErr;
         setCustomers(allData || []);
@@ -306,7 +307,8 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     const filtered = customers.filter(customer =>
       customer.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
+      customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.vendor_no && customer.vendor_no.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredCustomers(filtered);
   }, [searchTerm, customers]);
@@ -356,6 +358,51 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }));
+
+    // Auto-generate vendor/customer number when city changes
+    if (name === "city" && value && value.trim().length >= 3 && !editingCustomer) {
+      generatePartnerCode(value);
+    }
+  };
+
+  const generatePartnerCode = async (cityName) => {
+    try {
+      const cleanCity = cityName.trim().replace(/[^a-zA-Z]/g, '');
+      if (cleanCity.length < 3) return;
+      
+      const prefix = cleanCity.substring(0, 3).toUpperCase();
+      
+      // Fetch existing counts for this prefix
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('vendor_no')
+        .ilike('vendor_no', `${prefix}%`)
+        .order('vendor_no', { ascending: false });
+
+      if (error) throw error;
+
+      let nextSerial = 1;
+      if (data && data.length > 0) {
+        // Find the highest serial number for this prefix
+        const serials = data
+          .map(v => {
+            const match = v.vendor_no ? v.vendor_no.match(/\d+$/) : null;
+            return match ? parseInt(match[0]) : 0;
+          })
+          .filter(n => !isNaN(n));
+        
+        if (serials.length > 0) {
+          nextSerial = Math.max(...serials) + 1;
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        vendor_no: `${prefix}${nextSerial}`
+      }));
+    } catch (err) {
+      console.error("Error generating partner code:", err);
+    }
   };
 
   const handleAddNew = () => {
@@ -391,6 +438,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       msmeVendor: "",
       msmeCertificationDate: "",
       msmeRegNo: "",
+      vendor_no: "",
       declaration: false
     });
     setFiles({
@@ -638,7 +686,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       <div className="search-bar">
         <input
           type="text"
-          placeholder={`Search ${partnerType}s by name, email, or contact person...`}
+          placeholder={`Search ${partnerType}s by number, name, email, or contact person...`}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -648,6 +696,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         <table className="customers-table">
           <thead>
             <tr>
+              <th>{displayType} Number</th>
               <th>{displayType} Name</th>
               <th>Contact Person</th>
               <th>Email</th>
@@ -662,6 +711,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
             {filteredCustomers.length > 0 ? (
               filteredCustomers.map((customer) => (
                 <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer' }}>
+                  <td>{customer.vendor_no || 'N/A'}</td>
                   <td>{customer.vendorName}</td>
                   <td>{customer.contactPerson}</td>
                   <td>{customer.email}</td>
@@ -708,6 +758,10 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
               <div className="details-section">
                 <h3>Basic Information</h3>
                 <div className="details-row">
+                  <div className="detail-item">
+                    <label>{displayType} Number:</label>
+                    <span>{viewingCustomer.vendor_no || 'N/A'}</span>
+                  </div>
                   <div className="detail-item">
                     <label>{displayType} Name:</label>
                     <span>{viewingCustomer.vendorName}</span>
@@ -988,6 +1042,16 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
                       onChange={handleInputChange}
                       placeholder={`${displayType} Name`}
                       required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{displayType} Number</label>
+                    <input
+                      name="vendor_no"
+                      value={formData.vendor_no}
+                      onChange={handleInputChange}
+                      placeholder="Auto-generated from city"
+                      readOnly={!!editingCustomer}
                     />
                   </div>
                   <div className="form-group">
