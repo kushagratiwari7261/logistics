@@ -1,16 +1,16 @@
 import { Link, useLocation } from 'react-router-dom'
 import sealLogo from '../seal.png'
 import './Sidebar.css'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Ship, 
-  MapPin, 
-  FileText, 
-  CreditCard, 
-  Briefcase, 
-  MessageSquare, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  Ship,
+  MapPin,
+  FileText,
+  CreditCard,
+  Briefcase,
+  MessageSquare,
+  BarChart3,
   Settings,
   LogOut,
   ChevronDown,
@@ -69,7 +69,7 @@ const navItems = [
   },
   {
     to: '/job-allocation',
-    label: 'Job Allocation',
+    label: 'Raise Tasks',
     icon: <ClipboardCheck size={20} />,
   },
   {
@@ -101,10 +101,10 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
   const handleLogoutClick = async () => { await onLogout() }
   const handleLinkClick = () => { if (mobileMenuOpen) toggleMobileMenu() }
   const isActive = (path) => location.pathname === path
-  
+
   const toggleExpand = (label) => {
-    setExpandedItems(prev => 
-      prev.includes(label) 
+    setExpandedItems(prev =>
+      prev.includes(label)
         ? prev.filter(item => item !== label)
         : [...prev, label]
     )

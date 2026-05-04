@@ -426,13 +426,13 @@ function App() {
     };
   }, []);  // Empty deps — run only once on mount
 
-  // --- Real-time Notifications Listener ---
+  // --- Real-time Notifications & Deadline Alerts ---
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      console.log('🔌 Setting up real-time notification listener for user:', user.id);
+      console.log('🔌 Setting up global real-time listeners for user:', user.id);
       
       const handleIncomingAlert = (data) => {
-        console.log('🔔 New incoming alert:', data);
+        console.log('🔔 Notification Triggered:', data);
         
         // Play notification sound
         if (notificationAudio.current) {
@@ -443,16 +443,65 @@ function App() {
         const id = Date.now();
         setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
         
-        // Auto-remove after 6 seconds
+        // Auto-remove after 8 seconds (toasts have 6s progress bar, give 2s buffer)
         setTimeout(() => {
           setInAppNotifications(prev => prev.filter(n => n.id !== id));
-        }, 6000);
+        }, 8000);
       };
 
+      // 1. Listen for Jobs/Tasks/Assignments
       socket.on('new_notification', handleIncomingAlert);
+      
+      // 2. Listen for Messages
+      socket.on('receive_message', (payload) => {
+        if (payload.sender_id === user.id) return; // Don't notify for own messages
+        
+        handleIncomingAlert({
+          title: `New Message from ${payload.sender_name || 'Team'}`,
+          message: payload.content || 'Sent an attachment or empty message',
+          type: 'message'
+        });
+      });
+
+      // 3. Periodic Deadline Check (Every 15 minutes)
+      const checkDeadlines = async () => {
+        try {
+          const now = new Date();
+          const soon = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours from now
+          
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('receiver_id', user.id)
+            .neq('status', 'Completed')
+            .not('deadline_at', 'is', null);
+
+          if (tasks) {
+            tasks.forEach(task => {
+              const deadline = new Date(task.deadline_at);
+              // If deadline is in the next 4 hours and we haven't notified in this session yet
+              if (deadline > now && deadline <= soon) {
+                handleIncomingAlert({
+                  title: "Deadline Approaching",
+                  message: `Task "${task.title}" is due soon! (${deadline.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`,
+                  type: 'deadline',
+                  task_id: task.id
+                });
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Deadline check error:", err);
+        }
+      };
+
+      checkDeadlines(); // Initial check
+      const deadlineInterval = setInterval(checkDeadlines, 15 * 60 * 1000);
       
       return () => {
         socket.off('new_notification', handleIncomingAlert);
+        socket.off('receive_message');
+        clearInterval(deadlineInterval);
       };
     }
   }, [isAuthenticated, user?.id]);
@@ -970,7 +1019,8 @@ function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* ── Auth routes — full screen, no sidebar ── */}
       <Route
         path="/login"
@@ -1056,7 +1106,179 @@ function App() {
           </div>
         }
       />
-    </Routes>
+      </Routes>
+
+      {/* Global Notification Toasts */}
+      <div className="notification-toasts">
+        {inAppNotifications.map(notification => (
+          <div 
+            key={notification.id} 
+            className={`toast toast-${notification.type || 'info'} ${notification.isExpiring ? 'expiring' : ''}`}
+            onClick={() => {
+              if (notification.task_id) navigate('/job-allocation');
+              else if (notification.job_id) navigate('/job-orders');
+              else if (notification.type === 'message') navigate('/messages');
+              setInAppNotifications(prev => prev.filter(n => n.id !== notification.id));
+            }}
+          >
+            <div className="toast-icon">
+              {notification.type === 'assignment' || notification.type === 'task' ? <CheckCircle2 size={24} /> : <Bell size={24} />}
+            </div>
+            <div className="toast-body">
+              <div className="toast-header">
+                <strong>{notification.title}</strong>
+                <span className="toast-time">Just now</span>
+              </div>
+              <p className="toast-message">{notification.message}</p>
+            </div>
+            <button 
+              className="toast-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                setInAppNotifications(prev => prev.filter(n => n.id !== notification.id));
+              }}
+            >
+              <X size={16} />
+            </button>
+            <div className="toast-progress-bar" />
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        .notification-toasts {
+          position: fixed;
+          top: 30px;
+          right: 30px;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+          pointer-events: none;
+          max-width: 400px;
+          width: 100%;
+        }
+
+        .toast {
+          pointer-events: auto;
+          background: var(--bg-surface);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          padding: 20px;
+          display: flex;
+          gap: 15px;
+          align-items: flex-start;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+          animation: toast-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          transition: all 0.3s;
+        }
+
+        .toast:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+          border-color: var(--brand-primary);
+        }
+
+        @keyframes toast-in {
+          from { transform: translateX(100%) scale(0.9); opacity: 0; }
+          to { transform: translateX(0) scale(1); opacity: 1; }
+        }
+
+        .toast-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          background: var(--brand-glow);
+          color: var(--brand-primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .toast-assignment .toast-icon, .toast-task .toast-icon {
+          background: rgba(16, 185, 129, 0.1);
+          color: #10b981;
+        }
+
+        .toast-body { flex: 1; }
+
+        .toast-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 5px;
+        }
+
+        .toast-header strong {
+          font-size: 15px;
+          font-weight: 800;
+          color: var(--text-primary);
+        }
+
+        .toast-time {
+          font-size: 11px;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+
+        .toast-message {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          color: var(--text-secondary);
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .toast-close {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 5px;
+          border-radius: 8px;
+          transition: all 0.2s;
+        }
+
+        .toast-close:hover {
+          background: var(--danger-bg);
+          color: var(--danger);
+        }
+
+        .toast-progress-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          height: 3px;
+          background: var(--brand-primary);
+          width: 100%;
+          animation: toast-progress 6s linear forwards;
+        }
+
+        .toast-assignment .toast-progress-bar { background: #10b981; }
+
+        @keyframes toast-progress {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+
+        @media (max-width: 768px) {
+          .notification-toasts {
+            top: auto;
+            bottom: 20px;
+            right: 20px;
+            left: 20px;
+            max-width: none;
+          }
+        }
+      `}</style>
+    </>
   );
 }
 

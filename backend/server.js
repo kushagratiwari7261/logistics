@@ -656,13 +656,16 @@ app.post("/api/webhooks/tasks", async (req, res) => {
 
       if (receiverEmail) {
         const senderName = sender?.full_name || 'A team member';
+        const isPersonal = record.sender_id === record.receiver_id;
 
         // 2. Send Email with "raised a ticket" context
         await sendSealEmail({
           to: receiverEmail,
-          subject: "Ticket Allocation Request",
-          title: "New Ticket Received",
-          body: `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,
+          subject: isPersonal ? "Personal Task Reminder" : "Ticket Allocation Request",
+          title: isPersonal ? "Your to-do jobs in my tasks" : "New Ticket Received",
+          body: isPersonal 
+            ? `You have set a personal reminder: "${record.title}".\n\nDetails: ${record.description || 'No additional instructions provided.'}`
+            : `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,
           actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
           actionText: "Open Dashboard",
           type: 'assignment'
@@ -670,8 +673,8 @@ app.post("/api/webhooks/tasks", async (req, res) => {
 
         // 3. Emit Socket.io event for real-time app notification
         io.to(record.receiver_id).emit("new_notification", {
-          title: "New Ticket Received",
-          message: `${senderName} assigned you: ${record.title}`,
+          title: isPersonal ? "Personal Task Added" : "New Ticket Received",
+          message: isPersonal ? `Reminder: ${record.title}` : `${senderName} assigned you: ${record.title}`,
           type: 'task',
           task_id: record.id,
           timestamp: new Date().toISOString()
@@ -680,8 +683,8 @@ app.post("/api/webhooks/tasks", async (req, res) => {
         // 4. Save to persistent notifications table
         await supabase.from('notifications').insert([{
           user_id: record.receiver_id,
-          title: "New Ticket Received",
-          message: `${senderName} assigned you: ${record.title}`,
+          title: isPersonal ? "Personal Task" : "New Ticket Received",
+          message: isPersonal ? `Reminder: ${record.title}` : `${senderName} assigned you: ${record.title}`,
           type: 'task',
           metadata: { task_id: record.id }
         }]);

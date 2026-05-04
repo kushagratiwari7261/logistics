@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   Plus,
   Send,
   Inbox,
-  CheckCircle2, 
-  Clock, 
+  CheckCircle2,
+  Clock,
   AlertCircle,
   User,
   Calendar,
@@ -31,7 +31,18 @@ const JobAllocation = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [lastSync, setLastSync] = useState(new Date())
-  
+
+  const [showPersonalModal, setShowPersonalModal] = useState(false)
+  const [newPersonalTask, setNewPersonalTask] = useState({
+    title: '',
+    date: '',
+    time: '',
+    allDay: false,
+    recurrence: 'Does not repeat',
+    description: '',
+    list: 'My Tasks'
+  })
+
   // Form State
   const [newTicket, setNewTicket] = useState({
     receiver_id: '',
@@ -77,7 +88,7 @@ const JobAllocation = ({ user }) => {
   // --- Reliability: 5s Polling + Real-time Subscription ---
   useEffect(() => {
     fetchData()
-    
+
     // 5-second Heartbeat sync
     const interval = setInterval(() => {
       fetchData(true)
@@ -100,7 +111,7 @@ const JobAllocation = ({ user }) => {
     if (!newTicket.receiver_id || !newTicket.title || isSubmitting) return
 
     setIsSubmitting(true)
-    
+
     // OPTIMISTIC UPDATE: Immediate UI update
     const tempId = `temp-${Date.now()}`
     const receiver = profiles.find(p => p.id === newTicket.receiver_id)
@@ -112,7 +123,7 @@ const JobAllocation = ({ user }) => {
       created_at: new Date().toISOString(),
       receiver: receiver || { full_name: 'Team Member' }
     }
-    
+
     setTasksSent(prev => [optimisticTask, ...prev])
     setShowCreateModal(false)
     setActiveTab('sent')
@@ -125,12 +136,80 @@ const JobAllocation = ({ user }) => {
       }]).select().single()
 
       if (error) throw error
-      
+
       // Update the optimistic item with real data
       setTasksSent(prev => prev.map(t => t.id === tempId ? { ...data, receiver: optimisticTask.receiver } : t))
       setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
     } catch (err) {
       setTasksSent(prev => prev.filter(t => t.id !== tempId))
+      alert('Sync Fail: ' + err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCreatePersonalTask = async (e) => {
+    e.preventDefault()
+    if (!newPersonalTask.title || isSubmitting) return
+
+    setIsSubmitting(true)
+
+    let deadlineStr = null;
+    if (newPersonalTask.date) {
+      try {
+        if (newPersonalTask.allDay) {
+          deadlineStr = new Date(`${newPersonalTask.date}T23:59:59`).toISOString()
+        } else if (newPersonalTask.time) {
+          deadlineStr = new Date(`${newPersonalTask.date}T${newPersonalTask.time}`).toISOString()
+        } else {
+          deadlineStr = new Date(`${newPersonalTask.date}T23:59:59`).toISOString()
+        }
+      } catch (err) {
+        // Fallback if parsing fails
+        deadlineStr = null
+      }
+    }
+    
+    let finalDesc = newPersonalTask.description;
+    if (newPersonalTask.recurrence !== 'Does not repeat') {
+       finalDesc += finalDesc ? `\n\n[Recurrence: ${newPersonalTask.recurrence}]` : `[Recurrence: ${newPersonalTask.recurrence}]`;
+    }
+    if (newPersonalTask.list !== 'My Tasks') {
+       finalDesc += finalDesc ? `\n[List: ${newPersonalTask.list}]` : `[List: ${newPersonalTask.list}]`;
+    }
+
+    const taskToInsert = {
+      title: newPersonalTask.title,
+      description: finalDesc,
+      priority: 'Low', // Personal tasks
+      deadline_at: deadlineStr,
+      sender_id: user.id,
+      receiver_id: user.id,
+      status: 'Pending'
+    }
+
+    const tempId = `temp-p-${Date.now()}`
+    const selfProfile = profiles.find(p => p.id === user.id) || { full_name: 'Me' }
+    const optimisticTask = {
+      ...taskToInsert,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      sender: selfProfile,
+      receiver: selfProfile
+    }
+
+    setTasksReceived(prev => [optimisticTask, ...prev])
+    setShowPersonalModal(false)
+    setActiveTab('received')
+
+    try {
+      const { data, error } = await supabase.from('tasks').insert([taskToInsert]).select().single()
+      if (error) throw error
+
+      setTasksReceived(prev => prev.map(t => t.id === tempId ? { ...data, sender: optimisticTask.sender, receiver: optimisticTask.receiver } : t))
+      setNewPersonalTask({ title: '', date: '', time: '', allDay: false, recurrence: 'Does not repeat', description: '', list: 'My Tasks' })
+    } catch (err) {
+      setTasksReceived(prev => prev.filter(t => t.id !== tempId))
       alert('Sync Fail: ' + err.message)
     } finally {
       setIsSubmitting(false)
@@ -156,10 +235,10 @@ const JobAllocation = ({ user }) => {
 
     const filtered = list.filter(t => {
       // Search filter
-      const matchesSearch = !searchQuery || 
-        t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch = !searchQuery ||
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      
+
       if (!matchesSearch) return false
 
       // Deadline filter (if specifically requested to not show past days)
@@ -200,25 +279,35 @@ const JobAllocation = ({ user }) => {
           <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="brand-h1">Command Center</motion.h1>
           <p className="brand-p">Direct peer-to-peer tasking & real-time team audit.</p>
         </div>
-        
+
         <div className="banner-right">
           <div className="search-pill">
             <Search size={18} />
-            <input 
-              type="text" 
-              placeholder="Filter tasks..." 
+            <input
+              type="text"
+              placeholder="Filter tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <motion.button 
-            whileHover={{ scale: 1.05, boxShadow: '0 20px 40px var(--brand-glow)' }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowCreateModal(true)}
-            className="action-trigger-btn"
-          >
-            <Plus size={20} /> Raise Ticket
-          </motion.button>
+          <div className="action-buttons">
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowPersonalModal(true)}
+              className="action-trigger-btn personal-btn"
+            >
+              <User size={20} /> My Task
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 20px 40px var(--brand-glow)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowCreateModal(true)}
+              className="action-trigger-btn"
+            >
+              <Plus size={20} /> Raise Task
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -232,7 +321,7 @@ const JobAllocation = ({ user }) => {
             <Send size={18} /> Raised by Me <span>{tasksSent.length}</span>
           </button>
         </div>
-        
+
         <div className="filter-options">
           <label className="checkbox-pill">
             <input type="checkbox" checked={!showPastDeadlines} onChange={() => setShowPastDeadlines(!showPastDeadlines)} />
@@ -258,8 +347,8 @@ const JobAllocation = ({ user }) => {
                   <p>No tickets currently active in this sector.</p>
                 </motion.div>
               ) : filteredTasks.map(task => (
-                <motion.div 
-                  key={task.id} 
+                <motion.div
+                  key={task.id}
                   layout
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -270,7 +359,7 @@ const JobAllocation = ({ user }) => {
                     <div className="priority-label">{task.priority} Priority</div>
                     <div className="status-pill">{task.status}</div>
                   </div>
-                  
+
                   <h3 className="ticket-name">{task.title}</h3>
                   <p className="ticket-brief">{task.description}</p>
 
@@ -282,7 +371,7 @@ const JobAllocation = ({ user }) => {
                         <span className="p-role">{activeTab === 'received' ? 'Assigner' : 'Assignee'}</span>
                       </div>
                     </div>
-                    
+
                     {activeTab === 'received' && task.status !== 'Completed' && (
                       <button onClick={() => updateTaskStatus(task.id, 'Completed')} className="complete-btn">
                         <CheckCircle2 size={16} /> Mark Done
@@ -300,14 +389,14 @@ const JobAllocation = ({ user }) => {
       <AnimatePresence>
         {showCreateModal && (
           <div className="modal-backdrop">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
               className="ticket-modal glass-morph"
             >
               <div className="modal-glow-line" />
-              
+
               <div className="modal-top">
                 <div className="m-text">
                   <h2>Raise Operational Ticket</h2>
@@ -316,13 +405,13 @@ const JobAllocation = ({ user }) => {
                 <button onClick={() => setShowCreateModal(false)} className="m-close"><X /></button>
               </div>
 
-              <form onSubmit={handleCreateTicket} className="m-form">
+              <form onSubmit={handleCreateTicket} className="m-form compact-form">
                 <div className="form-row">
                   <div className="f-group">
                     <label>Personnel Assignment</label>
                     <div className="select-wrapper">
                       <User size={16} />
-                      <select required value={newTicket.receiver_id} onChange={e => setNewTicket({...newTicket, receiver_id: e.target.value})}>
+                      <select required value={newTicket.receiver_id} onChange={e => setNewTicket({ ...newTicket, receiver_id: e.target.value })}>
                         <option value="">Select individual...</option>
                         {profiles.filter(p => p.id !== user.id).map(p => (
                           <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
@@ -334,7 +423,7 @@ const JobAllocation = ({ user }) => {
                     <label>Urgency Level</label>
                     <div className="select-wrapper">
                       <Zap size={16} />
-                      <select value={newTicket.priority} onChange={e => setNewTicket({...newTicket, priority: e.target.value})}>
+                      <select value={newTicket.priority} onChange={e => setNewTicket({ ...newTicket, priority: e.target.value })}>
                         <option value="Low">Low Priority</option>
                         <option value="Medium">Medium Priority</option>
                         <option value="High">High Priority</option>
@@ -347,13 +436,13 @@ const JobAllocation = ({ user }) => {
                   <label>Ticket Objective</label>
                   <div className="input-field">
                     <Sparkles size={16} />
-                    <input required type="text" placeholder="What needs to be done?" value={newTicket.title} onChange={e => setNewTicket({...newTicket, title: e.target.value})} />
+                    <input required type="text" placeholder="What needs to be done?" value={newTicket.title} onChange={e => setNewTicket({ ...newTicket, title: e.target.value })} />
                   </div>
                 </div>
 
                 <div className="f-group">
                   <label>Additional Context</label>
-                  <textarea rows={3} placeholder="Provide details, links or instructions..." value={newTicket.description} onChange={e => setNewTicket({...newTicket, description: e.target.value})} />
+                  <textarea rows={3} placeholder="Provide details, links or instructions..." value={newTicket.description} onChange={e => setNewTicket({ ...newTicket, description: e.target.value })} />
                 </div>
 
                 <div className="form-row">
@@ -361,17 +450,124 @@ const JobAllocation = ({ user }) => {
                     <label>Hard Deadline</label>
                     <div className="input-field">
                       <Calendar size={16} />
-                      <input 
-                        type="date" 
+                      <input
+                        type="date"
                         min={new Date().toISOString().split('T')[0]}
-                        value={newTicket.deadline_at} 
-                        onChange={e => setNewTicket({...newTicket, deadline_at: e.target.value})} 
+                        value={newTicket.deadline_at}
+                        onChange={e => setNewTicket({ ...newTicket, deadline_at: e.target.value })}
                       />
                     </div>
                   </div>
                   <div className="f-group flex-end">
                     <button type="submit" disabled={isSubmitting} className="submit-ticket-btn">
                       {isSubmitting ? 'Publishing...' : 'Publish Ticket'} <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- PERSONAL TASK MODAL --- */}
+      <AnimatePresence>
+        {showPersonalModal && (
+          <div className="modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="ticket-modal glass-morph"
+            >
+              <div className="modal-glow-line" style={{ background: 'linear-gradient(90deg, transparent, #10b981, transparent)' }} />
+
+              <div className="modal-top">
+                <div className="m-text">
+                  <h2>Add Personal Task</h2>
+                  <p>Create a task for your own workflow.</p>
+                </div>
+                <button onClick={() => setShowPersonalModal(false)} className="m-close"><X /></button>
+              </div>
+
+              <form onSubmit={handleCreatePersonalTask} className="m-form compact-form">
+                
+                <div className="f-group">
+                  <label>Task Title</label>
+                  <div className="input-field">
+                    <CheckCircle2 size={16} />
+                    <input required type="text" placeholder="Add title" value={newPersonalTask.title} onChange={e => setNewPersonalTask({ ...newPersonalTask, title: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="f-group">
+                    <label>Schedule</label>
+                    <div className="datetime-row">
+                      <div className="input-field date-field">
+                        <Calendar size={16} />
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          value={newPersonalTask.date}
+                          onChange={e => setNewPersonalTask({ ...newPersonalTask, date: e.target.value })}
+                        />
+                      </div>
+                      {!newPersonalTask.allDay && (
+                        <div className="input-field time-field">
+                          <Clock size={16} />
+                          <input
+                            type="time"
+                            value={newPersonalTask.time}
+                            onChange={e => setNewPersonalTask({ ...newPersonalTask, time: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="checkbox-wrap mt-3">
+                      <label className="checkbox-pill personal-checkbox">
+                        <input type="checkbox" checked={newPersonalTask.allDay} onChange={e => setNewPersonalTask({ ...newPersonalTask, allDay: e.target.checked })} />
+                        <span>All day</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="f-group">
+                    <label>Recurrence</label>
+                    <div className="select-wrapper">
+                      <Target size={16} />
+                      <select value={newPersonalTask.recurrence} onChange={e => setNewPersonalTask({ ...newPersonalTask, recurrence: e.target.value })}>
+                        <option value="Does not repeat">Does not repeat</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Yearly">Yearly</option>
+                        <option value="Custom...">Custom...</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="f-group">
+                  <label>Description</label>
+                  <textarea rows={3} placeholder="Add description" value={newPersonalTask.description} onChange={e => setNewPersonalTask({ ...newPersonalTask, description: e.target.value })} />
+                </div>
+
+                <div className="form-row">
+                  <div className="f-group">
+                    <label>List</label>
+                    <div className="select-wrapper">
+                      <Inbox size={16} />
+                      <select value={newPersonalTask.list} onChange={e => setNewPersonalTask({ ...newPersonalTask, list: e.target.value })}>
+                        <option value="My Tasks">My Tasks</option>
+                        <option value="Work">Work</option>
+                        <option value="Personal">Personal</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="f-group flex-end">
+                    <button type="submit" disabled={isSubmitting} className="submit-ticket-btn" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)' }}>
+                      {isSubmitting ? 'Saving...' : 'Save Task'} <CheckCircle2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -399,7 +595,10 @@ const JobAllocation = ({ user }) => {
         .search-pill input { border: none; background: none; padding: 14px 10px; width: 100%; color: var(--text-primary); outline: none; font-weight: 600; }
         .search-pill svg { opacity: 0.4; }
         
+        .action-buttons { display: flex; gap: 15px; align-items: center; }
         .action-trigger-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 100px; padding: 15px 35px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; gap: 10px; align-items: center; box-shadow: 0 15px 40px var(--brand-glow); }
+        .personal-btn { background: var(--bg-surface); color: var(--text-primary); border: 2px solid var(--border); box-shadow: none; padding: 13px 25px; transition: all 0.3s; }
+        .personal-btn:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
         
         .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
         .tab-group { display: flex; gap: 40px; }
@@ -449,6 +648,15 @@ const JobAllocation = ({ user }) => {
         .m-close:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); transform: rotate(90deg); }
         
         .m-form { padding: 50px 60px; display: flex; flex-direction: column; gap: 32px; }
+        
+        /* Compact Form for Personal Tasks to reduce height */
+        .compact-form { padding: 30px 60px; gap: 20px; }
+        .compact-form .f-group label { margin-bottom: 8px; }
+        .compact-form .select-wrapper select, .compact-form .input-field input { padding: 14px 10px; font-size: 15px; }
+        .compact-form textarea { padding: 14px 20px; min-height: 80px; }
+        .compact-form .submit-ticket-btn { padding: 16px 30px; font-size: 16px; }
+        .compact-form .checkbox-wrap.mt-3 { margin-top: 10px; }
+
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
         .flex-end { display: flex; align-items: flex-end; }
         
@@ -460,8 +668,14 @@ const JobAllocation = ({ user }) => {
         .select-wrapper select, .input-field input, .m-form textarea { width: 100%; border: none; background: none; padding: 20px 10px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none; font-family: inherit; }
         .select-wrapper svg, .input-field svg { color: var(--brand-primary); opacity: 0.8; flex-shrink: 0; width: 20px; height: 20px; }
         
-        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 24px; padding: 20px 24px; width: 100%; resize: none; transition: all 0.2s; }
-        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); }
+        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 24px; padding: 20px 24px; width: 100%; resize: none; transition: all 0.2s; font-family: inherit; font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); outline: none; }
+
+        .datetime-row { display: flex; gap: 15px; }
+        .date-field { flex: 1; }
+        .time-field { width: 140px; }
+        .mt-3 { margin-top: 15px; }
+        .personal-checkbox { display: inline-flex; padding: 8px 16px; border-radius: 10px; }
 
         .submit-ticket-btn { 
           width: 100%;
