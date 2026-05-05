@@ -640,38 +640,51 @@ app.post("/api/webhooks/tasks", async (req, res) => {
 
   if (isNewTask) {
     try {
+      console.log(`🔍 [Webhook Debug] Processing task for receiver: ${record.receiver_id}`);
+      
       // 1. Fetch receiver & sender profiles
       let receiverEmail = record.receiver_id?.includes('@') ? record.receiver_id : null;
       let receiverName = 'Team Member';
 
       if (!receiverEmail) {
-        const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
+        const { data: receiver, error: rError } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
+        if (rError) console.error("❌ [Webhook Debug] Error fetching receiver profile:", rError.message);
         if (receiver) {
           receiverEmail = receiver.email;
           receiverName = receiver.full_name || receiverName;
+          console.log(`✅ [Webhook Debug] Found receiver email: ${receiverEmail}`);
+        } else {
+          console.warn("⚠️ [Webhook Debug] No receiver profile found for ID:", record.receiver_id);
         }
       }
 
       const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', record.sender_id).single();
+      const senderName = sender?.full_name || 'A team member';
 
       if (receiverEmail) {
-        const senderName = sender?.full_name || 'A team member';
         const isPersonal = record.sender_id === record.receiver_id;
+        console.log(`📧 [Webhook Debug] Sending email to ${receiverEmail}. Personal: ${isPersonal}`);
 
-        // 2. Send Email with "raised a ticket" context
-        await sendSealEmail({
-          to: receiverEmail,
-          subject: isPersonal ? "Personal Task Reminder" : "Ticket Allocation Request",
-          title: isPersonal ? "Your to-do jobs in my tasks" : "New Ticket Received",
-          body: isPersonal 
-            ? `You have set a personal reminder: "${record.title}".\n\nDetails: ${record.description || 'No additional instructions provided.'}`
-            : `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,
-          actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
-          actionText: "Open Dashboard",
-          type: 'assignment'
-        });
+        // 2. Send Email
+        try {
+          await sendSealEmail({
+            to: receiverEmail,
+            subject: isPersonal ? "Personal Task Reminder" : "Ticket Allocation Request",
+            title: isPersonal ? "Your to-do jobs in my tasks" : "New Ticket Received",
+            body: isPersonal 
+              ? `You have set a personal reminder: "${record.title}".\n\nDetails: ${record.description || 'No additional instructions provided.'}`
+              : `${senderName} has raised a ticket for you: "${record.title}".\n\nMessage: ${record.description || 'No additional instructions provided.'}`,
+            actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
+            actionText: "Open Dashboard",
+            type: 'assignment'
+          });
+          console.log("✅ [Webhook Debug] Email sent successfully.");
+        } catch (eError) {
+          console.error("❌ [Webhook Debug] Email failed to send:", eError.message);
+        }
 
-        // 3. Emit Socket.io event for real-time app notification
+        // 3. Emit Socket.io event
+        console.log(`📡 [Webhook Debug] Emitting socket alert to room: ${record.receiver_id}`);
         io.to(record.receiver_id).emit("new_notification", {
           title: isPersonal ? "Personal Task Added" : "New Ticket Received",
           message: isPersonal ? `Reminder: ${record.title}` : `${senderName} assigned you: ${record.title}`,
@@ -679,19 +692,24 @@ app.post("/api/webhooks/tasks", async (req, res) => {
           task_id: record.id,
           timestamp: new Date().toISOString()
         });
+        console.log("✅ [Webhook Debug] Socket event emitted.");
 
         // 4. Save to persistent notifications table
-        await supabase.from('notifications').insert([{
+        const { error: nError } = await supabase.from('notifications').insert([{
           user_id: record.receiver_id,
           title: isPersonal ? "Personal Task" : "New Ticket Received",
           message: isPersonal ? `Reminder: ${record.title}` : `${senderName} assigned you: ${record.title}`,
           type: 'task',
           metadata: { task_id: record.id }
         }]);
+        if (nError) console.error("❌ [Webhook Debug] Failed to save notification to DB:", nError.message);
+        else console.log("✅ [Webhook Debug] Notification saved to database.");
       }
     } catch (err) {
-      console.error("Task Webhook Error:", err);
+      console.error("❌ [Webhook Debug] Fatal Webhook Logic Error:", err);
     }
+  } else {
+    console.log("ℹ️ [Webhook Debug] Task update ignored (not a new assignment).");
   }
 
   res.status(200).json({ received: true });
