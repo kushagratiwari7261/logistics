@@ -693,6 +693,16 @@ app.post("/api/webhooks/jobs", async (req, res) => {
 /**
  * Webhook: Peer-to-Peer Tasks (Tickets)
  */
+// Webhook Status (for browser checking)
+app.get("/api/webhooks/tasks", (req, res) => {
+  res.json({
+    status: "active",
+    message: "This endpoint is ready to receive POST webhooks from Supabase.",
+    method_received: "GET",
+    expected_method: "POST"
+  });
+});
+
 app.post("/api/webhooks/tasks", async (req, res) => {
   const payload = req.body;
   const { type, record, old_record } = payload;
