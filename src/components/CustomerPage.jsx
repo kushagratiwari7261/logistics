@@ -318,6 +318,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       customer.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.city && customer.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (customer.vendor_no && customer.vendor_no.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredCustomers(filtered);
@@ -697,7 +698,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         <div className="search-bar">
           <input
             type="text"
-            placeholder={`Search ${partnerType}s by number, name, email, or contact person...`}
+            placeholder={`Search ${partnerType}s by number, name, city, email, or contact person...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
