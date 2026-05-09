@@ -87,7 +87,7 @@ const taskChannel = supabase
     { event: 'INSERT', schema: 'public', table: 'tasks' },
     async (payload) => {
       console.log('📡 REAL-TIME: New task detected via DB listener:', payload.new.id);
-      
+
       // We re-use the exact same logic as the webhook to avoid duplication
       // But we call a internal helper or the logic directly
       processTaskNotification(payload.new, 'INSERT');
@@ -102,11 +102,11 @@ const taskChannel = supabase
 async function processTaskNotification(record, type) {
   try {
     console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id}`);
-    
+
     // 1. Fetch profiles
     const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
     const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', record.sender_id).single();
-    
+
     if (receiver?.email) {
       const isPersonal = record.sender_id === record.receiver_id;
       const senderName = sender?.full_name || 'A team member';
@@ -116,7 +116,7 @@ async function processTaskNotification(record, type) {
         to: receiver.email,
         subject: isPersonal ? "Personal Task Reminder" : "New Task Allocated",
         title: isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment",
-        body: isPersonal 
+        body: isPersonal
           ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
           : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`,
         actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
@@ -132,7 +132,7 @@ async function processTaskNotification(record, type) {
         type: isPersonal ? "task" : "assignment",
         task_id: record.id
       });
-      
+
       console.log(`✅ [Success] Processed notification for ${receiver.email}`);
     }
   } catch (err) {
@@ -242,7 +242,7 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
 
   try {
     await resend.emails.send({
-      from: 'Seal Freight Logistics <alerts@prudata.info>',
+      from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
       to: Array.isArray(to) ? to : [to],
       subject: `Seal Freight: ${subject}`,
       html: `
@@ -323,12 +323,12 @@ app.get("/api/cron/greetings", async (req, res) => {
     const subject = getSubject();
     const { greeting, body: bodyText } = getGreetingAndBody();
 
-  const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
+    const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user =>
       resend.emails.send({
-        from: 'Seal Freight Logistics <alerts@prudata.info>',
+        from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
         to: user.email,
         subject: subject,
         html: `
@@ -375,12 +375,12 @@ app.get("/api/cron/payments", async (req, res) => {
     if (error) throw error;
     if (!failedPayments || failedPayments.length === 0) return res.json({ msg: "No failed payments today" });
 
-  const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
+    const logoUrl = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
     for (const payment of failedPayments) {
       if (payment.email) {
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
           to: payment.email,
           subject: "Seal Freight: Important Update Regarding Your Payment",
           html: `
@@ -477,7 +477,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
           to: allRecipients,
           subject: "Seal Freight: Shipment Status Update",
           html: `
@@ -519,7 +519,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
           to: allRecipients,
           subject: "Seal Freight: Important Update Regarding A Payment",
           html: `
@@ -550,7 +550,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const recipients = clientEmail ? [clientEmail, ...allRecipients] : allRecipients;
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@prudata.info>',
+          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
           to: [...new Set(recipients)],
           subject: "Seal Freight: Payment Received Confirmation",
           html: `
@@ -580,7 +580,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const notificationRecords = profiles.map(p => ({
           user_id: p.id,
           title: isStatusUpdate ? "Shipment Status Updated" : (isPaymentFailure ? "Payment Failed" : "Payment Successful"),
-          message: isStatusUpdate 
+          message: isStatusUpdate
             ? `Shipment #${payload.record.shipment_id || shipmentId} changed to ${payload.record.status}`
             : `Payment ${payload.record.payment_status} for Shipment #${payload.record.shipment_id || shipmentId}`,
           type: 'shipment_update',
@@ -606,7 +606,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
 app.post("/api/webhooks/jobs", async (req, res) => {
   const payload = req.body;
   const { type, record, old_record } = payload;
-  
+
   if (!record) return res.status(400).json({ error: "Missing record in payload" });
 
   console.log(`📡 WEBHOOK: Received Job Event. Type: ${type}, Record:`, record.id);
@@ -645,7 +645,7 @@ app.post("/api/webhooks/jobs", async (req, res) => {
           .select('email, full_name')
           .eq('id', record.assigned_to)
           .single();
-        
+
         if (profile) {
           email = profile.email;
           fullName = profile.full_name || fullName;
