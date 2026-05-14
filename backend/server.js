@@ -87,10 +87,18 @@ const taskChannel = supabase
     { event: 'INSERT', schema: 'public', table: 'tasks' },
     async (payload) => {
       console.log('📡 REAL-TIME: New task detected via DB listener:', payload.new.id);
-
-      // We re-use the exact same logic as the webhook to avoid duplication
-      // But we call a internal helper or the logic directly
       processTaskNotification(payload.new, 'INSERT');
+    }
+  )
+  .on(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'tasks' },
+    async (payload) => {
+      const isRestarted = payload.new.status === 'Pending' && payload.old.status === 'Completed';
+      if (isRestarted) {
+        console.log('📡 REAL-TIME: Task restart detected via DB listener:', payload.new.id);
+        processTaskNotification(payload.new, 'UPDATE', true);
+      }
     }
   )
   .subscribe();
@@ -99,9 +107,9 @@ const taskChannel = supabase
  * Shared logic for processing task notifications
  * (Used by both Webhook and Real-time listener)
  */
-async function processTaskNotification(record, type) {
+async function processTaskNotification(record, type, isRestart = false) {
   try {
-    console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id}`);
+    console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id} (Restart: ${isRestart})`);
 
     // 1. Fetch profiles
     const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
@@ -111,25 +119,39 @@ async function processTaskNotification(record, type) {
       const isPersonal = record.sender_id === record.receiver_id;
       const senderName = sender?.full_name || 'A team member';
 
+      const subject = isRestart 
+        ? (isPersonal ? "Personal Task Restarted" : "Assigned Task Restarted")
+        : (isPersonal ? "Personal Task Reminder" : "New Task Allocated");
+      
+      const title = isRestart
+        ? "Task Reactivated"
+        : (isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment");
+
+      const deadlineInfo = record.deadline_at ? `\nNew Deadline: ${new Date(record.deadline_at).toLocaleString()}` : '';
+
+      const body = isRestart
+        ? `Task "${record.title}" has been restarted.${deadlineInfo}\n\nDetails: ${record.description || 'No description.'}`
+        : (isPersonal
+          ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
+          : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`);
+
       // 2. Send Email
       await sendSealEmail({
         to: receiver.email,
-        subject: isPersonal ? "Personal Task Reminder" : "New Task Allocated",
-        title: isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment",
-        body: isPersonal
-          ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
-          : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`,
+        subject: subject,
+        title: title,
+        body: body,
         actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
         actionText: "View Task",
-        type: isPersonal ? 'assignment' : 'info'
+        type: isRestart ? 'reminder' : (isPersonal ? 'assignment' : 'info')
       });
 
       // 3. Emit Real-time Socket Alert
       io.to(record.receiver_id).emit("new_notification", {
         id: Date.now(),
-        title: isPersonal ? "Personal Task Added" : "New Task Assigned",
+        title: isRestart ? "Task Restarted" : (isPersonal ? "Personal Task Added" : "New Task Assigned"),
         message: record.title,
-        type: isPersonal ? "task" : "assignment",
+        type: isRestart ? "reminder" : (isPersonal ? "task" : "assignment"),
         task_id: record.id
       });
 
@@ -713,10 +735,11 @@ app.post("/api/webhooks/tasks", async (req, res) => {
 
   // Check if task is being newly assigned
   const isNewTask = record.receiver_id && (!old_record || record.receiver_id !== old_record.receiver_id);
+  const isRestarted = type === 'UPDATE' && record.status === 'Pending' && old_record?.status === 'Completed';
 
-  if (isNewTask || type === 'INSERT') {
+  if (isNewTask || type === 'INSERT' || isRestarted) {
     // Call the shared logic
-    processTaskNotification(record, type);
+    processTaskNotification(record, type, isRestarted);
   }
 
   res.status(200).json({ received: true });

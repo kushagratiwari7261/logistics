@@ -43,6 +43,18 @@ const JobAllocation = ({ user }) => {
     list: 'My Tasks'
   })
 
+  // Restart Task State
+  const [showRestartModal, setShowRestartModal] = useState(false)
+  const [restartTask, setRestartTask] = useState(null)
+  const [restartFormData, setRestartFormData] = useState({
+    title: '',
+    description: '',
+    priority: '',
+    date: '',
+    time: '',
+    allDay: false
+  })
+
   // Form State
   const [newTicket, setNewTicket] = useState({
     receiver_id: '',
@@ -219,10 +231,72 @@ const JobAllocation = ({ user }) => {
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
       setTasksReceived(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
+      setTasksSent(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
       const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
       if (error) throw error
     } catch (err) {
       fetchData(true)
+    }
+  }
+
+  const initiateRestart = (task) => {
+    setRestartTask(task)
+    const deadline = task.deadline_at ? new Date(task.deadline_at) : null
+    setRestartFormData({
+      title: task.title || '',
+      description: task.description || '',
+      priority: task.priority || 'Medium',
+      date: deadline ? deadline.toISOString().split('T')[0] : '',
+      time: deadline ? deadline.toTimeString().split(' ')[0].substring(0, 5) : '',
+      allDay: false
+    })
+    setShowRestartModal(true)
+  }
+
+  const handleRestartSubmit = async (e) => {
+    e.preventDefault()
+    if (!restartTask || isSubmitting) return
+
+    setIsSubmitting(true)
+    let deadlineStr = null
+    if (restartFormData.date) {
+      if (restartFormData.allDay) {
+        deadlineStr = new Date(`${restartFormData.date}T23:59:59`).toISOString()
+      } else if (restartFormData.time) {
+        deadlineStr = new Date(`${restartFormData.date}T${restartFormData.time}`).toISOString()
+      } else {
+        deadlineStr = new Date(`${restartFormData.date}T23:59:59`).toISOString()
+      }
+    }
+
+    try {
+      const updatePayload = {
+        title: restartFormData.title,
+        description: restartFormData.description,
+        priority: restartFormData.priority,
+        status: 'Pending',
+        deadline_at: deadlineStr,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(updatePayload)
+        .eq('id', restartTask.id)
+
+      if (error) throw error
+
+      // Update local state
+      const updateList = (list) => list.map(t => t.id === restartTask.id ? { ...t, ...updatePayload } : t)
+      setTasksReceived(prev => updateList(prev))
+      setTasksSent(prev => updateList(prev))
+      
+      setShowRestartModal(false)
+      setRestartTask(null)
+    } catch (err) {
+      alert('Restart Fail: ' + err.message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -375,6 +449,12 @@ const JobAllocation = ({ user }) => {
                     {activeTab === 'received' && task.status !== 'Completed' && (
                       <button onClick={() => updateTaskStatus(task.id, 'Completed')} className="complete-btn">
                         <CheckCircle2 size={16} /> Mark Done
+                      </button>
+                    )}
+
+                    {task.status === 'Completed' && (
+                      <button onClick={() => initiateRestart(task)} className="restart-btn">
+                        <Clock size={16} /> Restart
                       </button>
                     )}
                   </div>
@@ -577,6 +657,96 @@ const JobAllocation = ({ user }) => {
         )}
       </AnimatePresence>
 
+      {/* --- RESTART TASK MODAL --- */}
+      <AnimatePresence>
+        {showRestartModal && (
+          <div className="modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="ticket-modal glass-morph"
+            >
+              <div className="modal-glow-line" style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
+
+              <div className="modal-top">
+                <div className="m-text">
+                  <h2>Update Deadline & Restart</h2>
+                  <p>Set a new deadline for "{restartTask?.title}"</p>
+                </div>
+                <button onClick={() => setShowRestartModal(false)} className="m-close"><X /></button>
+              </div>
+
+              <form onSubmit={handleRestartSubmit} className="m-form compact-form">
+                <div className="f-group">
+                  <label>Task Title</label>
+                  <div className="input-field">
+                    <Sparkles size={16} />
+                    <input required type="text" value={restartFormData.title} onChange={e => setRestartFormData({ ...restartFormData, title: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="f-group">
+                    <label>Urgency Level</label>
+                    <div className="select-wrapper">
+                      <Zap size={16} />
+                      <select value={restartFormData.priority} onChange={e => setRestartFormData({ ...restartFormData, priority: e.target.value })}>
+                        <option value="Low">Low Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="High">High Priority</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="f-group">
+                    <label>Schedule Update</label>
+                    <div className="datetime-row">
+                      <div className="input-field date-field">
+                        <Calendar size={16} />
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          value={restartFormData.date}
+                          onChange={e => setRestartFormData({ ...restartFormData, date: e.target.value })}
+                        />
+                      </div>
+                      {!restartFormData.allDay && (
+                        <div className="input-field time-field">
+                          <Clock size={16} />
+                          <input
+                            type="time"
+                            value={restartFormData.time}
+                            onChange={e => setRestartFormData({ ...restartFormData, time: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="f-group">
+                  <label>Update Context/Description</label>
+                  <textarea rows={3} value={restartFormData.description} onChange={e => setRestartFormData({ ...restartFormData, description: e.target.value })} />
+                </div>
+
+                <div className="checkbox-wrap mt-1">
+                  <label className="checkbox-pill personal-checkbox">
+                    <input type="checkbox" checked={restartFormData.allDay} onChange={e => setRestartFormData({ ...restartFormData, allDay: e.target.checked })} />
+                    <span>All day task</span>
+                  </label>
+                </div>
+
+                <div className="f-group flex-end">
+                  <button type="submit" disabled={isSubmitting} className="submit-ticket-btn" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 20px 40px rgba(245, 158, 11, 0.3)' }}>
+                    {isSubmitting ? 'Updating...' : 'Restart Task'} <ArrowRight size={18} />
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <style>{`
         .page-container { padding: 50px 80px; min-height: 100vh; background: var(--bg-surface-2); }
         
@@ -635,6 +805,7 @@ const JobAllocation = ({ user }) => {
         .p-role { font-size: 11px; color: var(--text-muted); }
         
         .complete-btn { background: #10b981; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+        .restart-btn { background: #f59e0b; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
         
         /* --- MODAL --- */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
