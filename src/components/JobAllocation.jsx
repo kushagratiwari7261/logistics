@@ -347,11 +347,11 @@ const JobAllocation = ({ user }) => {
       <div className="top-banner">
         <div className="banner-left">
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="system-status">
-            <div className="status-dot pulsed" />
-            <span>Operational Heartbeat: {lastSync.toLocaleTimeString()}</span>
+            <div className="status-dot" />
+            <span>Sync Status: {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </motion.div>
-          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="brand-h1">Command Center</motion.h1>
-          <p className="brand-p">Direct peer-to-peer tasking & real-time team audit.</p>
+          <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="brand-h1">Task Management</motion.h1>
+          <p className="brand-p">Streamline peer-to-peer assignments and team productivity.</p>
         </div>
 
         <div className="banner-right">
@@ -366,20 +366,20 @@ const JobAllocation = ({ user }) => {
           </div>
           <div className="action-buttons">
             <motion.button
-              whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowPersonalModal(true)}
-              className="action-trigger-btn personal-btn"
+              className="action-trigger-btn secondary"
             >
-              <User size={20} /> My Task
+              <User size={18} /> Add Personal
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.05, boxShadow: '0 20px 40px var(--brand-glow)' }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowCreateModal(true)}
-              className="action-trigger-btn"
+              className="action-trigger-btn primary"
             >
-              <Plus size={20} /> Raise Task
+              <Plus size={18} /> Assign Task
             </motion.button>
           </div>
         </div>
@@ -441,20 +441,30 @@ const JobAllocation = ({ user }) => {
                     <div className="personnel">
                       <div className="p-avatar">{(activeTab === 'received' ? task.sender?.full_name : task.receiver?.full_name)?.[0] || '?'}</div>
                       <div className="p-info">
+                        <span className="p-role">{activeTab === 'received' ? 'Assigned by' : 'Assigned to'}</span>
                         <span className="p-name">{activeTab === 'received' ? task.sender?.full_name : task.receiver?.full_name}</span>
-                        <span className="p-role">{activeTab === 'received' ? 'Assigner' : 'Assignee'}</span>
                       </div>
                     </div>
 
+                    {task.deadline_at && (
+                      <div className="task-deadline-info">
+                        <Clock size={12} />
+                        <span>{new Date(task.deadline_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="card-actions-row">
+
                     {activeTab === 'received' && task.status !== 'Completed' && (
                       <button onClick={() => updateTaskStatus(task.id, 'Completed')} className="complete-btn">
-                        <CheckCircle2 size={16} /> Mark Done
+                        <CheckCircle2 size={16} /> Mark as Done
                       </button>
                     )}
 
                     {task.status === 'Completed' && (
                       <button onClick={() => initiateRestart(task)} className="restart-btn">
-                        <Clock size={16} /> Restart
+                        <Clock size={16} /> Re-open Task
                       </button>
                     )}
                   </div>
@@ -473,9 +483,8 @@ const JobAllocation = ({ user }) => {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="ticket-modal glass-morph"
+              className="ticket-modal"
             >
-              <div className="modal-glow-line" />
 
               <div className="modal-top">
                 <div className="m-text">
@@ -558,9 +567,8 @@ const JobAllocation = ({ user }) => {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="ticket-modal glass-morph"
+              className="ticket-modal"
             >
-              <div className="modal-glow-line" style={{ background: 'linear-gradient(90deg, transparent, #10b981, transparent)' }} />
 
               <div className="modal-top">
                 <div className="m-text">
@@ -665,9 +673,8 @@ const JobAllocation = ({ user }) => {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="ticket-modal glass-morph"
+              className="ticket-modal"
             >
-              <div className="modal-glow-line" style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
 
               <div className="modal-top">
                 <div className="m-text">
@@ -748,163 +755,116 @@ const JobAllocation = ({ user }) => {
       </AnimatePresence>
 
       <style>{`
-        .page-container { padding: 50px 80px; min-height: 100vh; background: var(--bg-surface-2); }
+        .page-container { padding: 40px 60px; min-height: 100vh; background: #f8fafc; color: #1e293b; }
         
-        .top-banner { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 50px; }
+        .top-banner { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
         
-        .system-status { display: flex; align-items: center; gap: 10px; color: var(--brand-primary); font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 15px; }
-        .status-dot { width: 8px; height: 8px; background: var(--brand-primary); border-radius: 50%; }
-        .pulsed { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.5); } 100% { opacity: 1; transform: scale(1); } }
+        .system-status { display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+        .status-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; }
         
-        .brand-h1 { font-size: 52px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); margin: 0 0 5px; }
-        .brand-p { color: var(--text-muted); font-size: 16px; margin: 0; }
+        .brand-h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; margin: 0 0 4px; }
+        .brand-p { color: #64748b; font-size: 15px; margin: 0; }
         
-        .banner-right { display: flex; align-items: center; gap: 20px; }
-        .search-pill { position: relative; display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 100px; padding: 0 20px; min-width: 320px; }
-        .search-pill input { border: none; background: none; padding: 14px 10px; width: 100%; color: var(--text-primary); outline: none; font-weight: 600; }
-        .search-pill svg { opacity: 0.4; }
+        .banner-right { display: flex; align-items: center; gap: 16px; }
+        .search-pill { position: relative; display: flex; align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0 16px; min-width: 280px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .search-pill input { border: none; background: none; padding: 10px 8px; width: 100%; color: #1e293b; outline: none; font-size: 14px; font-weight: 500; }
+        .search-pill svg { color: #94a3b8; }
         
-        .action-buttons { display: flex; gap: 15px; align-items: center; }
-        .action-trigger-btn { background: var(--brand-gradient); color: #fff; border: none; border-radius: 100px; padding: 15px 35px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; gap: 10px; align-items: center; box-shadow: 0 15px 40px var(--brand-glow); }
-        .personal-btn { background: var(--bg-surface); color: var(--text-primary); border: 2px solid var(--border); box-shadow: none; padding: 13px 25px; transition: all 0.3s; }
-        .personal-btn:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+        .action-buttons { display: flex; gap: 12px; align-items: center; }
+        .action-trigger-btn { border-radius: 10px; padding: 10px 20px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; gap: 8px; align-items: center; transition: all 0.2s; border: 1px solid transparent; }
+        .action-trigger-btn.primary { background: #4f46e5; color: #fff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
+        .action-trigger-btn.primary:hover { background: #4338ca; transform: translateY(-1px); }
+        .action-trigger-btn.secondary { background: #fff; color: #475569; border-color: #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .action-trigger-btn.secondary:hover { background: #f1f5f9; border-color: #cbd5e1; }
         
-        .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
-        .tab-group { display: flex; gap: 40px; }
-        .task-tabs button { background: none; border: none; padding: 20px 0; color: var(--text-muted); font-weight: 800; font-size: 16px; cursor: pointer; position: relative; display: flex; align-items: center; gap: 12px; }
-        .task-tabs button span { background: var(--bg-surface); padding: 2px 10px; border-radius: 6px; font-size: 11px; }
-        .task-tabs button.active { color: var(--brand-primary); }
-        .task-tabs button.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: var(--brand-primary); border-radius: 2px; }
+        .task-tabs { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; margin-bottom: 32px; }
+        .tab-group { display: flex; gap: 32px; }
+        .task-tabs button { background: none; border: none; padding: 16px 4px; color: #64748b; font-weight: 700; font-size: 15px; cursor: pointer; position: relative; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+        .task-tabs button span { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 100px; font-size: 12px; }
+        .task-tabs button:hover { color: #1e293b; }
+        .task-tabs button.active { color: #4f46e5; }
+        .task-tabs button.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #4f46e5; }
         
-        .filter-options { display: flex; align-items: center; gap: 20px; }
-        .checkbox-pill { display: flex; align-items: center; gap: 10px; cursor: pointer; background: var(--bg-surface); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); transition: all 0.2s; user-select: none; }
-        .checkbox-pill:hover { border-color: var(--brand-primary); }
-        .checkbox-pill input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-primary); }
-        .checkbox-pill span { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .filter-options { display: flex; align-items: center; }
+        .checkbox-pill { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; transition: all 0.2s; }
+        .checkbox-pill:hover { border-color: #cbd5e1; background: #f8fafc; }
+        .checkbox-pill input { width: 14px; height: 14px; accent-color: #4f46e5; }
+        .checkbox-pill span { font-size: 13px; font-weight: 600; color: #475569; }
         
-        .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 30px; }
+        .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
         
-        .ticket-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 32px; padding: 32px; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.03); border-top: 6px solid #4f46e5; }
-        .ticket-card.high { border-top-color: #ef4444; }
-        .ticket-card.low { border-top-color: #10b981; }
+        .ticket-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; position: relative; display: flex; flex-direction: column; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .ticket-card:hover { border-color: #cbd5e1; box-shadow: 0 10px 20px rgba(0,0,0,0.04); }
         
-        .ticket-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .priority-label { font-size: 10px; font-weight: 900; text-transform: uppercase; background: rgba(79, 70, 229, 0.1); color: var(--brand-primary); padding: 5px 12px; border-radius: 50px; }
-        .high .priority-label { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-        .low .priority-label { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .status-pill { font-size: 12px; font-weight: 800; color: #f59e0b; display: flex; align-items: center; gap: 6px; }
+        .ticket-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .priority-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 6px; }
+        .priority-label { background: #f1f5f9; color: #475569; }
+        .high .priority-label { background: #fef2f2; color: #dc2626; }
+        .low .priority-label { background: #f0fdf4; color: #16a34a; }
+        .status-pill { font-size: 12px; font-weight: 700; color: #d97706; }
         
-        .ticket-name { font-size: 22px; font-weight: 900; color: var(--text-primary); margin: 0 0 10px; letter-spacing: -0.02em; }
-        .ticket-brief { color: var(--text-secondary); line-height: 1.6; font-size: 14px; margin-bottom: 30px; opacity: 0.8; }
+        .ticket-name { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 8px; line-height: 1.4; }
+        .ticket-brief { color: #64748b; line-height: 1.5; font-size: 14px; margin-bottom: 24px; flex-grow: 1; }
         
-        .ticket-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 25px; border-top: 1px solid var(--border-subtle); }
-        .personnel { display: flex; align-items: center; gap: 15px; }
-        .p-avatar { width: 32px; height: 32px; background: var(--brand-gradient); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 12px; }
-        .p-name { display: block; font-size: 14px; font-weight: 800; color: var(--text-primary); }
-        .p-role { font-size: 11px; color: var(--text-muted); }
+        .ticket-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid #f1f5f9; margin-bottom: 16px; }
+        .personnel { display: flex; align-items: center; gap: 10px; }
+        .p-avatar { width: 28px; height: 28px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 12px; }
+        .p-info { display: flex; flex-direction: column; }
+        .p-name { font-size: 13px; font-weight: 700; color: #1e293b; }
+        .p-role { font-size: 11px; color: #94a3b8; margin-bottom: 1px; }
         
-        .complete-btn { background: #10b981; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
-        .restart-btn { background: #f59e0b; color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-weight: 800; font-size: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+        .task-deadline-info { display: flex; align-items: center; gap: 4px; color: #64748b; font-size: 12px; font-weight: 600; }
         
-        /* --- MODAL --- */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
-        .ticket-modal { background: var(--bg-surface); width: 100%; max-width: 850px; border-radius: 40px; position: relative; overflow: hidden; box-shadow: 0 50px 150px rgba(0,0,0,0.6); border: 1px solid var(--border); }
-        .modal-glow-line { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--brand-primary), transparent); opacity: 0.6; }
+        .card-actions-row { display: flex; gap: 8px; }
+        .complete-btn, .restart-btn { flex: 1; border: none; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; justify-content: center; gap: 6px; align-items: center; transition: all 0.2s; }
+        .complete-btn { background: #10b981; color: #fff; }
+        .complete-btn:hover { background: #059669; }
+        .restart-btn { background: #f59e0b; color: #fff; }
+        .restart-btn:hover { background: #d97706; }
         
-        .modal-top { padding: 40px 60px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-surface-2); }
-        .m-text h2 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em; color: var(--text-primary); }
-        .m-text p { margin: 6px 0 0; color: var(--text-secondary); font-size: 15px; }
-        .m-close { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; cursor: pointer; color: var(--text-muted); padding: 12px; display: flex; transition: all 0.2s; }
-        .m-close:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); transform: rotate(90deg); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
+        .ticket-modal { background: #fff; width: 100%; max-width: 600px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid #e2e8f0; }
         
-        .m-form { padding: 50px 60px; display: flex; flex-direction: column; gap: 32px; }
+        .modal-top { padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; background: #fff; }
+        .m-text h2 { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
+        .m-text p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
+        .m-close { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; cursor: pointer; color: #64748b; padding: 8px; display: flex; transition: all 0.2s; }
+        .m-close:hover { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
         
-        /* Compact Form for Personal Tasks to reduce height */
-        .compact-form { padding: 30px 60px; gap: 20px; }
-        .compact-form .f-group label { margin-bottom: 8px; }
-        .compact-form .select-wrapper select, .compact-form .input-field input { padding: 14px 10px; font-size: 15px; }
-        .compact-form textarea { padding: 14px 20px; min-height: 80px; }
-        .compact-form .submit-ticket-btn { padding: 16px 30px; font-size: 16px; }
-        .compact-form .checkbox-wrap.mt-3 { margin-top: 10px; }
-
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .flex-end { display: flex; align-items: flex-end; }
+        .m-form { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+        .compact-form { padding: 24px 32px; gap: 20px; }
         
-        .f-group label { display: block; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 12px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .f-group label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
         
-        .select-wrapper, .input-field { position: relative; display: flex; align-items: center; background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 0 20px; transition: all 0.2s; }
-        .select-wrapper:focus-within, .input-field:focus-within { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); }
+        .select-wrapper, .input-field { position: relative; display: flex; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0 14px; transition: all 0.2s; }
+        .select-wrapper:focus-within, .input-field:focus-within { border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
         
-        .select-wrapper select, .input-field input, .m-form textarea { width: 100%; border: none; background: none; padding: 20px 10px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none; font-family: inherit; }
-        .select-wrapper svg, .input-field svg { color: var(--brand-primary); opacity: 0.8; flex-shrink: 0; width: 20px; height: 20px; }
+        .select-wrapper select, .input-field input, .m-form textarea { width: 100%; border: none; background: none; padding: 12px 8px; color: #1e293b; font-size: 14px; font-weight: 600; outline: none; font-family: inherit; }
+        .select-wrapper svg, .input-field svg { color: #64748b; flex-shrink: 0; width: 18px; height: 18px; }
         
-        .m-form textarea { background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: 24px; padding: 20px 24px; width: 100%; resize: none; transition: all 0.2s; font-family: inherit; font-size: 16px; font-weight: 600; color: var(--text-primary); }
-        .m-form textarea:focus { border-color: var(--brand-primary); background: var(--bg-surface); box-shadow: 0 0 0 6px var(--brand-glow); outline: none; }
-
-        .datetime-row { display: flex; gap: 15px; }
-        .date-field { flex: 1; }
-        .time-field { width: 140px; }
-        .mt-3 { margin-top: 15px; }
-        .personal-checkbox { display: inline-flex; padding: 8px 16px; border-radius: 10px; }
+        .m-form textarea { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; min-height: 100px; resize: vertical; transition: all 0.2s; }
+        .m-form textarea:focus { border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
 
         .submit-ticket-btn { 
-          width: 100%;
-          background: var(--brand-gradient); 
-          color: #fff; 
-          border: none; 
-          border-radius: 20px; 
-          padding: 22px 35px; 
-          font-weight: 900; 
-          font-size: 18px; 
-          cursor: pointer; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          gap: 12px; 
-          box-shadow: 0 20px 40px var(--brand-glow); 
-          transition: all 0.3s; 
+          width: 100%; background: #4f46e5; color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 700; font-size: 15px; 
+          cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
         }
-        .submit-ticket-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 30px 60px var(--brand-glow); }
-        .submit-ticket-btn:active { transform: translateY(0) scale(1); }
-        .submit-ticket-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .submit-ticket-btn:hover { background: #4338ca; transform: translateY(-1px); }
+        .submit-ticket-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .void-state { grid-column: 1/-1; padding: 100px; text-align: center; opacity: 0.5; }
-        .loading-stage { height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
-        .loading-orbit { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s infinite linear; }
+        .void-state { grid-column: 1/-1; padding: 80px; text-align: center; color: #94a3b8; }
+        .loading-orbit { width: 32px; height: 32px; border: 2px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        @media (max-width: 1024px) {
-          .page-container { padding: 30px; }
-          .top-banner { flex-direction: column; align-items: flex-start; gap: 30px; }
-          .task-grid { grid-template-columns: 1fr; }
-        }
-
         @media (max-width: 768px) {
-          .page-container { padding: 20px 15px; }
-          .brand-h1 { font-size: 32px; }
-          .top-banner { margin-bottom: 30px; }
-          .banner-right { width: 100%; flex-direction: column; align-items: stretch; gap: 15px; }
-          .search-pill { min-width: 100%; width: 100%; }
-          .action-trigger-btn { justify-content: center; width: 100%; }
-          
-          .task-tabs { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 25px; }
-          .tab-group { flex-direction: column; gap: 8px; width: 100%; }
-          .task-tabs button { justify-content: space-between; padding: 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; margin: 0; }
-          .task-tabs button.active { border-color: var(--brand-primary); background: var(--brand-glow); }
-          .task-tabs button.active::after { display: none; }
-          .filter-options { width: 100%; justify-content: center; }
-          
-          .ticket-card { padding: 24px; width: 100%; }
-          
-          /* Modal Mobile */
-          .modal-backdrop { padding: 10px; align-items: center; }
-          .ticket-modal { border-radius: 24px; max-height: 95vh; display: flex; flex-direction: column; }
-          .modal-top { padding: 20px 24px; }
-          .m-text h2 { font-size: 18px; }
-          .m-form { padding: 20px 24px; gap: 16px; overflow-y: auto; }
-          .form-row { grid-template-columns: 1fr; gap: 16px; }
-          .submit-ticket-btn { margin-top: 10px; }
+          .page-container { padding: 20px; }
+          .top-banner { flex-direction: column; align-items: stretch; gap: 24px; }
+          .brand-h1 { font-size: 24px; }
+          .banner-right { flex-direction: column; align-items: stretch; }
+          .search-pill { min-width: 0; }
+          .task-tabs { flex-direction: column; align-items: flex-start; }
+          .form-row { grid-template-columns: 1fr; }
         }
       `}</style>
     </motion.div>

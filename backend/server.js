@@ -103,10 +103,7 @@ const taskChannel = supabase
   )
   .subscribe();
 
-/**
- * Shared logic for processing task notifications
- * (Used by both Webhook and Real-time listener)
- */
+
 async function processTaskNotification(record, type, isRestart = false) {
   try {
     console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id} (Restart: ${isRestart})`);
@@ -119,10 +116,10 @@ async function processTaskNotification(record, type, isRestart = false) {
       const isPersonal = record.sender_id === record.receiver_id;
       const senderName = sender?.full_name || 'A team member';
 
-      const subject = isRestart 
+      const subject = isRestart
         ? (isPersonal ? "Personal Task Restarted" : "Assigned Task Restarted")
         : (isPersonal ? "Personal Task Reminder" : "New Task Allocated");
-      
+
       const title = isRestart
         ? "Task Reactivated"
         : (isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment");
