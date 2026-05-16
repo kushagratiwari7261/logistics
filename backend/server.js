@@ -95,18 +95,23 @@ const taskChannel = supabase
     { event: 'UPDATE', schema: 'public', table: 'tasks' },
     async (payload) => {
       const isRestarted = payload.new.status === 'Pending' && payload.old.status === 'Completed';
-      if (isRestarted) {
-        console.log('📡 REAL-TIME: Task restart detected via DB listener:', payload.new.id);
-        processTaskNotification(payload.new, 'UPDATE', true);
+      const isEdit = (payload.new.title !== payload.old.title) || 
+                     (payload.new.description !== payload.old.description) || 
+                     (payload.new.deadline_at !== payload.old.deadline_at);
+
+      if (isRestarted || isEdit) {
+        console.log(`📡 REAL-TIME: Task ${isRestarted ? 'restart' : 'edit'} detected via DB listener:`, payload.new.id);
+        processTaskNotification(payload.new, 'UPDATE', { isRestart: isRestarted, isEdit });
       }
     }
   )
   .subscribe();
 
 
-async function processTaskNotification(record, type, isRestart = false) {
+async function processTaskNotification(record, type, options = {}) {
+  const { isRestart = false, isEdit = false } = options;
   try {
-    console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id} (Restart: ${isRestart})`);
+    console.log(`🔍 [Processing] Task ${record.id} for receiver ${record.receiver_id} (Restart: ${isRestart}, Edit: ${isEdit})`);
 
     // 1. Fetch profiles
     const { data: receiver } = await supabase.from('profiles').select('email, full_name').eq('id', record.receiver_id).single();
@@ -116,21 +121,28 @@ async function processTaskNotification(record, type, isRestart = false) {
       const isPersonal = record.sender_id === record.receiver_id;
       const senderName = sender?.full_name || 'A team member';
 
-      const subject = isRestart
-        ? (isPersonal ? "Personal Task Restarted" : "Assigned Task Restarted")
-        : (isPersonal ? "Personal Task Reminder" : "New Task Allocated");
+      let subject = isPersonal ? "Personal Task Reminder" : "New Task Allocated";
+      let title = isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment";
+      
+      if (isRestart) {
+        subject = isPersonal ? "Personal Task Restarted" : "Assigned Task Restarted";
+        title = "Task Reactivated";
+      } else if (isEdit) {
+        subject = isPersonal ? "Personal Task Updated" : "Assigned Task Updated";
+        title = "Task Details Modified";
+      }
 
-      const title = isRestart
-        ? "Task Reactivated"
-        : (isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment");
+      const deadlineInfo = record.deadline_at ? `\nDeadline: ${new Date(record.deadline_at).toLocaleString()}` : '';
 
-      const deadlineInfo = record.deadline_at ? `\nNew Deadline: ${new Date(record.deadline_at).toLocaleString()}` : '';
-
-      const body = isRestart
-        ? `Task "${record.title}" has been restarted.${deadlineInfo}\n\nDetails: ${record.description || 'No description.'}`
-        : (isPersonal
+      let body = isPersonal
           ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
-          : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`);
+          : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`;
+
+      if (isRestart) {
+        body = `Task "${record.title}" has been restarted.${deadlineInfo}\n\nDetails: ${record.description || 'No description.'}`;
+      } else if (isEdit) {
+        body = `Task "${record.title}" has been updated with new details.${deadlineInfo}\n\nDetails: ${record.description || 'No description.'}`;
+      }
 
       // 2. Send Email
       await sendSealEmail({
@@ -140,15 +152,15 @@ async function processTaskNotification(record, type, isRestart = false) {
         body: body,
         actionLink: "https://logistics-alpha-steel.vercel.app/job-allocation",
         actionText: "View Task",
-        type: isRestart ? 'reminder' : (isPersonal ? 'assignment' : 'info')
+        type: (isRestart || isEdit) ? 'reminder' : (isPersonal ? 'assignment' : 'info')
       });
 
       // 3. Emit Real-time Socket Alert
       io.to(record.receiver_id).emit("new_notification", {
         id: Date.now(),
-        title: isRestart ? "Task Restarted" : (isPersonal ? "Personal Task Added" : "New Task Assigned"),
+        title: isRestart ? "Task Restarted" : (isEdit ? "Task Updated" : (isPersonal ? "Personal Task Added" : "New Task Assigned")),
         message: record.title,
-        type: isRestart ? "reminder" : (isPersonal ? "task" : "assignment"),
+        type: (isRestart || isEdit) ? "reminder" : (isPersonal ? "task" : "assignment"),
         task_id: record.id
       });
 
@@ -733,10 +745,12 @@ app.post("/api/webhooks/tasks", async (req, res) => {
   // Check if task is being newly assigned
   const isNewTask = record.receiver_id && (!old_record || record.receiver_id !== old_record.receiver_id);
   const isRestarted = type === 'UPDATE' && record.status === 'Pending' && old_record?.status === 'Completed';
+  const isEdit = type === 'UPDATE' && !isRestarted && 
+                 (record.title !== old_record?.title || record.description !== old_record?.description || record.deadline_at !== old_record?.deadline_at);
 
-  if (isNewTask || type === 'INSERT' || isRestarted) {
+  if (isNewTask || type === 'INSERT' || isRestarted || isEdit) {
     // Call the shared logic
-    processTaskNotification(record, type, isRestarted);
+    processTaskNotification(record, type, { isRestart: isRestarted, isEdit });
   }
 
   res.status(200).json({ received: true });

@@ -17,7 +17,8 @@ import {
   Sparkles,
   Search,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Pencil
 } from 'lucide-react'
 
 const JobAllocation = ({ user }) => {
@@ -31,6 +32,7 @@ const JobAllocation = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [lastSync, setLastSync] = useState(new Date())
+  const [editingTask, setEditingTask] = useState(null)
 
   const [showPersonalModal, setShowPersonalModal] = useState(false)
   const [newPersonalTask, setNewPersonalTask] = useState({
@@ -141,17 +143,25 @@ const JobAllocation = ({ user }) => {
     setActiveTab('sent')
 
     try {
-      const { data, error } = await supabase.from('tasks').insert([{
-        ...newTicket,
-        sender_id: user.id,
-        status: 'Pending'
-      }]).select().single()
-
-      if (error) throw error
-
-      // Update the optimistic item with real data
-      setTasksSent(prev => prev.map(t => t.id === tempId ? { ...data, receiver: optimisticTask.receiver } : t))
+      if (editingTask) {
+        const { error } = await supabase.from('tasks').update({
+          ...newTicket,
+          updated_at: new Date().toISOString()
+        }).eq('id', editingTask.id)
+        if (error) throw error
+        await fetchData(true)
+      } else {
+        const { data, error } = await supabase.from('tasks').insert([{
+          ...newTicket,
+          sender_id: user.id,
+          status: 'Pending'
+        }]).select().single()
+        if (error) throw error
+        // Update the optimistic item with real data
+        setTasksSent(prev => prev.map(t => t.id === tempId ? { ...data, receiver: optimisticTask.receiver } : t))
+      }
       setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
+      setEditingTask(null)
     } catch (err) {
       setTasksSent(prev => prev.filter(t => t.id !== tempId))
       alert('Sync Fail: ' + err.message)
@@ -215,11 +225,22 @@ const JobAllocation = ({ user }) => {
     setActiveTab('received')
 
     try {
-      const { data, error } = await supabase.from('tasks').insert([taskToInsert]).select().single()
-      if (error) throw error
-
-      setTasksReceived(prev => prev.map(t => t.id === tempId ? { ...data, sender: optimisticTask.sender, receiver: optimisticTask.receiver } : t))
+      if (editingTask) {
+        const { error } = await supabase.from('tasks').update({
+          title: newPersonalTask.title,
+          description: finalDesc,
+          deadline_at: deadlineStr,
+          updated_at: new Date().toISOString()
+        }).eq('id', editingTask.id)
+        if (error) throw error
+        await fetchData(true)
+      } else {
+        const { data, error } = await supabase.from('tasks').insert([taskToInsert]).select().single()
+        if (error) throw error
+        setTasksReceived(prev => prev.map(t => t.id === tempId ? { ...data, sender: optimisticTask.sender, receiver: optimisticTask.receiver } : t))
+      }
       setNewPersonalTask({ title: '', date: '', time: '', allDay: false, recurrence: 'Does not repeat', description: '', list: 'My Tasks' })
+      setEditingTask(null)
     } catch (err) {
       setTasksReceived(prev => prev.filter(t => t.id !== tempId))
       alert('Sync Fail: ' + err.message)
@@ -293,10 +314,51 @@ const JobAllocation = ({ user }) => {
       
       setShowRestartModal(false)
       setRestartTask(null)
-    } catch (err) {
-      alert('Restart Fail: ' + err.message)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const initiateEdit = (task) => {
+    setEditingTask(task)
+    if (task.sender_id === task.receiver_id) {
+      // Personal task
+      const deadline = task.deadline_at ? new Date(task.deadline_at) : null
+      
+      // Try to parse recurrence and list from description
+      let recurrence = 'Does not repeat'
+      let list = 'My Tasks'
+      let cleanDesc = task.description || ''
+      
+      if (cleanDesc.includes('[Recurrence:')) {
+        recurrence = cleanDesc.match(/\[Recurrence: (.*?)\]/)?.[1] || 'Does not repeat'
+        cleanDesc = cleanDesc.replace(/\[Recurrence: .*?\]/g, '').trim()
+      }
+      if (cleanDesc.includes('[List:')) {
+        list = cleanDesc.match(/\[List: (.*?)\]/)?.[1] || 'My Tasks'
+        cleanDesc = cleanDesc.replace(/\[List: .*?\]/g, '').trim()
+      }
+
+      setNewPersonalTask({
+        title: task.title,
+        date: deadline ? deadline.toISOString().split('T')[0] : '',
+        time: deadline ? deadline.toTimeString().split(' ')[0].substring(0, 5) : '',
+        allDay: false,
+        recurrence,
+        description: cleanDesc,
+        list
+      })
+      setShowPersonalModal(true)
+    } else {
+      // Assigned task
+      setNewTicket({
+        receiver_id: task.receiver_id,
+        title: task.title,
+        description: task.description || '',
+        priority: task.priority || 'Medium',
+        deadline_at: task.deadline_at ? task.deadline_at.split('T')[0] : ''
+      })
+      setShowCreateModal(true)
     }
   }
 
@@ -431,7 +493,14 @@ const JobAllocation = ({ user }) => {
                 >
                   <div className="ticket-top">
                     <div className="priority-label">{task.priority} Priority</div>
-                    <div className="status-pill">{task.status}</div>
+                    <div className="top-right-actions">
+                      <div className="status-pill">{task.status}</div>
+                      {task.status !== 'Completed' && (task.sender_id === user.id) && (
+                        <button className="edit-mini-btn" onClick={() => initiateEdit(task)}>
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <h3 className="ticket-name">{task.title}</h3>
@@ -488,10 +557,10 @@ const JobAllocation = ({ user }) => {
 
               <div className="modal-top">
                 <div className="m-text">
-                  <h2>Raise Operational Ticket</h2>
-                  <p>Assign critical tasks with direct delivery.</p>
+                  <h2>{editingTask ? 'Update Operational Ticket' : 'Raise Operational Ticket'}</h2>
+                  <p>{editingTask ? 'Modify the details of this assignment.' : 'Assign critical tasks with direct delivery.'}</p>
                 </div>
-                <button onClick={() => setShowCreateModal(false)} className="m-close"><X /></button>
+                <button onClick={() => { setShowCreateModal(false); setEditingTask(null); }} className="m-close"><X /></button>
               </div>
 
               <form onSubmit={handleCreateTicket} className="m-form compact-form">
@@ -549,7 +618,7 @@ const JobAllocation = ({ user }) => {
                   </div>
                   <div className="f-group flex-end">
                     <button type="submit" disabled={isSubmitting} className="submit-ticket-btn">
-                      {isSubmitting ? 'Publishing...' : 'Publish Ticket'} <ArrowRight size={18} />
+                      {isSubmitting ? 'Updating...' : (editingTask ? 'Update Task' : 'Publish Ticket')} <ArrowRight size={18} />
                     </button>
                   </div>
                 </div>
@@ -572,10 +641,10 @@ const JobAllocation = ({ user }) => {
 
               <div className="modal-top">
                 <div className="m-text">
-                  <h2>Add Personal Task</h2>
-                  <p>Create a task for your own workflow.</p>
+                  <h2>{editingTask ? 'Update Personal Task' : 'Add Personal Task'}</h2>
+                  <p>{editingTask ? 'Modify your workflow item.' : 'Create a task for your own workflow.'}</p>
                 </div>
-                <button onClick={() => setShowPersonalModal(false)} className="m-close"><X /></button>
+                <button onClick={() => { setShowPersonalModal(false); setEditingTask(null); }} className="m-close"><X /></button>
               </div>
 
               <form onSubmit={handleCreatePersonalTask} className="m-form compact-form">
@@ -654,8 +723,8 @@ const JobAllocation = ({ user }) => {
                     </div>
                   </div>
                   <div className="f-group flex-end">
-                    <button type="submit" disabled={isSubmitting} className="submit-ticket-btn" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 20px 40px rgba(16, 185, 129, 0.3)' }}>
-                      {isSubmitting ? 'Saving...' : 'Save Task'} <CheckCircle2 size={18} />
+                    <button type="submit" disabled={isSubmitting} className="submit-ticket-btn" style={{ background: '#10b981' }}>
+                      {isSubmitting ? 'Saving...' : (editingTask ? 'Update Task' : 'Save Task')} <CheckCircle2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -856,6 +925,10 @@ const JobAllocation = ({ user }) => {
         .void-state { grid-column: 1/-1; padding: 80px; text-align: center; color: #94a3b8; }
         .loading-orbit { width: 32px; height: 32px; border: 2px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .top-right-actions { display: flex; align-items: center; gap: 10px; }
+        .edit-mini-btn { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .edit-mini-btn:hover { background: #e2e8f0; color: #1e293b; }
 
         @media (max-width: 768px) {
           .page-container { padding: 20px; }
