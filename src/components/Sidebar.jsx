@@ -20,77 +20,102 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-const navItems = [
+const menuSections = [
   {
-    to: '/dashboard',
-    label: 'Dashboard',
-    icon: <LayoutDashboard size={20} />,
+    title: 'MAIN',
+    items: [
+      {
+        to: '/dashboard',
+        label: 'Dashboard',
+        icon: <LayoutDashboard size={20} />,
+      },
+    ],
   },
   {
-    label: 'Business Partner',
-    icon: <Users size={20} />,
-    children: [
+    title: 'PARTNERS',
+    items: [
       {
-        to: '/vendors',
-        label: 'Vendor',
-        icon: <UserPlus size={16} />,
+        label: 'Business Partner',
+        icon: <Users size={20} />,
+        children: [
+          {
+            to: '/customers',
+            label: 'Customer',
+            icon: <Users size={16} />,
+          },
+          {
+            to: '/vendors',
+            label: 'Vendor',
+            icon: <UserPlus size={16} />,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'OPERATIONS',
+    items: [
+      {
+        to: '/dsr',
+        label: 'DSR',
+        icon: <FileText size={20} />,
       },
       {
-        to: '/customers',
-        label: 'Customer',
-        icon: <Users size={16} />,
+        to: '/invoices',
+        label: 'Invoices',
+        icon: <FileText size={20} />,
       },
-    ]
+      {
+        to: '/job-allocation',
+        label: 'Job Allocation',
+        icon: <ClipboardCheck size={20} />,
+      },
+      {
+        to: '/job-orders',
+        label: 'Job Orders',
+        icon: <Briefcase size={20} />,
+      },
+      {
+        to: '/messages',
+        label: 'Messages',
+        icon: <MessageSquare size={20} />,
+      },
+      {
+        to: '/reports',
+        label: 'Reports',
+        icon: <BarChart3 size={20} />,
+      },
+      {
+        to: '/new-shipment',
+        label: 'Shipments',
+        icon: <Ship size={20} />,
+      },
+      {
+        to: '/tracking',
+        label: 'Tracking',
+        icon: <MapPin size={20} />,
+      },
+    ],
   },
   {
-    to: '/new-shipment',
-    label: 'Shipments',
-    icon: <Ship size={20} />,
+    title: 'FINANCE',
+    items: [
+      {
+        to: '/payments',
+        label: 'Payments',
+        icon: <CreditCard size={20} />,
+      },
+    ],
   },
   {
-    to: '/tracking',
-    label: 'Tracking',
-    icon: <MapPin size={20} />,
-  },
-  {
-    to: '/invoices',
-    label: 'Invoices',
-    icon: <FileText size={20} />,
-  },
-  {
-    to: '/payments',
-    label: 'Payments',
-    icon: <CreditCard size={20} />,
-  },
-  {
-    to: '/job-orders',
-    label: 'Job Orders',
-    icon: <Briefcase size={20} />,
-  },
-  {
-    to: '/job-allocation',
-    label: 'Raise Tasks',
-    icon: <ClipboardCheck size={20} />,
-  },
-  {
-    to: '/messages',
-    label: 'Messages',
-    icon: <MessageSquare size={20} />,
-  },
-  {
-    to: '/dsr',
-    label: 'DSR',
-    icon: <FileText size={20} />,
-  },
-  {
-    to: '/reports',
-    label: 'Reports',
-    icon: <BarChart3 size={20} />,
-  },
-  {
-    to: '/settings',
-    label: 'Settings',
-    icon: <Settings size={20} />,
+    title: 'SETTINGS',
+    items: [
+      {
+        to: '/settings',
+        label: 'Settings',
+        icon: <Settings size={20} />,
+      },
+    ],
   },
 ]
 
@@ -200,12 +225,18 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
             <img src={sealLogo} alt="Seal Freight" className="logo-text-image" />
             <div className="sidebar-brand-tag">Logistics Platform</div>
           </div>
-          <div className="sidebar-section-label">Main Menu</div>
-          <nav className="mobile-nav-menu">
-            {navItems.map((item) => (
-              <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+          <div className="sidebar-navigation">
+            {menuSections.map((section) => (
+              <div key={section.title} className="sidebar-section">
+                <div className="sidebar-section-label">{section.title}</div>
+                <nav className="section-nav">
+                  {section.items.map((item) => (
+                    <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+                  ))}
+                </nav>
+              </div>
             ))}
-          </nav>
+          </div>
           <div className="sidebar-divider" />
           <button onClick={handleLogoutClick} className="nav-link logout-btn" type="button">
             <span className="nav-icon">
@@ -227,13 +258,18 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
           <div className="sidebar-brand-tag">Logistics Platform</div>
         </div>
 
-        <div className="sidebar-section-label">Main Menu</div>
-
-        <nav className="nav-menu">
-          {navItems.map((item) => (
-            <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+        <div className="sidebar-navigation">
+          {menuSections.map((section) => (
+            <div key={section.title} className="sidebar-section">
+              <div className="sidebar-section-label">{section.title}</div>
+              <nav className="section-nav">
+                {section.items.map((item) => (
+                  <NavItem key={item.label} item={item} onClick={handleLinkClick} />
+                ))}
+              </nav>
+            </div>
           ))}
-        </nav>
+        </div>
 
         <div className="sidebar-divider" />
 

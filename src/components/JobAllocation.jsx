@@ -600,7 +600,7 @@ const JobAllocation = ({ user }) => {
 
                 <div className="f-group">
                   <label>Additional Context</label>
-                  <textarea rows={3} placeholder="Provide details, links or instructions..." value={newTicket.description} onChange={e => setNewTicket({ ...newTicket, description: e.target.value })} />
+                  <textarea rows={5} placeholder="Provide details, links or instructions..." value={newTicket.description} onChange={e => setNewTicket({ ...newTicket, description: e.target.value })} />
                 </div>
 
                 <div className="form-row">
@@ -707,7 +707,7 @@ const JobAllocation = ({ user }) => {
 
                 <div className="f-group">
                   <label>Description</label>
-                  <textarea rows={3} placeholder="Add description" value={newPersonalTask.description} onChange={e => setNewPersonalTask({ ...newPersonalTask, description: e.target.value })} />
+                  <textarea rows={5} placeholder="Add description" value={newPersonalTask.description} onChange={e => setNewPersonalTask({ ...newPersonalTask, description: e.target.value })} />
                 </div>
 
                 <div className="form-row">
@@ -802,7 +802,7 @@ const JobAllocation = ({ user }) => {
 
                 <div className="f-group">
                   <label>Update Context/Description</label>
-                  <textarea rows={3} value={restartFormData.description} onChange={e => setRestartFormData({ ...restartFormData, description: e.target.value })} />
+                  <textarea rows={5} placeholder="Add any updated context or notes..." value={restartFormData.description} onChange={e => setRestartFormData({ ...restartFormData, description: e.target.value })} />
                 </div>
 
                 <div className="checkbox-wrap mt-1">
@@ -891,37 +891,145 @@ const JobAllocation = ({ user }) => {
         .restart-btn { background: #f59e0b; color: #fff; }
         .restart-btn:hover { background: #d97706; }
         
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
-        .ticket-modal { background: #fff; width: 100%; max-width: 600px; border-radius: 20px; position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid #e2e8f0; }
-        
-        .modal-top { padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; background: #fff; }
-        .m-text h2 { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
-        .m-text p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
-        .m-close { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; cursor: pointer; color: #64748b; padding: 8px; display: flex; transition: all 0.2s; }
-        .m-close:hover { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
-        
-        .m-form { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
-        .compact-form { padding: 24px 32px; gap: 20px; }
-        
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .f-group label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
-        
-        .select-wrapper, .input-field { position: relative; display: flex; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0 14px; transition: all 0.2s; }
-        .select-wrapper:focus-within, .input-field:focus-within { border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
-        
-        .select-wrapper select, .input-field input, .m-form textarea { width: 100%; border: none; background: none; padding: 12px 8px; color: #1e293b; font-size: 14px; font-weight: 600; outline: none; font-family: inherit; }
-        .select-wrapper svg, .input-field svg { color: #64748b; flex-shrink: 0; width: 18px; height: 18px; }
-        
-        .m-form textarea { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; min-height: 100px; resize: vertical; transition: all 0.2s; }
-        .m-form textarea:focus { border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
-
-        .submit-ticket-btn { 
-          width: 100%; background: #4f46e5; color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 700; font-size: 15px; 
-          cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        /* ── Modal Backdrop & Container ─────────────────────────── */
+        .modal-backdrop {
+          position: fixed; inset: 0;
+          background: rgba(15, 23, 42, 0.55);
+          backdrop-filter: blur(6px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 10000; padding: 20px;
         }
-        .submit-ticket-btn:hover { background: #4338ca; transform: translateY(-1px); }
-        .submit-ticket-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ticket-modal {
+          background: #ffffff;
+          width: 100%; max-width: 660px;
+          border-radius: 24px;
+          position: relative;
+          display: flex; flex-direction: column;
+          max-height: 92vh;
+          box-shadow: 0 32px 64px -12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.06);
+          overflow: hidden;
+        }
 
+        /* ── Modal Header ────────────────────────────────────────── */
+        .modal-top {
+          padding: 28px 36px 22px;
+          display: flex; justify-content: space-between; align-items: flex-start;
+          border-bottom: 1px solid #e8edf5;
+          background: #ffffff;
+          flex-shrink: 0;
+          position: relative;
+        }
+        .modal-top::before {
+          content: '';
+          position: absolute; top: 0; left: 0; right: 0; height: 3px;
+          background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #06b6d4 100%);
+        }
+        .m-text h2 { margin: 0; font-size: 21px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+        .m-text p { margin: 5px 0 0; color: #64748b; font-size: 13.5px; line-height: 1.5; }
+        .m-close {
+          background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 50%;
+          cursor: pointer; color: #64748b; padding: 9px; display: flex;
+          transition: all 0.2s; flex-shrink: 0; margin-top: 2px;
+        }
+        .m-close:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; transform: rotate(90deg); }
+
+        /* ── Scrollable Form Body ────────────────────────────────── */
+        .m-form {
+          padding: 28px 36px 36px;
+          display: flex; flex-direction: column; gap: 22px;
+          overflow-y: auto;
+          flex: 1;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+        .m-form::-webkit-scrollbar { width: 5px; }
+        .m-form::-webkit-scrollbar-track { background: transparent; }
+        .m-form::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        .compact-form { padding: 24px 36px 32px; gap: 20px; }
+
+        /* ── Form Layout ─────────────────────────────────────────── */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .f-group label {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 11px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: 0.07em; color: #64748b; margin-bottom: 8px;
+        }
+        .f-group label::before {
+          content: ''; display: inline-block;
+          width: 3px; height: 12px;
+          background: linear-gradient(180deg, #4f46e5, #7c3aed);
+          border-radius: 2px; flex-shrink: 0;
+        }
+
+        /* ── Inputs & Selects ────────────────────────────────────── */
+        .select-wrapper, .input-field {
+          position: relative; display: flex; align-items: center;
+          background: #f8fafc; border: 1.5px solid #e2e8f0;
+          border-radius: 12px; padding: 0 14px;
+          transition: all 0.2s;
+        }
+        .select-wrapper:focus-within, .input-field:focus-within {
+          border-color: #4f46e5;
+          background: #ffffff;
+          box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+        .select-wrapper:hover, .input-field:hover {
+          border-color: #94a3b8; background: #ffffff;
+        }
+        .select-wrapper select, .input-field input {
+          width: 100%; border: none; background: none;
+          padding: 13px 8px; color: #0f172a; font-size: 14.5px;
+          font-weight: 500; outline: none; font-family: inherit;
+        }
+        .select-wrapper select { cursor: pointer; }
+        .select-wrapper select::placeholder, .input-field input::placeholder { color: #94a3b8; font-weight: 400; }
+        .select-wrapper svg, .input-field svg { color: #94a3b8; flex-shrink: 0; width: 16px; height: 16px; margin-right: 6px; }
+        .select-wrapper:focus-within svg, .input-field:focus-within svg { color: #4f46e5; }
+
+        /* ── Textareas with Scroll ───────────────────────────────── */
+        .m-form textarea {
+          width: 100%; border: 1.5px solid #e2e8f0;
+          background: #f8fafc; border-radius: 14px;
+          padding: 14px 18px;
+          min-height: 130px; max-height: 220px;
+          resize: none;
+          overflow-y: auto;
+          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+          font-size: 14.5px; line-height: 1.65;
+          color: #0f172a; font-family: inherit; font-weight: 400;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+          box-sizing: border-box;
+        }
+        .m-form textarea::-webkit-scrollbar { width: 4px; }
+        .m-form textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        .m-form textarea::placeholder { color: #94a3b8; }
+        .m-form textarea:hover { border-color: #94a3b8; background: #ffffff; }
+        .m-form textarea:focus {
+          border-color: #4f46e5; background: #ffffff;
+          outline: none;
+          box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+
+        /* ── Submit Button ───────────────────────────────────────── */
+        .submit-ticket-btn {
+          width: 100%; background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
+          color: #fff; border: none; border-radius: 12px;
+          padding: 14px 20px; font-weight: 700; font-size: 15px;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          gap: 8px; transition: all 0.25s;
+          box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+          letter-spacing: 0.01em;
+        }
+        .submit-ticket-btn:hover {
+          background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 10px 28px rgba(79, 70, 229, 0.4);
+        }
+        .submit-ticket-btn:active { transform: translateY(0); }
+        .submit-ticket-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ── Misc ────────────────────────────────────────────────── */
         .void-state { grid-column: 1/-1; padding: 80px; text-align: center; color: #94a3b8; }
         .loading-orbit { width: 32px; height: 32px; border: 2px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s infinite linear; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -929,6 +1037,13 @@ const JobAllocation = ({ user }) => {
         .top-right-actions { display: flex; align-items: center; gap: 10px; }
         .edit-mini-btn { background: #f1f5f9; color: #64748b; border: none; border-radius: 6px; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .edit-mini-btn:hover { background: #e2e8f0; color: #1e293b; }
+
+        .datetime-row { display: flex; flex-direction: column; gap: 8px; }
+        .checkbox-wrap { margin-top: 4px; }
+        .personal-checkbox { font-size: 13px; }
+        .flex-end { display: flex; align-items: flex-end; }
+        .mt-3 { margin-top: 8px; }
+        .mt-1 { margin-top: 4px; }
 
         @media (max-width: 768px) {
           .page-container { padding: 20px; }
@@ -938,6 +1053,8 @@ const JobAllocation = ({ user }) => {
           .search-pill { min-width: 0; }
           .task-tabs { flex-direction: column; align-items: flex-start; }
           .form-row { grid-template-columns: 1fr; }
+          .ticket-modal { border-radius: 16px; max-height: 95vh; }
+          .modal-top, .m-form { padding-left: 20px; padding-right: 20px; }
         }
       `}</style>
     </motion.div>

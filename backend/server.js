@@ -95,9 +95,9 @@ const taskChannel = supabase
     { event: 'UPDATE', schema: 'public', table: 'tasks' },
     async (payload) => {
       const isRestarted = payload.new.status === 'Pending' && payload.old.status === 'Completed';
-      const isEdit = (payload.new.title !== payload.old.title) || 
-                     (payload.new.description !== payload.old.description) || 
-                     (payload.new.deadline_at !== payload.old.deadline_at);
+      const isEdit = (payload.new.title !== payload.old.title) ||
+        (payload.new.description !== payload.old.description) ||
+        (payload.new.deadline_at !== payload.old.deadline_at);
 
       if (isRestarted || isEdit) {
         console.log(`📡 REAL-TIME: Task ${isRestarted ? 'restart' : 'edit'} detected via DB listener:`, payload.new.id);
@@ -123,7 +123,7 @@ async function processTaskNotification(record, type, options = {}) {
 
       let subject = isPersonal ? "Personal Task Reminder" : "New Task Allocated";
       let title = isPersonal ? "Your to-do jobs in my tasks" : "Task Assignment";
-      
+
       if (isRestart) {
         subject = isPersonal ? "Personal Task Restarted" : "Assigned Task Restarted";
         title = "Task Reactivated";
@@ -135,8 +135,8 @@ async function processTaskNotification(record, type, options = {}) {
       const deadlineInfo = record.deadline_at ? `\nDeadline: ${new Date(record.deadline_at).toLocaleString()}` : '';
 
       let body = isPersonal
-          ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
-          : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`;
+        ? `Reminder: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`
+        : `${senderName} assigned you: "${record.title}".\n\nDetails: ${record.description || 'No description.'}`;
 
       if (isRestart) {
         body = `Task "${record.title}" has been restarted.${deadlineInfo}\n\nDetails: ${record.description || 'No description.'}`;
@@ -745,8 +745,8 @@ app.post("/api/webhooks/tasks", async (req, res) => {
   // Check if task is being newly assigned
   const isNewTask = record.receiver_id && (!old_record || record.receiver_id !== old_record.receiver_id);
   const isRestarted = type === 'UPDATE' && record.status === 'Pending' && old_record?.status === 'Completed';
-  const isEdit = type === 'UPDATE' && !isRestarted && 
-                 (record.title !== old_record?.title || record.description !== old_record?.description || record.deadline_at !== old_record?.deadline_at);
+  const isEdit = type === 'UPDATE' && !isRestarted &&
+    (record.title !== old_record?.title || record.description !== old_record?.description || record.deadline_at !== old_record?.deadline_at);
 
   if (isNewTask || type === 'INSERT' || isRestarted || isEdit) {
     // Call the shared logic

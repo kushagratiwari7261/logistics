@@ -178,14 +178,20 @@
   color: var(--text-muted);
 }
 
-/* ── Nav menu ── */
-.nav-menu,
+/* ── Nav menu & Sections ── */
+.sidebar-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.section-nav,
 .mobile-nav-menu {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 0 10px;
-  flex: 1;
 }
 
 /* ── Nav link ── */
