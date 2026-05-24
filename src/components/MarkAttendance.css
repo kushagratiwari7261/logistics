@@ -1,0 +1,694 @@
+/* ============================================================
+   MarkAttendance.css
+   Premium styling system for Smart Attendance System
+   ============================================================ */
+
+.attendance-container {
+  min-height: 100vh;
+  background-color: #020617; /* Dark rich slate */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background glowing blur decorations */
+.attendance-decor-1 {
+  position: absolute;
+  top: -15%;
+  left: -15%;
+  width: 55%;
+  height: 55%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.attendance-decor-2 {
+  position: absolute;
+  bottom: -15%;
+  right: -15%;
+  width: 55%;
+  height: 55%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.attendance-content {
+  width: 100%;
+  max-width: 500px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Header Styles ── */
+.attendance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  width: 100%;
+}
+
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-back:hover {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #f8fafc;
+  transform: translateX(-2px);
+}
+
+.header-brand-info {
+  text-align: right;
+}
+
+.header-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.header-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
+
+/* ── Premium Glassmorphism Card ── */
+.attendance-card {
+  border-radius: 24px;
+  border: 1px solid rgba(51, 65, 85, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 2.25rem 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+/* ── Step 1: Location Check UI ── */
+.gps-loader-card {
+  border-color: rgba(99, 102, 241, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.gps-icon {
+  width: 32px;
+  height: 32px;
+  color: #818cf8;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 1.75rem;
+  max-w: 320px;
+}
+
+.spinner-loader {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3.5px solid rgba(99, 102, 241, 0.15);
+  border-top-color: #6366f1;
+  animation: spin 1s cubic-bezier(0.55, 0.055, 0.675, 0.19) infinite;
+}
+
+/* ── Step 2: Location Denied / Error ── */
+.error-card {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(248, 113, 113, 0.02);
+}
+
+.icon-wrapper-error {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.error-icon {
+  width: 32px;
+  height: 32px;
+  color: #f87171;
+}
+
+.error-title {
+  color: #ef4444;
+}
+
+.error-desc {
+  color: #fca5a5;
+}
+
+.btn-retry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 16px;
+  background: #dc2626;
+  border: none;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -10px rgba(220, 38, 38, 0.4);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-retry:hover {
+  background: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(239, 68, 68, 0.5);
+}
+
+.btn-retry:active {
+  transform: translateY(0);
+}
+
+/* ── Step 3: Biometric Camera Interface ── */
+.camera-verification-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.camera-viewport {
+  position: relative;
+  aspect-ratio: 4/3;
+  width: 100%;
+  border-radius: 32px;
+  overflow: hidden;
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  background-color: #090d16;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  -webkit-transform: scaleX(-1);
+}
+
+.camera-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transform: scaleX(-1);
+  -webkit-transform: scaleX(-1);
+}
+
+.camera-loading-placeholder {
+  position: absolute;
+  inset: 0;
+  background-color: #020617;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 5;
+}
+
+.loading-placeholder-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Holographic scan visual overlay guides */
+.scanner-overlay-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.scanner-circle-outer {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  border: 2px dashed rgba(99, 102, 241, 0.45);
+  animation: spinSlow 35s linear infinite;
+  transition: all 0.4s ease;
+}
+
+.scanner-circle-outer.success {
+  border-color: #10b981;
+  animation: pulseLight 1.5s ease-in-out infinite;
+}
+
+.scanner-circle-inner {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: all 0.4s ease;
+}
+
+.scanner-circle-inner.success {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+/* Laser scan sweep line */
+.scanner-laser {
+  position: absolute;
+  width: 230px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #6366f1 50%, transparent 100%);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+  animation: sweep 2.5s ease-in-out infinite;
+  z-index: 3;
+}
+
+/* Concentric Biometric Match Waves (Pulsing glowing emerald) */
+.biometric-match-rings {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.pulse-ring-1 {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 4px solid #10b981;
+  animation: waveExpansion 1.5s ease-out infinite;
+}
+
+.pulse-ring-2 {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 185, 129, 0.6);
+  animation: waveExpansion 2s ease-out 0.6s infinite;
+}
+
+.pulse-ring-fill {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.08);
+  border: 8px solid rgba(16, 185, 129, 0.25);
+  animation: pulseScale 1s ease-in-out infinite alternate;
+}
+
+/* ── Liveness Challenge Panel ── */
+.challenge-card {
+  padding: 1.25rem 1.5rem;
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(51, 65, 85, 0.4);
+}
+
+.challenge-searching-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.challenge-camera-icon {
+  width: 24px;
+  height: 24px;
+  color: #818cf8;
+  margin-bottom: 0.5rem;
+}
+
+.challenge-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.25rem;
+}
+
+.challenge-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  max-w: 280px;
+  line-height: 1.4;
+}
+
+.challenge-active-state {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.challenge-direction-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.challenge-active-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #818cf8 0%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+}
+
+/* Progress slider */
+.challenge-progress-track {
+  width: 100%;
+  background: #0f172a;
+  height: 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+  border: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+.challenge-progress-fill {
+  background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #10b981 100%);
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.challenge-footer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.coordinate-active-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.timer-label {
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.timer-low {
+  color: #f87171;
+}
+
+/* Liveness success overlay inside challenge */
+.challenge-success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.icon-wrapper-success {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.success-icon {
+  width: 20px;
+  height: 20px;
+  color: #34d399;
+}
+
+.challenge-success-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 0.15rem;
+}
+
+.challenge-success-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Liveness failed overlay inside challenge */
+.challenge-failed-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.failed-icon {
+  width: 24px;
+  height: 24px;
+  color: #f87171;
+  margin-bottom: 0.5rem;
+}
+
+.challenge-failed-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f87171;
+  margin-bottom: 0.15rem;
+}
+
+.challenge-failed-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 0.75rem;
+}
+
+.btn-retry-scanning {
+  padding: 0.45rem 1.25rem;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  color: #f1f5f9;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-retry-scanning:hover {
+  background: #334155;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* ── Step 4: Attendance Confirmed Success Screen ── */
+.success-screen-card {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.02);
+  padding: 3rem 2rem;
+}
+
+.success-screen-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.success-screen-icon {
+  width: 44px;
+  height: 44px;
+  color: #34d399;
+}
+
+.success-screen-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.success-screen-desc {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  max-w: 320px;
+}
+
+.btn-success-continue {
+  padding: 0.85rem 1.75rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 10px 25px -10px rgba(16, 185, 129, 0.4);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+}
+
+.btn-success-continue:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -8px rgba(16, 185, 129, 0.5);
+}
+
+.btn-success-continue:active {
+  transform: translateY(0);
+}
+
+/* ── CSS Keyframe Animations ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sweep {
+  0%, 100% { top: 10px; opacity: 0.2; }
+  50% { top: 238px; opacity: 0.8; }
+}
+
+@keyframes waveExpansion {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes pulseScale {
+  0% { transform: scale(0.98); opacity: 0.6; }
+  100% { transform: scale(1.02); opacity: 1; }
+}
+
+@keyframes pulseLight {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ── Mobile Responsive Adaptation ── */
+@media screen and (max-width: 480px) {
+  .attendance-container {
+    padding: 1rem;
+  }
+  .attendance-card {
+    padding: 1.75rem 1.25rem;
+  }
+  .success-screen-card {
+    padding: 2.25rem 1.25rem;
+  }
+  .btn-retry, .btn-success-continue {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+  }
+  .scanner-circle-outer {
+    width: 210px;
+    height: 210px;
+  }
+  .scanner-circle-inner, .scanner-laser, .pulse-ring-1, .pulse-ring-2, .pulse-ring-fill {
+    width: 190px;
+    height: 190px;
+  }
+  @keyframes sweep {
+    0%, 100% { top: 10px; opacity: 0.2; }
+    50% { top: 198px; opacity: 0.8; }
+  }
+}

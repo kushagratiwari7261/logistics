@@ -16,7 +16,9 @@ import {
   ChevronDown,
   ChevronRight,
   UserPlus,
-  ClipboardCheck
+  ClipboardCheck,
+  Fingerprint,
+  ShieldCheck
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -114,6 +116,32 @@ const menuSections = [
         to: '/settings',
         label: 'Settings',
         icon: <Settings size={20} />,
+      },
+    ],
+  },
+  {
+    title: 'ATTENDANCE',
+    items: [
+      {
+        to: '/attendance',
+        label: 'Mark Attendance',
+        icon: <Fingerprint size={20} />,
+      },
+      {
+        label: 'Admin & Analytics',
+        icon: <ShieldCheck size={20} />,
+        children: [
+          {
+            to: '/admin',
+            label: 'Admin Console',
+            icon: <ShieldCheck size={16} />,
+          },
+          {
+            to: '/admin/stats',
+            label: 'Attendance Stats',
+            icon: <BarChart3 size={16} />,
+          },
+        ],
       },
     ],
   },
