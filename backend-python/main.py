@@ -2,6 +2,7 @@ import io
 import json
 import tempfile
 import os
+import logging
 from datetime import datetime
 from typing import List
 import numpy as np
@@ -14,6 +15,8 @@ import cv2
 
 from config import settings
 from auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Smart Attendance System Backend",
@@ -30,8 +33,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Supabase client using Service Key for administrative bypass
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+# Initialize Supabase client lazily to avoid crashing on import when env vars are not yet available
+supabase: Client = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Supabase client on startup so env vars are guaranteed to be loaded."""
+    global supabase
+    try:
+        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        logger.info("Supabase client initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client: {e}")
+        raise
+
+def get_supabase() -> Client:
+    """Get the Supabase client, raising a clear error if not initialized."""
+    if supabase is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database client is not initialized."
+        )
+    return supabase
 
 # ----------------------------------------------------
 # Math Utilities

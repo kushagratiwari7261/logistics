@@ -17,4 +17,9 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 # Load settings from environment variables or .env file
-settings = Settings(_env_file=os.path.join(os.path.dirname(__file__), ".env"))
+# On Railway, env vars are injected directly — the .env file may not exist
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    settings = Settings(_env_file=_env_path)
+else:
+    settings = Settings()
