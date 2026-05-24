@@ -1,15 +1,7 @@
 FROM python:3.10-slim-bullseye
 
 # Install compilers and library dependencies required for OpenCV / TensorFlow / dlib
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    gfortran \
-    libatlas-base-dev \
-    libjpeg-dev \
-    liblapack-dev \
-    libpng-dev \
-    libgl1 \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
