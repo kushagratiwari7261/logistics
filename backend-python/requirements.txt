@@ -11,6 +11,6 @@ pydantic==2.6.4
 pydantic-settings==2.2.1
 opencv-python-headless==4.9.0.80
 tf-keras==2.16.0
-tensorflow==2.16.1
+tensorflow-cpu==2.16.1
 pillow==10.2.0
 haversine==2.8.1
