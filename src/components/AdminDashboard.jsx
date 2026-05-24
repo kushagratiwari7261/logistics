@@ -255,7 +255,7 @@ export default function AdminDashboard({ onBack }) {
 
     try {
       setEnrollProgress(30);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/enroll-employee`, {
+      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/enroll-employee`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
@@ -316,7 +316,7 @@ export default function AdminDashboard({ onBack }) {
     formData.append('grace_period_minutes', configForm.grace_period_minutes);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/office-config`, {
+      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/office-config`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
@@ -351,7 +351,7 @@ export default function AdminDashboard({ onBack }) {
     formData.append('holiday_date', holidayForm.date);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/holidays`, {
+      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/holidays`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
@@ -381,7 +381,7 @@ export default function AdminDashboard({ onBack }) {
 
     const { data: { session } } = await supabase.auth.getSession();
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/holidays/${holidayId}`, {
+      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/holidays/${holidayId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`

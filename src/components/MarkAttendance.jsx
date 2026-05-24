@@ -77,7 +77,7 @@ export default function MarkAttendance({ onBack }) {
           formData.append('latitude', lat);
           formData.append('longitude', lng);
 
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/geofence-check`, {
+          const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/geofence-check`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session?.access_token}`
@@ -374,7 +374,7 @@ export default function MarkAttendance({ onBack }) {
           formData.append('longitude', gpsData.lng);
         }
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/face-match`, {
+        const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/face-match`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session?.access_token}`
