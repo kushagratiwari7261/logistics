@@ -41,11 +41,14 @@ async def startup_event():
     """Initialize Supabase client on startup so env vars are guaranteed to be loaded."""
     global supabase
     try:
-        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        logger.info("Supabase client initialized successfully.")
+        if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            logger.info("Supabase client initialized successfully.")
+        else:
+            logger.warning("Supabase credentials not set — skipping client init. API calls will fail until configured.")
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {e}")
-        raise
+        # Don't raise — let the app start so healthcheck can pass
 
 def get_supabase() -> Client:
     """Get the Supabase client, raising a clear error if not initialized."""

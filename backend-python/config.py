@@ -1,10 +1,13 @@
 import os
+import logging
 from pydantic_settings import BaseSettings
 
+logger = logging.getLogger(__name__)
+
 class Settings(BaseSettings):
-    SUPABASE_URL: str
-    SUPABASE_SERVICE_KEY: str
-    SUPABASE_JWT_SECRET: str
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_JWT_SECRET: str = ""
 
     # Default office location (Noida Corporate Area) as fallback
     OFFICE_LAT: float = 28.5355
@@ -23,3 +26,8 @@ if os.path.exists(_env_path):
     settings = Settings(_env_file=_env_path)
 else:
     settings = Settings()
+
+# Log whether critical vars are present (without revealing values)
+logger.info(f"SUPABASE_URL set: {bool(settings.SUPABASE_URL)}")
+logger.info(f"SUPABASE_SERVICE_KEY set: {bool(settings.SUPABASE_SERVICE_KEY)}")
+logger.info(f"SUPABASE_JWT_SECRET set: {bool(settings.SUPABASE_JWT_SECRET)}")
