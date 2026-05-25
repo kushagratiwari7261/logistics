@@ -249,8 +249,10 @@ export default function AdminDashboard({ onBack }) {
   // Dispatch Employee enrollment to FastAPI Backend
   const handleEnrollEmployee = async (e) => {
     e.preventDefault();
-    if (enrollPhotos.length < 3 || enrollPhotos.length > 5) {
-      showStatus('error', 'Biometric enrollment requires 3 to 5 face photographs.');
+    
+    // Face photos are now optional, but if provided, should be 1-5
+    if (enrollPhotos.length > 5) {
+      showStatus('error', 'Maximum 5 face photographs allowed.');
       return;
     }
 
@@ -794,9 +796,9 @@ export default function AdminDashboard({ onBack }) {
                               {getAttendanceStatusBadge(emp.id, emp.role)}
                             </td>
                             <td className="admin-font-mono">
-                              {record?.role === 'office' 
+                              {!record ? '-' : (record.role === 'office' 
                                 ? (record.distance_m ? `${record.distance_m.toFixed(1)}m` : 'Error')
-                                : 'Bypassed (Field)'}
+                                : 'Bypassed (Field)')}
                             </td>
                             <td style={{textAlign: "right"}}>
                               {!record && emp.is_active && (
@@ -916,13 +918,12 @@ export default function AdminDashboard({ onBack }) {
 
                 {/* Face photos selection box */}
                 <div>
-                  <label className="admin-label">Biometric Enroll Photos (3-5 required)</label>
+                  <label className="admin-label">Biometric Enroll Photos (Optional, 1-5 photos)</label>
                   <div className="admin-file-drop">
                     <input
                       type="file"
                       multiple
                       accept="image/*"
-                      required
                       onChange={handlePhotoUpload}
                       className="admin-file-input"
                     />

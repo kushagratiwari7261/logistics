@@ -448,24 +448,87 @@ export default function MarkAttendance({ onBack }) {
           </div>
         )}
 
-        {/* --- STEP 0.2: Profile Not Found (Not Enrolled) --- */}
+        {/* --- STEP 0.2: Profile Not Found (Self-Enrollment Option) --- */}
         {!profileLoading && !userProfile && (
-          <div className="attendance-card error-card">
-            <div className="icon-wrapper-error">
-              <AlertTriangle className="error-icon" />
+          <div className="attendance-card registration-card">
+            <div className="icon-wrapper">
+              <Camera className="gps-icon" />
             </div>
-            <h2 className="card-title error-title">Profile Not Enrolled</h2>
-            <p className="card-description error-desc">
-              Your account is not registered in the corporate employee database. Please contact a Super Admin (Vikas, Sushil, or Kushagra) to register your face signatures and activate your account.
+            <h2 className="card-title">Initial Enrollment</h2>
+            <p className="card-description">
+              Welcome! Please complete your one-time biometric registration to start marking attendance.
             </p>
-            <button
-              onClick={() => onBack()}
-              className="btn-retry"
-            >
-              Return to Dashboard
-            </button>
+            
+            <div className="registration-form">
+              <div className="form-group">
+                <label className="input-label">Full Name</label>
+                <input 
+                  type="text" 
+                  id="enroll-name"
+                  placeholder="Enter your full name"
+                  className="form-input"
+                  defaultValue={supabase.auth.getUser()?.email?.split('@')[0]}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Workplace Role</label>
+                <select id="enroll-role" className="form-input">
+                  <option value="office">Office Staff (Requires Geofencing)</option>
+                  <option value="field">Field Staff (GPS Bypassed)</option>
+                </select>
+              </div>
+
+              <button
+                onClick={async () => {
+                  const name = document.getElementById('enroll-name').value;
+                  const role = document.getElementById('enroll-role').value;
+                  if (!name) {
+                    alert('Please enter your name.');
+                    return;
+                  }
+                  
+                  setProfileLoading(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('email', session.user.email);
+                    formData.append('role', role);
+                    // We'll enroll with 0 photos first, then they'll be prompted to mark attendance which will lock their face?
+                    // Actually, the current backend enroll-employee Averaging vectors logic requires photos.
+                    // Let's just create a shell profile in the database directly.
+                    
+                    const { error } = await supabase.from('employees').insert({
+                      name,
+                      email: session.user.email,
+                      role,
+                      is_active: true
+                    });
+                    
+                    if (error) throw error;
+                    
+                    // Refresh profile
+                    const { data } = await supabase
+                      .from('employees')
+                      .select('*')
+                      .eq('email', session.user.email)
+                      .maybeSingle();
+                    setUserProfile(data);
+                  } catch (err) {
+                    alert('Registration failed: ' + err.message);
+                  } finally {
+                    setProfileLoading(false);
+                  }
+                }}
+                className="btn-success-continue"
+              >
+                Register & Continue
+              </button>
+            </div>
           </div>
         )}
+
 
         {/* --- STEP 1: Geofencing GPS Check Loader --- */}
         {!profileLoading && userProfile && geofenceStatus === 'checking' && (

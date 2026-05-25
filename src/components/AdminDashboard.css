@@ -7,6 +7,10 @@
   position: relative;
   overflow-x: hidden;
   font-family: 'Inter', sans-serif;
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(339,49%,30%,0.1) 0, transparent 50%);
 }
 
 .admin-loading-screen {
@@ -184,12 +188,13 @@
 }
 
 .admin-header-title {
-  font-size: 1.125rem;
+  font-size: 1.5rem;
   font-weight: 900;
-  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--brand-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  letter-spacing: -0.03em;
 }
 
 .admin-header-subtitle {
@@ -531,8 +536,10 @@
 }
 
 .admin-emp-name {
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
 }
 
 .admin-emp-email {

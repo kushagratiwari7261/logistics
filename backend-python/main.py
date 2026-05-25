@@ -4,7 +4,7 @@ import tempfile
 import os
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import numpy as np
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -162,17 +162,15 @@ async def face_match(
     emp_name = employee["name"]
     emp_role = employee["role"]
     stored_encoding = employee.get("face_encoding")
-
+    is_first_enrollment = False
     if not stored_encoding:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No registered face encoding exists for your account. Please consult an administrator."
-        )
-
-    # 2. Parse vector encoding
-    if isinstance(stored_encoding, str):
-        stored_encoding = json.loads(stored_encoding)
-    stored_encoding_arr = np.array(stored_encoding, dtype=float)
+        is_first_enrollment = True
+        logger.info(f"No registered face encoding for {email}. Performing first-time enrollment.")
+    else:
+        # 2. Parse vector encoding
+        if isinstance(stored_encoding, str):
+            stored_encoding = json.loads(stored_encoding)
+        stored_encoding_arr = np.array(stored_encoding, dtype=float)
 
     # 3. Process webcam image frame — save to temp file for DeepFace
     try:
@@ -211,23 +209,32 @@ async def face_match(
             detail=f"Face detection failed: No face detected in camera viewport. ({str(e)})"
         )
 
-    # 5. Cosine Distance Calculation against stored embedding
-    dot_product = np.dot(stored_encoding_arr, user_encoding_arr)
-    norm_stored = np.linalg.norm(stored_encoding_arr)
-    norm_user = np.linalg.norm(user_encoding_arr)
-
-    if norm_stored == 0 or norm_user == 0:
-        cosine_dist = 1.0
+    # 5. Enrollment or Cosine Distance Calculation
+    is_match = False
+    if is_first_enrollment:
+        # Save this encoding as the primary face signature
+        encoding_list = user_encoding_arr.tolist()
+        supabase.table("employees").update({"face_encoding": encoding_list}).eq("id", emp_id).execute()
+        is_match = True
+        logger.info(f"Auto-enrolled face for {email}")
     else:
-        cosine_dist = 1.0 - (dot_product / (norm_stored * norm_user))
+        dot_product = np.dot(stored_encoding_arr, user_encoding_arr)
+        norm_stored = np.linalg.norm(stored_encoding_arr)
+        norm_user = np.linalg.norm(user_encoding_arr)
 
-    # Facenet512 match threshold: < 0.30 cosine distance is a confirmed match
-    is_match = cosine_dist < 0.30
+        cosine_dist = 1.0
+        if norm_stored > 0 and norm_user > 0:
+            cosine_dist = 1.0 - (dot_product / (norm_stored * norm_user))
+
+        # Facenet512 match threshold: < 0.30 cosine distance is a confirmed match
+        is_match = (cosine_dist < 0.30)
+        
     if not is_match:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Biometric verification failed: Face not recognized."
         )
+
 
     # 6. Geofencing check for Office Staff
     inside_geofence = None
@@ -334,12 +341,12 @@ async def enroll_employee(
     name: str = Form(...),
     email: str = Form(...),
     role: str = Form(...),
-    images: List[UploadFile] = File(...),
+    images: List[UploadFile] = File(None),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Creates or updates an employee profile with averaged face encodings
-    from 3 to 5 uploaded camera frames. (Admin Only)
+    from 0 to 5 uploaded camera frames. (Admin Only)
     """
     admin_email = current_user["email"].strip().lower()
 
@@ -350,61 +357,62 @@ async def enroll_employee(
             detail="Enrollment rejected: Admin privileges are required."
         )
 
-    if len(images) < 3 or len(images) > 5:
+    # Simplified check: if images is None, treat as empty list
+    upload_images = images if images is not None else []
+
+    if len(upload_images) > 5:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Biometric enrollment requires between 3 and 5 high-quality face photographs."
+            detail="Biometric enrollment allows at most 5 face photographs."
         )
 
-    encodings = []
-    for idx, img_file in enumerate(images):
-        try:
-            contents = await img_file.read()
-            img_array = np.frombuffer(contents, np.uint8)
-            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-            if frame is None:
-                raise ValueError("Cannot decode image.")
+    encoding_list = None
+    if len(upload_images) > 0:
+        encodings = []
+        for idx, img_file in enumerate(upload_images):
+            try:
+                contents = await img_file.read()
+                img_array = np.frombuffer(contents, np.uint8)
+                frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+                if frame is None:
+                    raise ValueError("Cannot decode image.")
 
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                tmp_path = tmp.name
-                cv2.imwrite(tmp_path, frame)
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                    tmp_path = tmp.name
+                    cv2.imwrite(tmp_path, frame)
 
-            result = DeepFace.represent(
-                img_path=tmp_path,
-                model_name="Facenet512",
-                enforce_detection=True,
-                detector_backend="opencv"
-            )
-            os.unlink(tmp_path)
-
-            if not result:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Face registration failed: No face detected in photograph number {idx+1}."
+                result = DeepFace.represent(
+                    img_path=tmp_path,
+                    model_name="Facenet512",
+                    enforce_detection=True,
+                    detector_backend="opencv"
                 )
-            encodings.append(np.array(result[0]["embedding"], dtype=float))
+                os.unlink(tmp_path)
 
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed loading face photo {idx+1}: {str(e)}"
-            )
+                if not result:
+                    logger.warning(f"No face detected in photograph number {idx+1}")
+                    continue
+                
+                encodings.append(np.array(result[0]["embedding"], dtype=float))
 
-    # Average vectors to lock face variance characteristics
-    avg_encoding = np.mean(encodings, axis=0)
-    encoding_list = avg_encoding.tolist()
+            except Exception as e:
+                logger.error(f"Error processing face photo {idx+1}: {e}")
+                continue
+
+        if len(encodings) > 0:
+            avg_encoding = np.mean(encodings, axis=0)
+            encoding_list = avg_encoding.tolist()
 
     employee_data = {
         "name": name,
         "email": email.strip().lower(),
         "role": role,
-        "face_encoding": encoding_list,
         "is_active": True
     }
+    
+    if encoding_list:
+        employee_data["face_encoding"] = encoding_list
 
-    # Check for existing profile updates
     existing = supabase.table("employees").select("id").eq("email", email.strip().lower()).execute()
     if existing.data:
         emp_id = existing.data[0]["id"]
@@ -418,11 +426,14 @@ async def enroll_employee(
             detail="Database write failure: Could not enroll employee."
         )
 
+    photo_msg = f" with {len(upload_images)} face signatures" if encoding_list else " without face data"
     return {
         "success": True,
-        "message": f"Successfully registered employee profile '{name}' with averaged face signature.",
-        "employee_id": res.data[0]["id"]
+        "message": f"Successfully registered employee profile '{name}'{photo_msg}.",
+        "employee_id": res.data[0]["id"],
+        "face_enrolled": bool(encoding_list)
     }
+
 
 @app.post("/api/office-config")
 async def update_office_config(
