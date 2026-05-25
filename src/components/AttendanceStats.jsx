@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import './AttendanceStats.css';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
@@ -141,9 +142,9 @@ export default function AttendanceStats({ onBack }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin mb-4" />
-        <p className="text-slate-400 text-sm">Compiling historical charts...</p>
+      <div className="admin-loading-screen">
+        <div className="admin-spinner" />
+        <p className="admin-loading-text">Compiling historical charts...</p>
       </div>
     );
   }
@@ -153,69 +154,69 @@ export default function AttendanceStats({ onBack }) {
   const lateRateToday = overallPresentToday > 0 ? Math.round((statCounts.late / overallPresentToday) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans flex flex-col relative overflow-x-hidden p-6">
+    <div className="stats-container">
       {/* Background glowing decorations */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-900/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-emerald-950/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="stats-glow-indigo" />
+      <div className="stats-glow-emerald" />
 
-      <div className="max-w-7xl w-full mx-auto flex flex-col gap-6 z-10">
+      <div className="stats-main">
         
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-900">
+        <div className="stats-header">
           <button 
             onClick={onBack}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 transition duration-300 text-sm font-medium"
+            className="stats-btn-back"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Console
+            <ArrowLeft  /> Back to Console
           </button>
           
-          <div className="text-right">
-            <h1 className="text-xl font-black bg-gradient-to-r from-white via-slate-300 to-slate-400 bg-clip-text text-transparent">Biometric Analytics Hub</h1>
-            <p className="text-xs text-slate-500">Corporate attendance insights and trends</p>
+          <div >
+            <h1 className="stats-title">Biometric Analytics Hub</h1>
+            <p className="stats-subtitle">Corporate attendance insights and trends</p>
           </div>
         </div>
 
         {/* Stats Grid row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-slate-900 bg-slate-900/30 p-5 backdrop-blur-md">
-            <div className="flex justify-between items-start text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Attendance Rate Today</span>
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+        <div className="stats-grid">
+          <div className="stats-card">
+            <div className="stats-card-header">
+              <span className="stats-card-label">Attendance Rate Today</span>
+              <TrendingUp style={{ color: "var(--success)" }} />
             </div>
-            <div className="text-3xl font-black mt-2 text-emerald-400">{attendanceRateToday}%</div>
-            <p className="text-[10px] text-slate-500 mt-1">Target benchmark: &gt; 92% daily</p>
+            <div className="stats-card-value" style={{ color: "var(--success)" }}>{attendanceRateToday}%</div>
+            <p className="stats-card-hint">Target benchmark: &gt; 92% daily</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-900 bg-slate-900/30 p-5 backdrop-blur-md">
-            <div className="flex justify-between items-start text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Total Active Employees</span>
-              <Users className="w-4 h-4 text-indigo-400" />
+          <div className="stats-card">
+            <div className="stats-card-header">
+              <span className="stats-card-label">Total Active Employees</span>
+              <Users style={{ color: "var(--brand-primary)" }} />
             </div>
-            <div className="text-3xl font-black mt-2 text-white">{totalEmployees}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Excludes deactivated profile assets</p>
+            <div className="stats-card-value">{totalEmployees}</div>
+            <p className="stats-card-hint">Excludes deactivated profile assets</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-900 bg-slate-900/30 p-5 backdrop-blur-md">
-            <div className="flex justify-between items-start text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Delay Rate (Late logs)</span>
-              <Clock className="w-4 h-4 text-amber-500" />
+          <div className="stats-card">
+            <div className="stats-card-header">
+              <span className="stats-card-label">Delay Rate (Late logs)</span>
+              <Clock style={{ color: "var(--warning)" }} />
             </div>
-            <div className="text-3xl font-black mt-2 text-amber-400">{lateRateToday}%</div>
-            <p className="text-[10px] text-slate-500 mt-1">Proportion of delayed shift sign-ins</p>
+            <div className="stats-card-value" style={{ color: "var(--warning)" }}>{lateRateToday}%</div>
+            <p className="stats-card-hint">Proportion of delayed shift sign-ins</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-900 bg-slate-900/30 p-5 backdrop-blur-md">
-            <div className="flex justify-between items-start text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Manual Overrides</span>
-              <AlertTriangle className="w-4 h-4 text-indigo-400" />
+          <div className="stats-card">
+            <div className="stats-card-header">
+              <span className="stats-card-label">Manual Overrides</span>
+              <AlertTriangle style={{ color: "var(--brand-primary)" }} />
             </div>
-            <div className="text-3xl font-black mt-2 text-indigo-400">{statCounts.excused}</div>
-            <p className="text-[10px] text-slate-500 mt-1">Admin override checks processed today</p>
+            <div className="stats-card-value" style={{ color: "var(--brand-primary)" }}>{statCounts.excused}</div>
+            <p className="stats-card-hint">Admin override checks processed today</p>
           </div>
         </div>
 
         {/* Timeframe selector toolbar */}
-        <div className="flex bg-slate-900/40 border border-slate-900 rounded-xl p-1 w-fit self-start">
+        <div className="stats-toolbar">
           <button
             onClick={() => setTimeframe('daily')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition duration-300 ${
@@ -243,18 +244,18 @@ export default function AttendanceStats({ onBack }) {
         </div>
 
         {/* MAIN CHART CONTAINER */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="stats-chart-grid">
           
           {/* Main Visualizer Column */}
-          <div className="lg:col-span-2 rounded-3xl border border-slate-900 bg-slate-900/20 p-6 backdrop-blur-md">
-            <h3 className="text-base font-bold mb-6 text-slate-200 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-400" /> 
+          <div className="stats-chart-main">
+            <h3 className="stats-chart-title">
+              <Calendar style={{ color: "var(--brand-primary)" }} /> 
               {timeframe === 'daily' && 'Daily Attendance Split (Last 7 Days)'}
               {timeframe === 'monthly' && 'Monthly Performance Ratio Trend'}
               {timeframe === 'yearly' && 'Yearly Aggregate Check-in Volumes'}
             </h3>
 
-            <div className="h-[360px] w-full">
+            <div className="stats-chart-container">
               {timeframe === 'daily' && (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyChartData}>
@@ -316,12 +317,12 @@ export default function AttendanceStats({ onBack }) {
           </div>
 
           {/* Breakdown Pie Chart Column */}
-          <div className="rounded-3xl border border-slate-900 bg-slate-900/20 p-6 backdrop-blur-md flex flex-col gap-6">
-            <h3 className="text-base font-bold text-slate-200 pb-3 border-b border-slate-900">
+          <div className="stats-chart-side">
+            <h3 className="stats-chart-title" style={{ marginBottom: 0 }}>
               Role Attendance Ratios (Today)
             </h3>
 
-            <div className="h-[220px] w-full flex items-center justify-center">
+            <div className="stats-pie-container">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -344,14 +345,14 @@ export default function AttendanceStats({ onBack }) {
               </ResponsiveContainer>
             </div>
 
-            <div className="flex flex-col gap-3.5">
+            <div className="stats-pie-legend">
               {roleBreakdownData.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs font-semibold">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-md" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="text-slate-400">{item.name}</span>
+                <div key={idx} className="stats-legend-item">
+                  <div className="stats-legend-left">
+                    <div className="stats-legend-dot" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <span className="stats-legend-name">{item.name}</span>
                   </div>
-                  <span className="font-mono text-slate-200">{item.value} staff</span>
+                  <span className="stats-legend-value">{item.value} staff</span>
                 </div>
               ))}
             </div>
