@@ -393,9 +393,14 @@ async def face_match(
             detail="Database write failure: Could not record attendance log."
         )
 
+    if is_first_enrollment:
+        msg = f"Face registered successfully! Attendance logged as {status_str}."
+    else:
+        msg = f"Biometric attendance logged successfully as {status_str}."
+
     return {
         "success": True,
-        "message": f"Biometric attendance logged successfully as {status_str}.",
+        "message": msg,
         "distance_m": distance_m,
         "status": status_str,
         "marked_at": attendance_data["marked_at"]

@@ -1,0 +1,15 @@
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100   3592 100    150 100   3442    189   4344                              0100   3592 100    150 100   3442    189   4341                              0100   3592 100    150 100   3442    189   4337                              0
+HTTP/1.1 401 Unauthorized
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: http://localhost:5173
+Content-Length: 150
+Content-Type: application/json
+Date: Tue, 26 May 2026 08:02:22 GMT
+Server: railway-edge
+Vary: Origin
+X-Railway-Edge: railway/asia-southeast1-eqsg3a
+X-Railway-Request-Id: BX63ZitJRIuNgU61mrpb1w
+
+{"detail":"Authentication failed: invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments"}

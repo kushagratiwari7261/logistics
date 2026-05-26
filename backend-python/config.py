@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     SUPABASE_URL: str = "https://xgihvwtiaqkpusrdvclk.supabase.co"
     SUPABASE_SERVICE_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnaWh2d3RpYXFrcHVzcmR2Y2xrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDY1NzcwNiwiZXhwIjoyMDg2MjMzNzA2fQ.AQe3eYb3Co2-Nyw46OSeOu8Vx0f9eCB8ZrrKiFifUu8"
-    SUPABASE_JWT_SECRET: str = ""
+    SUPABASE_JWT_SECRET: str = "e2LZ2y8mvRFXLjB//eoOcAtM1lr5lprYpuEb8uAP/PNx/sOrJPlvXlWwaTIMSQYv3yYUA9wuAieNbkZKXuwaNQ=="
 
     # Default office location (Noida Corporate Area) as fallback
     OFFICE_LAT: float = 28.5355

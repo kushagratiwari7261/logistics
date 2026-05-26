@@ -12,24 +12,26 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     """
     token = credentials.credentials
     try:
-        from main import get_supabase
-        supabase = get_supabase()
+        # Decode the token locally using the SUPABASE_JWT_SECRET
+        # This avoids network requests to the Supabase auth server and fixes communication errors.
+        payload = jwt.decode(
+            token,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False}
+        )
         
-        # Verify the token directly with Supabase server instead of local decoding.
-        # This handles all signature and expiry validations securely.
-        user_response = supabase.auth.get_user(token)
-        
-        user = user_response.user
-        if not user or not user.email:
+        email = payload.get("email")
+        if not email:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token"
             )
 
         return {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role or "authenticated"
+            "id": payload.get("sub"),
+            "email": email,
+            "role": payload.get("role", "authenticated")
         }
     except Exception as e:
         raise HTTPException(
