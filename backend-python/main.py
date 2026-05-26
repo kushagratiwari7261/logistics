@@ -113,9 +113,21 @@ async def check_geofence(
     Validates user coordinates against the registered office geofence.
     """
     # Fetch office configurations
-    res = supabase.table("office_config").select("*").eq("id", 1).execute()
-    if res.data:
-        office = res.data[0]
+    email = current_user["email"].strip().lower()
+    emp_res = supabase.table("employees").select("id").eq("email", email).eq("is_active", True).execute()
+    office = None
+    if emp_res.data:
+        emp_id = emp_res.data[0]["id"]
+        emp_config_res = supabase.table("employee_office_config").select("*").eq("employee_id", emp_id).execute()
+        if emp_config_res.data:
+            office = emp_config_res.data[0]
+            
+    if not office:
+        res = supabase.table("office_config").select("*").eq("id", 1).execute()
+        if res.data:
+            office = res.data[0]
+
+    if office:
         office_lat = office["lat"]
         office_lng = office["lng"]
         radius = office["radius_meters"]
@@ -246,10 +258,17 @@ async def face_match(
                 detail="GPS coordinates are mandatory for Office Staff."
             )
 
-        # Get active office coordinates
-        config_res = supabase.table("office_config").select("*").eq("id", 1).execute()
-        if config_res.data:
-            office = config_res.data[0]
+        # Get active office coordinates (Check employee-specific first, then global)
+        emp_config_res = supabase.table("employee_office_config").select("*").eq("employee_id", emp_id).execute()
+        office = None
+        if emp_config_res.data:
+            office = emp_config_res.data[0]
+        else:
+            config_res = supabase.table("office_config").select("*").eq("id", 1).execute()
+            if config_res.data:
+                office = config_res.data[0]
+
+        if office:
             office_lat = office["lat"]
             office_lng = office["lng"]
             radius = office["radius_meters"]
@@ -269,11 +288,18 @@ async def face_match(
 
     # 7. Timelimit Check (Late Flagging)
     status_str = "Present"
-    config_res = supabase.table("office_config").select("*").eq("id", 1).execute()
-    if config_res.data:
-        office = config_res.data[0]
-        start_time_str = office["start_time"]  # e.g. "09:00:00"
-        grace_mins = office["grace_period_minutes"]
+    emp_config_res = supabase.table("employee_office_config").select("*").eq("employee_id", emp_id).execute()
+    office_timing = None
+    if emp_config_res.data:
+        office_timing = emp_config_res.data[0]
+    else:
+        config_res = supabase.table("office_config").select("*").eq("id", 1).execute()
+        if config_res.data:
+            office_timing = config_res.data[0]
+
+    if office_timing:
+        start_time_str = office_timing["start_time"]  # e.g. "09:00:00"
+        grace_mins = office_timing["grace_period_minutes"]
 
         try:
             shift_start = datetime.strptime(start_time_str, "%H:%M:%S").time()
@@ -443,6 +469,8 @@ async def update_office_config(
     start_time: str = Form(...),   # 'HH:MM:SS'
     end_time: str = Form(...),     # 'HH:MM:SS'
     grace_period_minutes: int = Form(...),
+    employee_id: str = Form("global"),
+    address: str = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -475,11 +503,23 @@ async def update_office_config(
         "updated_at": datetime.now().isoformat()
     }
 
-    # Update ID = 1 configurations row
-    res = supabase.table("office_config").update(config_data).eq("id", 1).execute()
-    if not res.data:
-        config_data["id"] = 1
-        res = supabase.table("office_config").insert(config_data).execute()
+    if employee_id != "global":
+        if address:
+            config_data["address"] = address
+        config_data["employee_id"] = employee_id
+        
+        # upsert for employee
+        existing = supabase.table("employee_office_config").select("id").eq("employee_id", employee_id).execute()
+        if existing.data:
+            res = supabase.table("employee_office_config").update(config_data).eq("employee_id", employee_id).execute()
+        else:
+            res = supabase.table("employee_office_config").insert(config_data).execute()
+    else:
+        # Update ID = 1 global configurations row
+        res = supabase.table("office_config").update(config_data).eq("id", 1).execute()
+        if not res.data:
+            config_data["id"] = 1
+            res = supabase.table("office_config").insert(config_data).execute()
 
     if not res.data:
         raise HTTPException(
@@ -491,6 +531,30 @@ async def update_office_config(
         "success": True,
         "message": "Office geofencing configurations successfully updated.",
         "config": res.data[0]
+    }
+
+@app.delete("/api/office-config/{employee_id}")
+async def delete_employee_config(
+    employee_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    email = current_user["email"].strip().lower()
+    if not is_super_admin(email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super Admin privileges are required."
+        )
+
+    res = supabase.table("employee_office_config").delete().eq("employee_id", employee_id).execute()
+    if not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Employee configuration not found."
+        )
+
+    return {
+        "success": True,
+        "message": "Employee configuration reverted to global."
     }
 
 @app.post("/api/holidays")

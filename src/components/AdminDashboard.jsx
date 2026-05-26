@@ -20,6 +20,7 @@ export default function AdminDashboard({ onBack }) {
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [employeeConfigs, setEmployeeConfigs] = useState([]);
   const [officeConfig, setOfficeConfig] = useState({
     lat: 28.5355,
     lng: 77.3910,
@@ -45,12 +46,19 @@ export default function AdminDashboard({ onBack }) {
     email: '',
     role: 'office'
   });
-  const [enrollPhotos, setEnrollPhotos] = useState([]);
-  const [enrollProgress, setEnrollProgress] = useState(0); // 0 to 100
   const [enrollLoading, setEnrollLoading] = useState(false);
 
   // Office Config Form State (Super Admin Only)
-  const [configForm, setConfigForm] = useState({ ...officeConfig });
+  const [configForm, setConfigForm] = useState({ 
+    employee_id: 'global',
+    address: '',
+    lat: 28.5355, 
+    lng: 77.391, 
+    radius_meters: 100, 
+    start_time: '09:00:00', 
+    end_time: '18:00:00', 
+    grace_period_minutes: 15 
+  });
   const [configLoading, setConfigLoading] = useState(false);
 
   // Holidays Form State (Super Admin Only)
@@ -65,9 +73,56 @@ export default function AdminDashboard({ onBack }) {
   const [selectedOverrideEmp, setSelectedOverrideEmp] = useState(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [overrideLoading, setOverrideLoading] = useState(false);
+  
+  // Suggestion State for Employees
+  const [activeSuggestField, setActiveSuggestField] = useState(null); // 'name' | 'email' | null
+  const [matchingEmployees, setMatchingEmployees] = useState([]);
+  const [authProfiles, setAuthProfiles] = useState([]);
+
+  // Suggestion State for OpenStreetMap Nominatim
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   const cyclingTimerRef = useRef(null);
   const progressTimerRef = useRef(null);
+
+  // OpenStreetMap Nominatim implementation for precise Office location searching
+  const handleAddressSearch = (query) => {
+    setConfigForm(prev => ({ ...prev, address: query }));
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (!query || query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      return;
+    }
+    
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+        const data = await res.json();
+        setAddressSuggestions(data);
+        setShowAddressSuggestions(true);
+      } catch (err) {
+        console.error("Nominatim search error:", err);
+      }
+    }, 500);
+  };
+
+  const selectAddress = (suggestion) => {
+    setConfigForm(prev => ({
+      ...prev,
+      address: suggestion.display_name,
+      lat: parseFloat(suggestion.lat),
+      lng: parseFloat(suggestion.lon)
+    }));
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
+  };
 
   // 1. Authenticate and check Admin rights
   useEffect(() => {
@@ -126,7 +181,25 @@ export default function AdminDashboard({ onBack }) {
         .from('employees')
         .select('*')
         .order('name', { ascending: true });
-      setEmployees(empData || []);
+      
+      // Fetch Profiles (to see who has linked Auth)
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, updated_at');
+      
+      setAuthProfiles(profilesData || []);
+      
+      // Map profiles to employees by email
+      const employeesWithProfile = (empData || []).map(emp => {
+        const profile = (profilesData || []).find(p => p.email?.toLowerCase() === emp.email?.toLowerCase());
+        return {
+          ...emp,
+          has_auth: !!profile,
+          last_active: profile?.updated_at || null
+        };
+      });
+
+      setEmployees(employeesWithProfile);
 
       // Fetch Today's Attendance logs
       const todayStr = new Date().toISOString().split('T')[0];
@@ -144,8 +217,13 @@ export default function AdminDashboard({ onBack }) {
         .maybeSingle();
       if (configData) {
         setOfficeConfig(configData);
-        setConfigForm(configData);
+        setConfigForm(prev => ({ ...prev, ...configData, employee_id: 'global' }));
       }
+      
+      const { data: empConfData } = await supabase
+        .from('employee_office_config')
+        .select('*');
+      setEmployeeConfigs(empConfData || []);
 
       // Fetch Holidays
       const { data: holData } = await supabase
@@ -237,66 +315,91 @@ export default function AdminDashboard({ onBack }) {
   }, [absentEmployees, showOverrideModal]);
 
   // Handle Photo selection for Biometric Enrollment
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length < 3 || files.length > 5) {
-      showStatus('error', 'Please select exactly 3 to 5 images.');
-      return;
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setEnrollForm({ ...enrollForm, name: val });
+    
+    if (val.trim()) {
+      const matches = authProfiles.filter(emp => {
+        const empName = emp.full_name || emp.name || '';
+        if (!empName) return false;
+        return empName.toLowerCase().includes(val.toLowerCase()) || 
+               (emp.email && emp.email.toLowerCase().includes(val.toLowerCase()));
+      }).slice(0, 5); // Show top 5 matches
+      setMatchingEmployees(matches);
+      setActiveSuggestField(matches.length > 0 ? 'name' : null);
+    } else {
+      setActiveSuggestField(null);
     }
-    setEnrollPhotos(files);
   };
 
-  // Dispatch Employee enrollment to FastAPI Backend
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEnrollForm({ ...enrollForm, email: val });
+    
+    if (val.trim()) {
+      const matches = authProfiles.filter(emp => {
+        const empName = emp.full_name || emp.name || '';
+        if (!emp.email) return false;
+        return emp.email.toLowerCase().includes(val.toLowerCase()) ||
+               (empName && empName.toLowerCase().includes(val.toLowerCase()));
+      }).slice(0, 5);
+      setMatchingEmployees(matches);
+      setActiveSuggestField(matches.length > 0 ? 'email' : null);
+    } else {
+      setActiveSuggestField(null);
+    }
+  };
+
+  const selectSuggestion = (emp) => {
+    setEnrollForm({
+      name: emp.full_name || emp.name || '',
+      email: emp.email || '',
+      role: 'office' // default to office
+    });
+    setActiveSuggestField(null);
+  };
+
+  // Register employee locally in DB - biometric face encoding will be automatically collected on first attendance scan
   const handleEnrollEmployee = async (e) => {
     e.preventDefault();
-    
-    // Face photos are now optional, but if provided, should be 1-5
-    if (enrollPhotos.length > 5) {
-      showStatus('error', 'Maximum 5 face photographs allowed.');
-      return;
-    }
-
     setEnrollLoading(true);
-    setEnrollProgress(10);
     showStatus(null, '');
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const formData = new FormData();
-    formData.append('name', enrollForm.name);
-    formData.append('email', enrollForm.email.trim().toLowerCase());
-    formData.append('role', enrollForm.role);
-    
-    enrollPhotos.forEach((file) => {
-      formData.append('images', file);
-    });
-
     try {
-      setEnrollProgress(30);
-      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/enroll-employee`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: formData
-      });
+      // Check if email already exists
+      const { data: existing } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('email', enrollForm.email.trim().toLowerCase())
+        .maybeSingle();
 
-      setEnrollProgress(70);
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setEnrollProgress(100);
-        showStatus('success', `Employee successfully enrolled. ID: ${result.employee_id}`);
-        setEnrollForm({ name: '', email: '', role: 'office' });
-        setEnrollPhotos([]);
-        fetchData();
-      } else {
-        throw new Error(result.detail || 'Failed to enroll employee.');
+      if (existing) {
+        showStatus('error', 'An employee with this email is already registered.');
+        return;
       }
+
+      // Insert directly to Supabase
+      const { data, error } = await supabase
+        .from('employees')
+        .insert([{
+          name: enrollForm.name,
+          email: enrollForm.email.trim().toLowerCase(),
+          role: enrollForm.role,
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      showStatus('success', `Employee registered! Face signature will be auto-captured on first sign-in.`);
+      setEnrollForm({ name: '', email: '', role: 'office' });
+      fetchData();
     } catch (err) {
-      showStatus('error', err.message || 'Error communicating with biometric backend.');
+      showStatus('error', err.message || 'Error registering employee.');
     } finally {
       setEnrollLoading(false);
-      setTimeout(() => setEnrollProgress(0), 3000);
     }
   };
 
@@ -316,6 +419,27 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
+  const handleDeleteCustomConfig = async (employee_id) => {
+    if (!isSuperAdminUser) return;
+    if (!window.confirm('Delete this custom configuration? The employee will revert to using the Global Office settings.')) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/office-config/${employee_id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        showStatus('success', 'Custom configuration deleted. Reverted to global.');
+        fetchData();
+      } else {
+        throw new Error(result.detail || 'Delete failed.');
+      }
+    } catch (err) {
+      showStatus('error', err.message);
+    }
+  };
+
   // Manage timing settings (Super Admin Only)
   const handleConfigUpdate = async (e) => {
     e.preventDefault();
@@ -324,7 +448,11 @@ export default function AdminDashboard({ onBack }) {
     setConfigLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     
+    // In a full implementation, you would send employee_id to the backend as well
+    // to store this configuration specifically for that user.
     const formData = new FormData();
+    formData.append('employee_id', configForm.employee_id);
+    formData.append('address', configForm.address);
     formData.append('lat', configForm.lat);
     formData.append('lng', configForm.lng);
     formData.append('radius_meters', configForm.radius_meters);
@@ -343,7 +471,7 @@ export default function AdminDashboard({ onBack }) {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        showStatus('success', 'Office settings successfully updated.');
+        showStatus('success', 'Configuration successfully updated for the selected scope.');
         setOfficeConfig(result.config);
         fetchData();
       } else {
@@ -553,19 +681,34 @@ export default function AdminDashboard({ onBack }) {
 
     if (record) {
       if (record.status === 'Late') {
-        return <span className="admin-status-badge late">Late ({new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</span>;
+        return (
+          <div className="admin-live-badge late">
+            <span className="badge-text">Late</span>
+            <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          </div>
+        );
       }
       if (record.status === 'Excused') {
-        return <span className="admin-status-badge excused">Excused ({record.override_reason})</span>;
+        return (
+          <div className="admin-live-badge excused">
+            <span className="badge-text">Excused</span>
+            <span className="badge-reason" title={record.override_reason}>{record.override_reason.slice(0, 10)}...</span>
+          </div>
+        );
       }
-      return <span className="admin-status-badge present">Present ({new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</span>;
+      return (
+        <div className="admin-live-badge present">
+          <span className="badge-text">Present</span>
+          <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        </div>
+      );
     }
 
     if (isHoliday) {
-      return <span className="admin-status-badge holiday">Holiday</span>;
+      return <div className="admin-live-badge holiday"><span className="badge-text">Holiday</span></div>;
     }
 
-    return <span className="admin-status-badge absent">Absent</span>;
+    return <div className="admin-live-badge absent"><span className="badge-text">Absent</span></div>;
   };
 
   if (loading) {
@@ -700,43 +843,27 @@ export default function AdminDashboard({ onBack }) {
         <div className="admin-tabs-list">
           <button
             onClick={() => setActiveTab('attendance')}
-            className={`px-5 py-3 font-semibold text-sm border-b-2 transition duration-300 whitespace-nowrap flex items-center gap-2 ${
-              activeTab === 'attendance' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/[0.02]' 
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
+            className={`admin-tab ${activeTab === 'attendance' ? 'active' : ''}`}
           >
-            <Clock  /> Live Tracking
+            <Clock size={16} /> Live Tracking
           </button>
           <button
             onClick={() => setActiveTab('employees')}
-            className={`px-5 py-3 font-semibold text-sm border-b-2 transition duration-300 whitespace-nowrap flex items-center gap-2 ${
-              activeTab === 'employees' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/[0.02]' 
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
+            className={`admin-tab ${activeTab === 'employees' ? 'active' : ''}`}
           >
-            <Users  /> Employee Directory & Enrollment
+            <Users size={16} /> Employee Directory & Enrollment
           </button>
           <button
             onClick={() => setActiveTab('config')}
-            className={`px-5 py-3 font-semibold text-sm border-b-2 transition duration-300 whitespace-nowrap flex items-center gap-2 ${
-              activeTab === 'config' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/[0.02]' 
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
+            className={`admin-tab ${activeTab === 'config' ? 'active' : ''}`}
           >
-            <Settings  /> Geofencing & Timings
+            <Settings size={16} /> Geofencing & Timings
           </button>
           <button
             onClick={() => setActiveTab('holidays')}
-            className={`px-5 py-3 font-semibold text-sm border-b-2 transition duration-300 whitespace-nowrap flex items-center gap-2 ${
-              activeTab === 'holidays' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/[0.02]' 
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
+            className={`admin-tab ${activeTab === 'holidays' ? 'active' : ''}`}
           >
-            <Calendar  /> Holiday Settings
+            <Calendar size={16} /> Holiday Settings
           </button>
         </div>
 
@@ -765,12 +892,12 @@ export default function AdminDashboard({ onBack }) {
               <div className="admin-panel">
                 <div className="admin-table-wrapper">
                   <table className="admin-table">
-                    <thead>
-                      <tr >
-                        <th >Name</th>
-                        <th >Role</th>
-                        <th >Today Status</th>
-                        <th >Geofence Distance</th>
+                    <thead className="admin-table-head">
+                      <tr>
+                        <th>Employee</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Geofence</th>
                         <th style={{textAlign: "right"}}>Action</th>
                       </tr>
                     </thead>
@@ -880,28 +1007,60 @@ export default function AdminDashboard({ onBack }) {
               </div>
 
               <form onSubmit={handleEnrollEmployee} className="admin-form-group">
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label className="admin-label">Full Name</label>
                   <input
                     type="text"
                     required
                     value={enrollForm.name}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, name: e.target.value })}
+                    onChange={handleNameChange}
+                    onFocus={() => enrollForm.name.trim() && matchingEmployees.length > 0 && setActiveSuggestField('name')}
+                    onBlur={() => setTimeout(() => setActiveSuggestField(null), 200)}
                     placeholder="Enter full name"
                     className="admin-input"
                   />
+                  {activeSuggestField === 'name' && (
+                    <div className="admin-suggestions-overlay">
+                      {matchingEmployees.map(emp => (
+                        <div 
+                          key={emp.id} 
+                          className="admin-suggestion-item"
+                          onMouseDown={(e) => { e.preventDefault(); selectSuggestion(emp); }}
+                        >
+                          <div className="suggestion-name">{emp.full_name || emp.name} <span style={{fontSize: '0.65rem', color: '#94a3b8'}}>(ID: {emp.id.slice(0,8)})</span></div>
+                          <div className="suggestion-email">{emp.email} (Auth User)</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label className="admin-label">Corporate Email</label>
                   <input
                     type="email"
                     required
                     value={enrollForm.email}
-                    onChange={(e) => setEnrollForm({ ...enrollForm, email: e.target.value })}
+                    onChange={handleEmailChange}
+                    onFocus={() => enrollForm.email.trim() && matchingEmployees.length > 0 && setActiveSuggestField('email')}
+                    onBlur={() => setTimeout(() => setActiveSuggestField(null), 200)}
                     placeholder="name@company.com"
                     className="admin-input"
                   />
+                  {activeSuggestField === 'email' && (
+                    <div className="admin-suggestions-overlay">
+                      {matchingEmployees.map(emp => (
+                        <div 
+                          key={emp.id} 
+                          className="admin-suggestion-item"
+                          onMouseDown={(e) => { e.preventDefault(); selectSuggestion(emp); }}
+                        >
+                          <div className="suggestion-name">{emp.full_name || emp.name} <span style={{fontSize: '0.65rem', color: '#94a3b8'}}>(ID: {emp.id.slice(0,8)})</span></div>
+                          <div className="suggestion-email">{emp.email} (Auth User)</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -916,58 +1075,14 @@ export default function AdminDashboard({ onBack }) {
                   </select>
                 </div>
 
-                {/* Face photos selection box */}
-                <div>
-                  <label className="admin-label">Biometric Enroll Photos (Optional, 1-5 photos)</label>
-                  <div className="admin-file-drop">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="admin-file-input"
-                    />
-                    <Upload className="admin-file-icon" />
-                    <span className="admin-file-text">Click to upload photos</span>
-                    <span className="admin-file-hint">Accepts jpg, jpeg, png files</span>
-                  </div>
-                  
-                  {enrollPhotos.length > 0 && (
-                    <div className="admin-photo-count">
-                      <span>Selected {enrollPhotos.length} face photographs</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setEnrollPhotos([])}
-                        className="admin-clear-btn"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  )}
-                </div>
 
-                {/* Enroll Progress Bar */}
-                {enrollProgress > 0 && (
-                  <div className="admin-progress-container">
-                    <div className="admin-progress-header">
-                      <span>Processing biometric patterns...</span>
-                      <span>{enrollProgress}%</span>
-                    </div>
-                    <div className="admin-progress-track">
-                      <div 
-                        className="admin-progress-bar"
-                        style={{ width: `${enrollProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
 
                 <button
                   type="submit"
                   disabled={enrollLoading}
                   className="admin-btn-primary"
                 >
-                  {enrollLoading ? 'Registering face encodings...' : 'Enroll Employee'}
+                  {enrollLoading ? 'Registering...' : 'Register Employee'}
                 </button>
               </form>
             </div>
@@ -992,39 +1107,49 @@ export default function AdminDashboard({ onBack }) {
                   </thead>
                   <tbody >
                     {employees.map((emp) => (
-                      <tr key={emp.id} >
-                        <td className="admin-emp-name">{emp.name}</td>
-                        <td className="admin-font-mono">{emp.email}</td>
+                      <tr key={emp.id} className="admin-table-row">
+                        <td className="admin-emp-cell">
+                          <div className="admin-emp-info-main">
+                            <span className="admin-emp-name">{emp.name}</span>
+                            <span className="admin-emp-id-label">ID: {emp.id.slice(0, 8)}</span>
+                          </div>
+                        </td>
+                        <td className="admin-emp-email-cell">
+                          <div className="admin-email-badge-container">
+                            <span className="admin-font-mono">{emp.email}</span>
+                            {emp.has_auth ? (
+                              <span className="admin-auth-badge verified" title="User has registered their account">
+                                <ShieldCheck size={10} /> Registered
+                              </span>
+                            ) : (
+                              <span className="admin-auth-badge pending" title="User has not registered yet">
+                                <AlertTriangle size={10} /> Not Registered
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td >
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                            emp.role === 'office' 
-                              ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/15' 
-                              : 'bg-teal-500/10 text-teal-400 border border-teal-500/15'
-                          }`}>
-                            {emp.role}
+                          <span className={`admin-role-tag ${emp.role}`}>
+                            {emp.role === 'office' ? 'Office' : 'Field'}
                           </span>
                         </td>
-                        <td className="p-4 text-xs font-semibold text-slate-400">
+                        <td className="admin-biometric-cell">
                           {emp.face_encoding ? (
-                            <span className="admin-face-enrolled">
-                              <CheckCircle  /> Enrolled
-                            </span>
+                            <div className="admin-face-status enrolled" title="Biometric signature saved">
+                              <div className="status-dot"></div> Enrolled
+                            </div>
                           ) : (
-                            <span className="admin-face-missing">
-                              <AlertCircle  /> Missing Encoding
-                            </span>
+                            <div className="admin-face-status missing" title="No biometric data found">
+                              <div className="status-dot"></div> Missing
+                            </div>
                           )}
                         </td>
                         <td style={{textAlign: "right"}}>
                           <button
                             onClick={() => toggleEmployeeStatus(emp.id, emp.is_active)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition duration-300 ${
-                              emp.is_active 
-                                ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/15' 
-                                : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/15'
-                            }`}
+                            className={`admin-toggle-btn ${emp.is_active ? 'active' : 'inactive'}`}
                           >
-                            {emp.is_active ? 'Deactivate' : 'Activate'}
+                            {emp.is_active ? 'Active' : 'Disabled'}
                           </button>
                         </td>
                       </tr>
@@ -1065,67 +1190,121 @@ export default function AdminDashboard({ onBack }) {
                 </div>
               ) : (
                 <form onSubmit={handleConfigUpdate} className="admin-form-group">
+                  
+                  {/* Select Employee */}
                   <div>
-                    <label className="admin-label">Shift Start Time</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="09:00:00"
-                      value={configForm.start_time}
-                      onChange={(e) => setConfigForm({ ...configForm, start_time: e.target.value })}
-                      className="admin-input font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="admin-label">Grace Period (Minutes)</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={configForm.grace_period_minutes}
-                      onChange={(e) => setConfigForm({ ...configForm, grace_period_minutes: parseInt(e.target.value) })}
+                    <label className="admin-label">Assign Configuration To</label>
+                    <select
+                      value={configForm.employee_id}
+                      onChange={(e) => setConfigForm({ ...configForm, employee_id: e.target.value })}
                       className="admin-input"
-                    />
+                    >
+                      <option value="global">Global Office (Default applied to everyone)</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name} ({emp.email})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="admin-label">Shift Closing Time</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="18:00:00"
-                      value={configForm.end_time}
-                      onChange={(e) => setConfigForm({ ...configForm, end_time: e.target.value })}
-                      className="admin-input font-mono"
-                    />
+                  {/* OpenStreetMap Search Bar */}
+                  <div style={{ position: 'relative' }}>
+                    <label className="admin-label">Office Address (Location Search)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Search precise office location..."
+                        value={configForm.address}
+                        onChange={(e) => handleAddressSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                          }
+                        }}
+                        onFocus={() => { if (addressSuggestions.length > 0) setShowAddressSuggestions(true); }}
+                        onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
+                        className="admin-input"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        title="Use My Current GPS Location"
+                        onClick={() => {
+                          if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(async (pos) => {
+                              const lat = pos.coords.latitude;
+                              const lng = pos.coords.longitude;
+                              setConfigForm(prev => ({ ...prev, lat, lng }));
+                              
+                              try {
+                                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                                const data = await res.json();
+                                if (data && data.display_name) {
+                                  setConfigForm(prev => ({ ...prev, address: data.display_name }));
+                                }
+                              } catch (err) {
+                                console.error("Reverse geocoding failed", err);
+                              }
+                            }, (err) => {
+                              alert("GPS location access denied or unavailable.");
+                            });
+                          } else {
+                            alert("Geolocation is not supported by your browser.");
+                          }
+                        }}
+                        className="admin-btn-primary emerald"
+                        style={{ width: 'auto', marginTop: 0, padding: '0 1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                      >
+                        <MapPin size={16} /> GPS
+                      </button>
+                    </div>
+                    {showAddressSuggestions && addressSuggestions.length > 0 && (
+                      <div className="admin-suggestions-overlay" style={{ maxHeight: '250px', overflowY: 'auto', zIndex: 50 }}>
+                        {addressSuggestions.map(s => (
+                          <div 
+                            key={s.place_id} 
+                            className="admin-suggestion-item"
+                            onMouseDown={(e) => { e.preventDefault(); selectAddress(s); }}
+                          >
+                            <div className="suggestion-name" style={{ whiteSpace: 'normal', lineHeight: '1.4', fontSize: '0.85rem' }}>
+                              {s.display_name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
+                  
                   <div className="admin-border-t">
-                    <div>
-                      <label className="admin-label">Office Latitude</label>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        required
-                        value={configForm.lat}
-                        onChange={(e) => setConfigForm({ ...configForm, lat: parseFloat(e.target.value) })}
-                        className="admin-input font-mono"
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="admin-label">Office Latitude</label>
+                        <input
+                          type="number"
+                          step="0.000001"
+                          required
+                          value={configForm.lat}
+                          onChange={(e) => setConfigForm({ ...configForm, lat: parseFloat(e.target.value) })}
+                          className="admin-input font-mono"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="admin-label">Office Longitude</label>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        required
-                        value={configForm.lng}
-                        onChange={(e) => setConfigForm({ ...configForm, lng: parseFloat(e.target.value) })}
-                        className="admin-input font-mono"
-                      />
+                      <div>
+                        <label className="admin-label">Office Longitude</label>
+                        <input
+                          type="number"
+                          step="0.000001"
+                          required
+                          value={configForm.lng}
+                          onChange={(e) => setConfigForm({ ...configForm, lng: parseFloat(e.target.value) })}
+                          className="admin-input font-mono"
+                        />
+                      </div>
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-4 my-2">
                     <div>
                       <label className="admin-label">Geofence Radius (Meters)</label>
                       <input
@@ -1134,6 +1313,43 @@ export default function AdminDashboard({ onBack }) {
                         value={configForm.radius_meters}
                         onChange={(e) => setConfigForm({ ...configForm, radius_meters: parseInt(e.target.value) })}
                         className="admin-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="admin-label">Grace Period (Minutes)</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        value={configForm.grace_period_minutes}
+                        onChange={(e) => setConfigForm({ ...configForm, grace_period_minutes: parseInt(e.target.value) })}
+                        className="admin-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 my-2">
+                    <div>
+                      <label className="admin-label">Shift Start Time</label>
+                      <input
+                        type="time"
+                        required
+                        step="1"
+                        value={configForm.start_time}
+                        onChange={(e) => setConfigForm({ ...configForm, start_time: e.target.value })}
+                        className="admin-input font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="admin-label">Shift Closing Time</label>
+                      <input
+                        type="time"
+                        required
+                        step="1"
+                        value={configForm.end_time}
+                        onChange={(e) => setConfigForm({ ...configForm, end_time: e.target.value })}
+                        className="admin-input font-mono"
                       />
                     </div>
                   </div>
@@ -1156,7 +1372,7 @@ export default function AdminDashboard({ onBack }) {
                 <h3 className="admin-panel-title">Office Geofencing Coordinate Map</h3>
               </div>
               
-              {/* Premium Google Maps Iframe center visualizer */}
+              {/* OpenStreetMap Iframe center visualizer */}
               <div className="admin-map-container">
                 <iframe
                   title="Office GPS Geofence Area"
@@ -1166,20 +1382,87 @@ export default function AdminDashboard({ onBack }) {
                   scrolling="no"
                   marginHeight="0"
                   marginWidth="0"
-                  src={`https://maps.google.com/maps?q=${officeConfig.lat},${officeConfig.lng}&t=&z=17&ie=UTF8&iwloc=B&output=embed`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(configForm.lng || 0)-0.005}%2C${(configForm.lat || 0)-0.005}%2C${(configForm.lng || 0)+0.005}%2C${(configForm.lat || 0)+0.005}&layer=mapnik&marker=${configForm.lat || 0}%2C${configForm.lng || 0}`}
                   className="admin-map-iframe"
                 />
                 
                 {/* Visual Glassmorphic coordinates box */}
                 <div className="admin-map-overlay">
                   <h4 className="admin-map-overlay-title">
-                    <MapPin className="w-4 h-4 text-emerald-400" /> Geofence Configuration Locked
+                    <MapPin className="w-4 h-4 text-emerald-400" /> Geofence Map Preview
                   </h4>
                   <div className="admin-map-overlay-coords">
-                    <span>Coordinates: {officeConfig.lat.toFixed(6)}, {officeConfig.lng.toFixed(6)}</span>
-                    <span>Active perimeter radius: {officeConfig.radius_meters} meters</span>
+                    <span>Coordinates: {Number(configForm.lat || 0).toFixed(6)}, {Number(configForm.lng || 0).toFixed(6)}</span>
+                    <span>Active perimeter radius: {configForm.radius_meters} meters</span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Custom Employee Configurations Table */}
+            <div style={{ gridColumn: '1 / -1' }} className="admin-panel admin-panel-padded">
+              <div className="admin-panel-header">
+                <Users />
+                <h3 className="admin-panel-title">Custom Employee Assignments</h3>
+              </div>
+              <p className="admin-map-overlay-title" style={{marginBottom:'1rem', color:'var(--text-muted)', fontSize: '0.85em'}}>
+                Employees listed here bypass the global settings and follow their own assigned radius and shift constraints.
+              </p>
+
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr className="border-b border-slate-900 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      <th>Employee</th>
+                      <th>Custom Location</th>
+                      <th>Radius</th>
+                      <th>Shift Timings</th>
+                      {isSuperAdminUser && <th style={{textAlign: "right"}}>Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employeeConfigs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="admin-table-empty">
+                          No custom employee configurations found. All employees are using the Global Office settings.
+                        </td>
+                      </tr>
+                    ) : (
+                      employeeConfigs.map((conf) => {
+                        const empName = employees.find(e => e.id === conf.employee_id)?.name || 'Unknown User';
+                        return (
+                          <tr key={conf.id} className="admin-table-row">
+                            <td>
+                              <div className="admin-table-cell-bold">{empName}</div>
+                            </td>
+                            <td>
+                              <div className="text-sm" title={conf.address || `${conf.lat}, ${conf.lng}`} style={{maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                {conf.address ? conf.address : `${Number(conf.lat).toFixed(4)}, ${Number(conf.lng).toFixed(4)}`}
+                              </div>
+                            </td>
+                            <td><span className="admin-badge admin-badge-info">{conf.radius_meters}m</span></td>
+                            <td>
+                              <div className="text-sm">{conf.start_time.slice(0,5)} - {conf.end_time.slice(0,5)}</div>
+                            </td>
+                            {isSuperAdminUser && (
+                              <td style={{textAlign: "right", paddingRight: "1rem"}}>
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteCustomConfig(conf.employee_id)}
+                                  className="admin-btn-icon" 
+                                  style={{color: "var(--danger)"}}
+                                  title="Revert to global"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -1259,9 +1542,9 @@ export default function AdminDashboard({ onBack }) {
                   </thead>
                   <tbody >
                     {holidays.map((hol) => (
-                      <tr key={hol.id} >
-                        <td className="admin-emp-name">{hol.name}</td>
-                        <td className="admin-font-mono">
+                      <tr key={hol.id} className="admin-holiday-row">
+                        <td className="admin-holiday-name">{hol.name}</td>
+                        <td className="admin-holiday-date-text">
                           {new Date(hol.holiday_date).toLocaleDateString([], {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
                         </td>
                         {isSuperAdminUser && (
