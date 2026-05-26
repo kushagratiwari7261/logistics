@@ -48,6 +48,13 @@ async def startup_event():
     global supabase
     logger.info("=== Backend starting up ===")
     logger.info(f"PORT={os.environ.get('PORT', 'not set')}")
+    
+    # Force defaults if environment overrides were accidentally set to empty strings
+    if not settings.SUPABASE_URL:
+        settings.SUPABASE_URL = "https://xgihvwtiaqkpusrdvclk.supabase.co"
+    if not settings.SUPABASE_SERVICE_KEY:
+        settings.SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnaWh2d3RpYXFrcHVzcmR2Y2xrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDY1NzcwNiwiZXhwIjoyMDg2MjMzNzA2fQ.AQe3eYb3Co2-Nyw46OSeOu8Vx0f9eCB8ZrrKiFifUu8"
+        
     logger.info(f"SUPABASE_URL set: {bool(settings.SUPABASE_URL)}")
     logger.info(f"SUPABASE_SERVICE_KEY set: {bool(settings.SUPABASE_SERVICE_KEY)}")
     try:
