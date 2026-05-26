@@ -30,10 +30,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration — allow all origins so the frontend and Node.js backend can call freely
+# CORS configuration — update with specific origins to allow credentials without rejecting wildcards
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://logistics.prudata-tech.workers.dev",
+        "https://logistics-production.up.railway.app",
+        "https://kushagra-logistics.vercel.app",
+        "https://logistics-alpha-steel.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -132,6 +138,8 @@ def get_face_encoding_from_bytes(image_bytes: bytes) -> np.ndarray:
     Raises ValueError if no face is detected.
     """
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    # Resize image to prevent Out-Of-Memory (OOM) kills on Railway free tier
+    img.thumbnail((400, 400))
     img_array = np.array(img)
     
     # Detect face encodings (128-dimensional vector)
