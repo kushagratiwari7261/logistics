@@ -6,8 +6,9 @@ import sys
 from datetime import datetime
 from typing import List, Optional
 import numpy as np
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from supabase import create_client, Client
 import face_recognition
 from PIL import Image
@@ -44,6 +45,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler — ensures CORS headers are always present on errors.
+# Without this, unhandled exceptions bypass CORSMiddleware and the browser
+# reports "CORS blocked" instead of showing the real error message.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"},
+    )
 
 # Initialize Supabase client lazily to avoid crashing on import when env vars are not yet available
 supabase: Client = None
