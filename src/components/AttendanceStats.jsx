@@ -43,7 +43,7 @@ export default function AttendanceStats({ onBack }) {
         const attendanceLogs = logs || [];
 
         // 3. Today's counters
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toLocaleDateString('en-CA');
         const todayLogs = attendanceLogs.filter(log => log.date === todayStr);
         const todayPresent = todayLogs.length;
         const todayLate = todayLogs.filter(l => l.status === 'Late').length;
@@ -71,7 +71,7 @@ export default function AttendanceStats({ onBack }) {
         for (let i = 6; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
+          const dateStr = d.toLocaleDateString('en-CA');
           
           const dayLogs = attendanceLogs.filter(log => log.date === dateStr);
           const present = dayLogs.length;

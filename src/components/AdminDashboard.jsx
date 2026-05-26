@@ -36,8 +36,8 @@ export default function AdminDashboard({ onBack }) {
   
   // Date Range CSV Exporter State
   const [csvDateRange, setCsvDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toLocaleDateString('en-CA'),
+    endDate: new Date().toLocaleDateString('en-CA')
   });
 
   // Employee Enrollment Form State
@@ -202,7 +202,7 @@ export default function AdminDashboard({ onBack }) {
       setEmployees(employeesWithProfile);
 
       // Fetch Today's Attendance logs
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = new Date().toLocaleDateString('en-CA');
       const { data: attData } = await supabase
         .from('attendance')
         .select('*')
@@ -565,7 +565,7 @@ export default function AdminDashboard({ onBack }) {
 
     setOverrideLoading(true);
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = new Date().toLocaleDateString('en-CA');
       const overrideData = {
         employee_id: selectedOverrideEmp.id,
         name: selectedOverrideEmp.name,
@@ -679,7 +679,7 @@ export default function AdminDashboard({ onBack }) {
     const record = attendance.find((a) => a.employee_id === empId);
     
     // Check if today is registered as a holiday
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const isHoliday = holidays.some((h) => h.holiday_date === todayStr);
 
     if (record) {
@@ -899,6 +899,7 @@ export default function AdminDashboard({ onBack }) {
                       <tr>
                         <th>Employee</th>
                         <th>Role</th>
+                        <th>Method</th>
                         <th>Status</th>
                         <th>Geofence</th>
                         <th style={{textAlign: "right"}}>Action</th>
@@ -923,11 +924,22 @@ export default function AdminDashboard({ onBack }) {
                               </span>
                             </td>
                             <td >
+                              {!record ? '-' : (
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                  record.face_matched 
+                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/15' 
+                                    : 'bg-orange-500/10 text-orange-400 border border-orange-500/15'
+                                }`}>
+                                  {record.face_matched ? 'Face Biometric' : (record.direction_used === 'ADMIN_OVERRIDE' ? 'Manual' : record.direction_used)}
+                                </span>
+                              )}
+                            </td>
+                            <td >
                               {getAttendanceStatusBadge(emp.id, emp.role)}
                             </td>
                             <td className="admin-font-mono">
                               {!record ? '-' : (record.role === 'office' 
-                                ? (record.distance_m ? `${record.distance_m.toFixed(1)}m` : 'Error')
+                                ? (record.distance_m != null ? `${record.distance_m.toFixed(1)}m` : 'Error')
                                 : 'Bypassed (Field)')}
                             </td>
                             <td style={{textAlign: "right"}}>

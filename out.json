@@ -1,0 +1,34 @@
+[
+  {
+    "id": "40c4f22f-2da9-4fa6-92ff-e5bec82c7a8b",
+    "employee_id": "9fbc17dc-66ae-4668-aad7-cf274bcdbf7f",
+    "name": "kushagra tiwari",
+    "role": "office",
+    "latitude": null,
+    "longitude": null,
+    "distance_m": null,
+    "inside_geofence": null,
+    "face_matched": false,
+    "direction_used": "ADMIN_OVERRIDE",
+    "status": "Excused",
+    "override_reason": "ok",
+    "marked_at": "2026-05-26T04:46:49.661+00:00",
+    "date": "2026-05-26"
+  },
+  {
+    "id": "ebe02313-c4e8-4637-a7a1-d97889f8d40a",
+    "employee_id": "9fbc17dc-66ae-4668-aad7-cf274bcdbf7f",
+    "name": "kushagra tiwari",
+    "role": "office",
+    "latitude": null,
+    "longitude": null,
+    "distance_m": null,
+    "inside_geofence": null,
+    "face_matched": false,
+    "direction_used": "ADMIN_OVERRIDE",
+    "status": "Excused",
+    "override_reason": "okay",
+    "marked_at": "2026-05-25T17:10:06.095+00:00",
+    "date": "2026-05-25"
+  }
+]

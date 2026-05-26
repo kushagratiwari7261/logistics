@@ -70,7 +70,7 @@ export default function MarkAttendance({ onBack }) {
         
         // Prevent double face scanning by checking if already marked today
         if (data && data.id) {
-          const todayStr = new Date().toISOString().split('T')[0];
+          const todayStr = new Date().toLocaleDateString('en-CA');
           const { data: attData } = await supabase
             .from('attendance')
             .select('id, marked_at')
@@ -210,7 +210,7 @@ export default function MarkAttendance({ onBack }) {
 
   // Load MediaPipe scripts dynamically
   useEffect(() => {
-    if (geofenceStatus !== 'success') return;
+    if (geofenceStatus !== 'success' || verifyResult === 'success') return;
 
     const loadScript = (src) => {
       return new Promise((resolve, reject) => {
@@ -293,11 +293,16 @@ export default function MarkAttendance({ onBack }) {
 
   // Trigger camera start when scripts load
   useEffect(() => {
-    if (scriptsLoaded && geofenceStatus === 'success') {
+    if (scriptsLoaded && geofenceStatus === 'success' && verifyResult !== 'success') {
       startCamera();
     }
-    return () => stopCamera();
-  }, [scriptsLoaded, geofenceStatus]);
+    return () => {
+      // Cleanup on unmount, but ensure it doesn't break React strict mode fast-refresh
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [scriptsLoaded, geofenceStatus, verifyResult, startCamera]);
 
   // Start the 15-second countdown once face is locked
   useEffect(() => {
