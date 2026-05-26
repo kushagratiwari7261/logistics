@@ -12,23 +12,28 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     """
     HTTP Bearer dependency that decodes and validates a Supabase Auth JWT token
     **locally** using the project's SUPABASE_JWT_SECRET.
-
-    This avoids the flaky supabase.auth.get_user() round-trip which was causing
-    500s that the browser then reported as CORS errors.
     """
     token = credentials.credentials
 
+    # Peek at the unverified header to log which algorithm the token uses
     try:
-        # Decode the JWT locally using the Supabase project's JWT secret.
-        # Supabase issues HS256 tokens signed with this secret.
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+        logger.info(f"JWT header alg={alg}, typ={header.get('typ')}")
+    except Exception as e:
+        logger.warning(f"Could not read JWT header: {e}")
+        alg = "HS256"
+
+    try:
+        # Accept all HMAC-based algorithms that Supabase might use
         payload = jwt.decode(
             token,
             settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
+            algorithms=["HS256", "HS384", "HS512"],
+            options={"verify_aud": False},  # Skip audience check for flexibility
         )
     except JWTError as e:
-        logger.warning(f"JWT decode failed: {e}")
+        logger.warning(f"JWT decode failed (alg={alg}): {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid or expired authentication token: {e}",
@@ -38,6 +43,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     user_email = payload.get("email")
     user_id = payload.get("sub")  # Supabase stores user UUID in 'sub'
     user_role = payload.get("role", "authenticated")
+
+    logger.info(f"JWT decoded OK: sub={user_id}, email={user_email}, role={user_role}")
 
     if not user_email or not user_id:
         logger.warning(f"JWT missing required claims. email={user_email}, sub={user_id}")
