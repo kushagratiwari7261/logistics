@@ -1,6 +1,5 @@
 import io
 import json
-import tempfile
 import os
 import logging
 from datetime import datetime
@@ -9,9 +8,9 @@ import numpy as np
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
-from deepface import DeepFace
+import face_recognition
+from PIL import Image
 from haversine import haversine, Unit
-import cv2
 
 from config import settings
 from auth import get_current_user
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Smart Attendance System Backend",
-    description="Python FastAPI backend powering pgvector face recognition and geofencing for attendance tracking.",
+    description="Python FastAPI backend powering face recognition and geofencing for attendance tracking.",
     version="1.0.0"
 )
 
@@ -89,6 +88,27 @@ def is_super_admin(email: str) -> bool:
         return len(res.data) > 0 and res.data[0].get("is_super_admin", False)
     except Exception:
         return False
+
+# ----------------------------------------------------
+# Face Encoding Helpers
+# ----------------------------------------------------
+
+def get_face_encoding_from_bytes(image_bytes: bytes) -> np.ndarray:
+    """
+    Takes raw image bytes, loads via PIL, converts to RGB numpy array,
+    and returns the first face encoding found using face_recognition.
+    Raises ValueError if no face is detected.
+    """
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img_array = np.array(img)
+    
+    # Detect face encodings (128-dimensional vector)
+    encodings = face_recognition.face_encodings(img_array)
+    
+    if not encodings:
+        raise ValueError("No face detected in the image.")
+    
+    return encodings[0]
 
 # ----------------------------------------------------
 # API Endpoints
@@ -184,44 +204,17 @@ async def face_match(
             stored_encoding = json.loads(stored_encoding)
         stored_encoding_arr = np.array(stored_encoding, dtype=float)
 
-    # 3. Process webcam image frame — save to temp file for DeepFace
+    # 3. Process webcam image frame
     try:
         contents = await image.read()
-        img_array = np.frombuffer(contents, np.uint8)
-        frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-        if frame is None:
-            raise ValueError("Could not decode image buffer.")
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Corrupt or invalid image frame uploaded: {str(e)}"
-        )
-
-    # 4. Generate face embedding via DeepFace (Facenet512 model)
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp_path = tmp.name
-            cv2.imwrite(tmp_path, frame)
-
-        result = DeepFace.represent(
-            img_path=tmp_path,
-            model_name="Facenet512",
-            enforce_detection=True,
-            detector_backend="opencv"
-        )
-        os.unlink(tmp_path)
-
-        if not result:
-            raise ValueError("No face embedding returned.")
-
-        user_encoding_arr = np.array(result[0]["embedding"], dtype=float)
+        user_encoding_arr = get_face_encoding_from_bytes(contents)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Face detection failed: No face detected in camera viewport. ({str(e)})"
         )
 
-    # 5. Enrollment or Cosine Distance Calculation
+    # 4. Enrollment or Cosine Distance Calculation
     is_match = False
     if is_first_enrollment:
         # Save this encoding as the primary face signature
@@ -238,8 +231,8 @@ async def face_match(
         if norm_stored > 0 and norm_user > 0:
             cosine_dist = 1.0 - (dot_product / (norm_stored * norm_user))
 
-        # Facenet512 match threshold: < 0.30 cosine distance is a confirmed match
-        is_match = (cosine_dist < 0.30)
+        # face_recognition match threshold: < 0.40 cosine distance is a confirmed match
+        is_match = (cosine_dist < 0.40)
         
     if not is_match:
         raise HTTPException(
@@ -248,7 +241,7 @@ async def face_match(
         )
 
 
-    # 6. Geofencing check for Office Staff
+    # 5. Geofencing check for Office Staff
     inside_geofence = None
     distance_m = None
     if emp_role == "office":
@@ -286,7 +279,7 @@ async def face_match(
                 detail=f"Verification blocked: You are outside office boundaries (Distance: {distance_m:.1f}m)."
             )
 
-    # 7. Timelimit Check (Late Flagging)
+    # 6. Timelimit Check (Late Flagging)
     status_str = "Present"
     emp_config_res = supabase.table("employee_office_config").select("*").eq("employee_id", emp_id).execute()
     office_timing = None
@@ -315,7 +308,7 @@ async def face_match(
         except Exception:
             pass  # Fallback to Present if timing configuration values fail parsing
 
-    # 8. Insert record in Supabase (Prevent Double-logging)
+    # 7. Insert record in Supabase (Prevent Double-logging)
     today_str = datetime.now().date().isoformat()
     existing_att = supabase.table("attendance")\
         .select("id")\
@@ -398,29 +391,8 @@ async def enroll_employee(
         for idx, img_file in enumerate(upload_images):
             try:
                 contents = await img_file.read()
-                img_array = np.frombuffer(contents, np.uint8)
-                frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-                if frame is None:
-                    raise ValueError("Cannot decode image.")
-
-                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                    tmp_path = tmp.name
-                    cv2.imwrite(tmp_path, frame)
-
-                result = DeepFace.represent(
-                    img_path=tmp_path,
-                    model_name="Facenet512",
-                    enforce_detection=True,
-                    detector_backend="opencv"
-                )
-                os.unlink(tmp_path)
-
-                if not result:
-                    logger.warning(f"No face detected in photograph number {idx+1}")
-                    continue
-                
-                encodings.append(np.array(result[0]["embedding"], dtype=float))
-
+                enc = get_face_encoding_from_bytes(contents)
+                encodings.append(enc)
             except Exception as e:
                 logger.error(f"Error processing face photo {idx+1}: {e}")
                 continue

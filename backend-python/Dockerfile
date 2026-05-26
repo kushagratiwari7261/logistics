@@ -1,9 +1,12 @@
 FROM python:3.10-slim-bullseye
 
-# Install only the minimal runtime library OpenCV needs
+# Install build dependencies for dlib (face_recognition) and runtime libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libgl1 \
+    build-essential \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

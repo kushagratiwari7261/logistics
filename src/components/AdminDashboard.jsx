@@ -423,61 +423,64 @@ export default function AdminDashboard({ onBack }) {
     if (!isSuperAdminUser) return;
     if (!window.confirm('Delete this custom configuration? The employee will revert to using the Global Office settings.')) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/office-config/${employee_id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${session?.access_token}` }
-      });
-      const result = await response.json();
-      if (response.ok && result.success) {
-        showStatus('success', 'Custom configuration deleted. Reverted to global.');
-        fetchData();
-      } else {
-        throw new Error(result.detail || 'Delete failed.');
-      }
+      const { error } = await supabase
+        .from('employee_office_config')
+        .delete()
+        .eq('employee_id', employee_id);
+      if (error) throw error;
+      showStatus('success', 'Custom configuration deleted. Reverted to global.');
+      fetchData();
     } catch (err) {
-      showStatus('error', err.message);
+      showStatus('error', err.message || 'Delete failed.');
     }
   };
 
-  // Manage timing settings (Super Admin Only)
+  // Manage office location settings (Super Admin Only) — saves directly via Supabase
   const handleConfigUpdate = async (e) => {
     e.preventDefault();
     if (!isSuperAdminUser) return;
 
     setConfigLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // In a full implementation, you would send employee_id to the backend as well
-    // to store this configuration specifically for that user.
-    const formData = new FormData();
-    formData.append('employee_id', configForm.employee_id);
-    formData.append('address', configForm.address);
-    formData.append('lat', configForm.lat);
-    formData.append('lng', configForm.lng);
-    formData.append('radius_meters', configForm.radius_meters);
-    formData.append('start_time', configForm.start_time);
-    formData.append('end_time', configForm.end_time);
-    formData.append('grace_period_minutes', configForm.grace_period_minutes);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/office-config`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: formData
-      });
-
-      const result = await response.json();
-      if (response.ok && result.success) {
-        showStatus('success', 'Configuration successfully updated for the selected scope.');
-        setOfficeConfig(result.config);
-        fetchData();
+      if (configForm.employee_id === 'global') {
+        // Update the single global office_config row (id=1)
+        const { error } = await supabase
+          .from('office_config')
+          .upsert({
+            id: 1,
+            lat: parseFloat(configForm.lat),
+            lng: parseFloat(configForm.lng),
+            radius_meters: parseFloat(configForm.radius_meters),
+            start_time: configForm.start_time || '09:00:00',
+            end_time: configForm.end_time || '18:00:00',
+            grace_period_minutes: parseInt(configForm.grace_period_minutes) || 15,
+            updated_at: new Date().toISOString()
+          });
+        if (error) throw error;
+        showStatus('success', 'Global office configuration saved successfully!');
       } else {
-        throw new Error(result.detail || 'Configuration update failed.');
+        // Upsert per-employee config
+        const { error } = await supabase
+          .from('employee_office_config')
+          .upsert({
+            employee_id: configForm.employee_id,
+            lat: parseFloat(configForm.lat),
+            lng: parseFloat(configForm.lng),
+            radius_meters: parseFloat(configForm.radius_meters),
+            start_time: configForm.start_time || '09:00:00',
+            end_time: configForm.end_time || '18:00:00',
+            grace_period_minutes: parseInt(configForm.grace_period_minutes) || 15,
+            address: configForm.address || null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'employee_id' });
+        if (error) throw error;
+        const empName = employees.find(emp => emp.id === configForm.employee_id)?.name || 'Employee';
+        showStatus('success', `Custom configuration saved for ${empName}!`);
       }
+      fetchData();
     } catch (err) {
+      console.error('Config save error:', err);
       showStatus('error', err.message || 'Error updating configuration.');
     } finally {
       setConfigLoading(false);
@@ -1328,38 +1331,13 @@ export default function AdminDashboard({ onBack }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 my-2">
-                    <div>
-                      <label className="admin-label">Shift Start Time</label>
-                      <input
-                        type="time"
-                        required
-                        step="1"
-                        value={configForm.start_time}
-                        onChange={(e) => setConfigForm({ ...configForm, start_time: e.target.value })}
-                        className="admin-input font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="admin-label">Shift Closing Time</label>
-                      <input
-                        type="time"
-                        required
-                        step="1"
-                        value={configForm.end_time}
-                        onChange={(e) => setConfigForm({ ...configForm, end_time: e.target.value })}
-                        className="admin-input font-mono"
-                      />
-                    </div>
-                  </div>
-
                   <button
                     type="submit"
                     disabled={configLoading}
                     className="admin-btn-primary"
+                    style={{ marginTop: '1rem' }}
                   >
-                    {configLoading ? 'Saving Timings...' : 'Save Office Timings'}
+                    {configLoading ? 'Saving Configuration...' : 'Save Office Location'}
                   </button>
                 </form>
               )}

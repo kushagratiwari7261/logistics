@@ -52,7 +52,17 @@ export default function MarkAttendance({ onBack }) {
     fetchProfile();
   }, []);
 
-  // Capture GPS coordinates and verify on Backend
+  // Haversine distance calculation (meters)
+  const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (x) => (x * Math.PI) / 180;
+    const R = 6371000; // Earth's radius in meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  // Capture GPS coordinates and verify against Supabase office config
   const handleGPSCheck = () => {
     if (!navigator.geolocation) {
       setGpsError('Geolocation is not supported by your browser.');
@@ -70,35 +80,51 @@ export default function MarkAttendance({ onBack }) {
         setGpsData({ lat, lng });
         setGpsLoading(false);
 
-        // Fetch verification from FastAPI geofence-check
         try {
+          // Try employee-specific config first, fall back to global
           const { data: { session } } = await supabase.auth.getSession();
-          const formData = new FormData();
-          formData.append('latitude', lat);
-          formData.append('longitude', lng);
+          let office = null;
 
-          const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/geofence-check`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session?.access_token}`
-            },
-            body: formData
-          });
-
-          if (!response.ok) {
-            throw new Error('Geofence verification service failed.');
+          // Check for employee-specific geofence config
+          if (userProfile?.id) {
+            const { data: empConf } = await supabase
+              .from('employee_office_config')
+              .select('*')
+              .eq('employee_id', userProfile.id)
+              .maybeSingle();
+            if (empConf) office = empConf;
           }
 
-          const result = await response.json();
-          if (result.inside_geofence) {
+          // Fall back to global config
+          if (!office) {
+            const { data: globalConf } = await supabase
+              .from('office_config')
+              .select('*')
+              .eq('id', 1)
+              .maybeSingle();
+            if (globalConf) office = globalConf;
+          }
+
+          if (!office) {
+            // No config at all — allow through with warning
+            console.warn('No office config found, allowing attendance.');
+            setGeofenceStatus('success');
+            return;
+          }
+
+          const distance = haversineDistance(lat, lng, office.lat, office.lng);
+          const radius = office.radius_meters || 100;
+
+          if (distance <= radius) {
             setGeofenceStatus('success');
           } else {
             setGeofenceStatus('blocked');
-            setGeofenceError(`Out of Office Bounds (Distance: ${result.distance_m.toFixed(1)}m from office). Must be within ${result.office_radius_meters}m.`);
+            setGeofenceError(`Out of Office Bounds (Distance: ${distance.toFixed(1)}m from office). Must be within ${radius}m.`);
           }
         } catch (err) {
+          console.error('Geofence check error:', err);
           setGeofenceStatus('blocked');
-          setGeofenceError(err.message || 'Error communicating with geofence service.');
+          setGeofenceError(err.message || 'Error checking geofence.');
         }
       },
       (err) => {
