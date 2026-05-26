@@ -8,6 +8,85 @@ import {
   FileSpreadsheet, Edit3, X, Play, AlertTriangle, BarChart2
 } from 'lucide-react';
 
+const InteractiveMap = ({ lat, lng, onLocationChange }) => {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const markerInstance = useRef(null);
+
+  useEffect(() => {
+    let timer = null;
+    const initMap = () => {
+      if (!window.maplibregl || !mapRef.current) {
+        timer = setTimeout(initMap, 200);
+        return;
+      }
+      if (mapInstance.current) return;
+
+      const startLat = lat || 28.5355;
+      const startLng = lng || 77.3910;
+
+      const map = new window.maplibregl.Map({
+        container: mapRef.current,
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap',
+            },
+          },
+          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+        },
+        center: [startLng, startLat],
+        zoom: 17,
+      });
+      mapInstance.current = map;
+
+      // Add draggable marker
+      markerInstance.current = new window.maplibregl.Marker({
+        draggable: true,
+        color: "#10b981"
+      })
+        .setLngLat([startLng, startLat])
+        .addTo(map);
+
+      // Listen for marker drag
+      markerInstance.current.on('dragend', () => {
+        const lngLat = markerInstance.current.getLngLat();
+        onLocationChange(lngLat.lat, lngLat.lng);
+      });
+
+      // Listen for map click
+      map.on('click', (e) => {
+        const lngLat = e.lngLat;
+        markerInstance.current.setLngLat(lngLat);
+        onLocationChange(lngLat.lat, lngLat.lng);
+      });
+    };
+    initMap();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
+
+  // Update marker and center when lat/lng changes externally
+  useEffect(() => {
+    if (mapInstance.current && markerInstance.current && lat && lng) {
+      markerInstance.current.setLngLat([lng, lat]);
+      mapInstance.current.flyTo({ center: [lng, lat], zoom: 17, speed: 1.5 });
+    }
+  }, [lat, lng]);
+
+  return <div ref={mapRef} style={{ width: '100%', height: '100%', borderRadius: '10px' }} />;
+};
+
 export default function AdminDashboard({ onBack }) {
   const navigate = useNavigate();
   const [isAdminUser, setIsAdminUser] = useState(false);
@@ -87,7 +166,7 @@ export default function AdminDashboard({ onBack }) {
   const cyclingTimerRef = useRef(null);
   const progressTimerRef = useRef(null);
 
-  // OpenStreetMap Nominatim implementation for precise Office location searching
+  // Smooth and Free autocomplete using Photon API (OpenStreetMap)
   const handleAddressSearch = (query) => {
     setConfigForm(prev => ({ ...prev, address: query }));
     
@@ -103,14 +182,28 @@ export default function AdminDashboard({ onBack }) {
     
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`);
         const data = await res.json();
-        setAddressSuggestions(data);
+        
+        const mapped = (data.features || []).map(f => {
+          const props = f.properties;
+          const displayDetails = [props.name, props.street, props.district, props.city, props.state, props.postcode, props.country].filter(Boolean);
+          // deduplicate consecutive strings
+          const uniqueDetails = displayDetails.filter((item, pos, arr) => pos === 0 || item !== arr[pos-1]);
+          return {
+            place_id: props.osm_id || Math.random(),
+            display_name: uniqueDetails.join(', '),
+            lat: parseFloat(f.geometry.coordinates[1]),
+            lon: parseFloat(f.geometry.coordinates[0])
+          };
+        });
+        
+        setAddressSuggestions(mapped);
         setShowAddressSuggestions(true);
       } catch (err) {
-        console.error("Nominatim search error:", err);
+        console.error("Photon search error:", err);
       }
-    }, 500);
+    }, 400);
   };
 
   const selectAddress = (suggestion) => {
@@ -123,6 +216,38 @@ export default function AdminDashboard({ onBack }) {
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
   };
+
+  const handleMapInteraction = async (lat, lng) => {
+    setConfigForm(prev => ({ ...prev, lat, lng }));
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        setConfigForm(prev => ({ ...prev, lat, lng, address: data.display_name }));
+      }
+    } catch(err) {
+      console.error("Reverse geocode err", err);
+    }
+  };
+
+  // Load MapLibre JS/CSS globally for the interactive map
+  useEffect(() => {
+    if (activeTab === 'config') {
+      if (!document.getElementById('maplibre-css')) {
+          const link = document.createElement('link');
+          link.id = 'maplibre-css';
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+          document.head.appendChild(link);
+      }
+      if (!window.maplibregl && !document.getElementById('maplibre-js')) {
+          const script = document.createElement('script');
+          script.id = 'maplibre-js';
+          script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+          document.head.appendChild(script);
+      }
+    }
+  }, [activeTab]);
 
   // 1. Authenticate and check Admin rights
   useEffect(() => {
@@ -1362,18 +1487,12 @@ export default function AdminDashboard({ onBack }) {
                 <h3 className="admin-panel-title">Office Geofencing Coordinate Map</h3>
               </div>
               
-              {/* OpenStreetMap Iframe center visualizer */}
+              {/* Highly interactive map component */}
               <div className="admin-map-container">
-                <iframe
-                  title="Office GPS Geofence Area"
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  scrolling="no"
-                  marginHeight="0"
-                  marginWidth="0"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(configForm.lng || 0)-0.005}%2C${(configForm.lat || 0)-0.005}%2C${(configForm.lng || 0)+0.005}%2C${(configForm.lat || 0)+0.005}&layer=mapnik&marker=${configForm.lat || 0}%2C${configForm.lng || 0}`}
-                  className="admin-map-iframe"
+                <InteractiveMap 
+                  lat={configForm.lat} 
+                  lng={configForm.lng} 
+                  onLocationChange={handleMapInteraction}
                 />
                 
                 {/* Visual Glassmorphic coordinates box */}
