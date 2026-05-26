@@ -55,6 +55,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal server error: {str(exc)}"},
+        headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Credentials": "true"}
     )
 
 # Initialize Supabase client lazily to avoid crashing on import when env vars are not yet available
