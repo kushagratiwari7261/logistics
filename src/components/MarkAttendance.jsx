@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { MapPin, Camera, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft, MoveLeft, MoveRight, MoveUp, MoveDown } from 'lucide-react';
 import './MarkAttendance.css';
@@ -16,23 +16,37 @@ export default function MarkAttendance({ onBack }) {
   const [cameraActive, setCameraActive] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
   const [faceLock, setFaceLock] = useState('searching'); // 'searching', 'locked', 'success', 'failed'
-  const [randomDirection, setRandomDirection] = useState('');
+  const [currentDirection, setCurrentDirection] = useState('');
   const [livenessProgress, setLivenessProgress] = useState(0); // 0 to 100
-  const [livenessTimer, setLivenessTimer] = useState(10);
+  const [livenessTimer, setLivenessTimer] = useState(15);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null); // 'success', 'failed'
   const [verifyMessage, setVerifyMessage] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
-  // Refs for camera & drawing canvas
+  // Refs for camera & drawing canvas - critical: use refs for mutable state 
+  // so the MediaPipe onResults callback always sees the latest values
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const baselineRef = useRef(null);
   const activeStreamRef = useRef(null);
-  const livenessIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const faceMeshInstanceRef = useRef(null);
+  const mediapipeCameraRef = useRef(null);
 
-  const DIRECTIONS = ['LEFT', 'RIGHT', 'UP', 'DOWN'];
+  // Use refs for face state so onResults callback always gets latest
+  const faceLockRef = useRef('searching');
+  const directionRef = useRef('');
+  const isVerifyingRef = useRef(false);
+  const cameraActiveRef = useRef(false);
+
+  const DIRECTIONS = ['LEFT', 'UP', 'RIGHT', 'DOWN'];
+
+  // Sync refs with state
+  useEffect(() => { faceLockRef.current = faceLock; }, [faceLock]);
+  useEffect(() => { directionRef.current = currentDirection; }, [currentDirection]);
+  useEffect(() => { isVerifyingRef.current = isVerifying; }, [isVerifying]);
+  useEffect(() => { cameraActiveRef.current = cameraActive; }, [cameraActive]);
 
   // Load current user profile from Supabase
   useEffect(() => {
@@ -40,11 +54,18 @@ export default function MarkAttendance({ onBack }) {
       setProfileLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data } = await supabase
+        const email = session.user.email || '';
+        setUserEmail(email);
+        console.log('[Attendance] Logged-in email:', email);
+
+        // Case-insensitive employee lookup
+        const { data, error: empErr } = await supabase
           .from('employees')
           .select('*')
-          .eq('email', session.user.email)
+          .ilike('email', email)
           .maybeSingle();
+
+        console.log('[Attendance] Employee lookup result:', data, empErr);
         setUserProfile(data);
       }
       setProfileLoading(false);
@@ -55,7 +76,7 @@ export default function MarkAttendance({ onBack }) {
   // Haversine distance calculation (meters)
   const haversineDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (x) => (x * Math.PI) / 180;
-    const R = 6371000; // Earth's radius in meters
+    const R = 6371000;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
@@ -63,7 +84,7 @@ export default function MarkAttendance({ onBack }) {
   };
 
   // Capture GPS coordinates and verify against Supabase office config
-  const handleGPSCheck = () => {
+  const handleGPSCheck = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsError('Geolocation is not supported by your browser.');
       return;
@@ -80,46 +101,64 @@ export default function MarkAttendance({ onBack }) {
         setGpsData({ lat, lng });
         setGpsLoading(false);
 
+        console.log('[Geofence] User GPS:', { lat, lng });
+        console.log('[Geofence] userProfile:', userProfile?.id, userProfile?.name, userProfile?.email);
+
         try {
-          // Try employee-specific config first, fall back to global
-          const { data: { session } } = await supabase.auth.getSession();
           let office = null;
+          let configSource = 'none';
 
           // Check for employee-specific geofence config
           if (userProfile?.id) {
-            const { data: empConf } = await supabase
+            const { data: empConf, error: empErr } = await supabase
               .from('employee_office_config')
               .select('*')
               .eq('employee_id', userProfile.id)
               .maybeSingle();
-            if (empConf) office = empConf;
+            console.log('[Geofence] employee_office_config lookup (id=' + userProfile.id + '):', empConf, empErr);
+            if (empConf) {
+              office = empConf;
+              configSource = 'employee_office_config';
+            }
           }
 
           // Fall back to global config
           if (!office) {
-            const { data: globalConf } = await supabase
+            const { data: globalConf, error: globalErr } = await supabase
               .from('office_config')
               .select('*')
               .eq('id', 1)
               .maybeSingle();
-            if (globalConf) office = globalConf;
+            console.log('[Geofence] office_config (global) lookup:', globalConf, globalErr);
+            if (globalConf) {
+              office = globalConf;
+              configSource = 'office_config (global)';
+            }
           }
 
           if (!office) {
-            // No config at all — allow through with warning
-            console.warn('No office config found, allowing attendance.');
+            console.warn('[Geofence] No office config found, allowing attendance.');
             setGeofenceStatus('success');
             return;
           }
 
+          console.log('[Geofence] Using config from:', configSource);
+          console.log('[Geofence] Office coords:', { lat: office.lat, lng: office.lng, radius: office.radius_meters });
+
           const distance = haversineDistance(lat, lng, office.lat, office.lng);
           const radius = office.radius_meters || 100;
+
+          console.log('[Geofence] Distance:', distance.toFixed(1), 'm | Radius:', radius, 'm | Pass:', distance <= radius);
 
           if (distance <= radius) {
             setGeofenceStatus('success');
           } else {
             setGeofenceStatus('blocked');
-            setGeofenceError(`Out of Office Bounds (Distance: ${distance.toFixed(1)}m from office). Must be within ${radius}m.`);
+            setGeofenceError(
+              `Out of Office Bounds (Distance: ${distance.toFixed(1)}m from office). Must be within ${radius}m.\n` +
+              `Your GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}\n` +
+              `Office GPS (${configSource}): ${office.lat.toFixed(6)}, ${office.lng.toFixed(6)}`
+            );
           }
         } catch (err) {
           console.error('Geofence check error:', err);
@@ -135,7 +174,7 @@ export default function MarkAttendance({ onBack }) {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
+  }, [userProfile]);
 
   // Start geofence capture automatically for Office Staff
   useEffect(() => {
@@ -143,11 +182,10 @@ export default function MarkAttendance({ onBack }) {
       if (userProfile.role === 'office') {
         handleGPSCheck();
       } else {
-        // Field staff directly bypasses geofencing
         setGeofenceStatus('success');
       }
     }
-  }, [userProfile]);
+  }, [userProfile, handleGPSCheck]);
 
   // Load MediaPipe scripts dynamically
   useEffect(() => {
@@ -180,8 +218,30 @@ export default function MarkAttendance({ onBack }) {
       });
   }, [geofenceStatus]);
 
+  // Stop camera stream - stable function
+  const stopCamera = useCallback(() => {
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => track.stop());
+      activeStreamRef.current = null;
+    }
+    setCameraActive(false);
+    cameraActiveRef.current = false;
+    clearInterval(timerIntervalRef.current);
+    if (mediapipeCameraRef.current) {
+      try { mediapipeCameraRef.current.stop(); } catch(e) {}
+      mediapipeCameraRef.current = null;
+    }
+    if (faceMeshInstanceRef.current) {
+      try { faceMeshInstanceRef.current.close(); } catch(e) {}
+      faceMeshInstanceRef.current = null;
+    }
+  }, []);
+
   // Start Camera Stream
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
+    // Clean up any existing instance first
+    stopCamera();
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' }
@@ -190,35 +250,25 @@ export default function MarkAttendance({ onBack }) {
         videoRef.current.srcObject = stream;
         activeStreamRef.current = stream;
         setCameraActive(true);
+        cameraActiveRef.current = true;
         setFaceLock('searching');
+        faceLockRef.current = 'searching';
         setVerifyResult(null);
         setIsVerifying(false);
+        isVerifyingRef.current = false;
         baselineRef.current = null;
         
         // Pick a random challenge direction
         const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
-        setRandomDirection(dir);
+        setCurrentDirection(dir);
+        directionRef.current = dir;
         setLivenessProgress(0);
-        setLivenessTimer(10);
+        setLivenessTimer(15);
       }
     } catch (err) {
       console.error('Camera stream access failed:', err);
     }
-  };
-
-  // Stop camera stream
-  const stopCamera = () => {
-    if (activeStreamRef.current) {
-      activeStreamRef.current.getTracks().forEach((track) => track.stop());
-      activeStreamRef.current = null;
-    }
-    setCameraActive(false);
-    clearInterval(livenessIntervalRef.current);
-    clearInterval(timerIntervalRef.current);
-    if (faceMeshInstanceRef.current) {
-      faceMeshInstanceRef.current.close();
-    }
-  };
+  }, [stopCamera]);
 
   // Trigger camera start when scripts load
   useEffect(() => {
@@ -228,14 +278,16 @@ export default function MarkAttendance({ onBack }) {
     return () => stopCamera();
   }, [scriptsLoaded, geofenceStatus]);
 
-  // Start the 10-second countdown once face is locked
+  // Start the 15-second countdown once face is locked
   useEffect(() => {
     if (faceLock === 'locked') {
+      setLivenessTimer(15);
       timerIntervalRef.current = setInterval(() => {
         setLivenessTimer((prev) => {
           if (prev <= 1) {
             clearInterval(timerIntervalRef.current);
             setFaceLock('failed');
+            faceLockRef.current = 'failed';
             setVerifyMessage('Liveness verification timed out. Please try again.');
             return 0;
           }
@@ -247,9 +299,80 @@ export default function MarkAttendance({ onBack }) {
     return () => clearInterval(timerIntervalRef.current);
   }, [faceLock]);
 
-  // MediaPipe Face Mesh processing
+  // Capture frame & verify with FastAPI Python Backend
+  const handleFaceMatchVerification = useCallback(async () => {
+    if (isVerifyingRef.current) return;
+    setIsVerifying(true);
+    isVerifyingRef.current = true;
+    setVerifyMessage('Analyzing face signature...');
+
+    // Draw current camera frame to a hidden canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (videoRef.current) {
+      ctx.drawImage(videoRef.current, 0, 0, 640, 480);
+    }
+
+    // Convert Canvas frame to blob
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        setIsVerifying(false);
+        isVerifyingRef.current = false;
+        setFaceLock('failed');
+        faceLockRef.current = 'failed';
+        setVerifyMessage('Failed to capture camera frame. Please reload.');
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const formData = new FormData();
+        formData.append('image', blob, 'face_capture.jpg');
+        formData.append('direction_used', directionRef.current);
+        if (gpsData) {
+          formData.append('latitude', gpsData.lat);
+          formData.append('longitude', gpsData.lng);
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/face-match`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          setVerifyResult('success');
+          setVerifyMessage(result.message || 'Attendance logged successfully.');
+          stopCamera();
+        } else {
+          setVerifyResult('failed');
+          setVerifyMessage(result.detail || 'Biometric verification failed.');
+          setFaceLock('failed');
+          faceLockRef.current = 'failed';
+        }
+      } catch (err) {
+        setVerifyResult('failed');
+        setVerifyMessage('Server communication error. Please check connection.');
+        setFaceLock('failed');
+        faceLockRef.current = 'failed';
+      } finally {
+        setIsVerifying(false);
+        isVerifyingRef.current = false;
+      }
+    }, 'image/jpeg', 0.95);
+  }, [gpsData, stopCamera]);
+
+  // MediaPipe Face Mesh processing — CRITICAL: No faceLock/direction in deps!
+  // We use refs so the onResults callback always reads fresh state without
+  // causing the entire FaceMesh pipeline to be destroyed and re-built.
   useEffect(() => {
-    if (!cameraActive || !scriptsLoaded || !window.FaceMesh) return;
+    if (!cameraActive || !scriptsLoaded || !window.FaceMesh || !videoRef.current) return;
 
     const faceMesh = new window.FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
@@ -279,48 +402,72 @@ export default function MarkAttendance({ onBack }) {
         // Landmark 1: Nose tip
         const nose = landmarks[1];
         
-        // Draw the tracking dot on canvas
+        // Draw face mesh outline (draw key points for visual feedback)
+        const keyPoints = [1, 33, 263, 61, 291, 199, 10, 152]; // nose, eyes, mouth corners, forehead, chin
+        keyPoints.forEach((idx) => {
+          const pt = landmarks[idx];
+          canvasCtx.beginPath();
+          canvasCtx.arc(pt.x * width, pt.y * height, 3, 0, 2 * Math.PI);
+          canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.7)';
+          canvasCtx.fill();
+        });
+
+        // Draw the main tracking dot on nose
         canvasCtx.beginPath();
-        canvasCtx.arc(nose.x * width, nose.y * height, 6, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = '#10B981'; // Emerald Green
+        canvasCtx.arc(nose.x * width, nose.y * height, 7, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = '#10B981';
         canvasCtx.fill();
         canvasCtx.strokeStyle = '#FFFFFF';
         canvasCtx.lineWidth = 2;
         canvasCtx.stroke();
 
+        // Draw face bounding outline
+        const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 
+                            397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 
+                            172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10];
+        canvasCtx.beginPath();
+        faceOutline.forEach((idx, i) => {
+          const pt = landmarks[idx];
+          if (i === 0) canvasCtx.moveTo(pt.x * width, pt.y * height);
+          else canvasCtx.lineTo(pt.x * width, pt.y * height);
+        });
+        canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.35)';
+        canvasCtx.lineWidth = 1.5;
+        canvasCtx.stroke();
+
+        const currentFaceLock = faceLockRef.current;
+
         // Lock baseline when first stable face detected
-        if (faceLock === 'searching') {
+        if (currentFaceLock === 'searching') {
           baselineRef.current = { x: nose.x, y: nose.y };
           setFaceLock('locked');
+          faceLockRef.current = 'locked';
         }
 
         // Liveness Direction Tracker
-        if (faceLock === 'locked' && baselineRef.current) {
+        if (currentFaceLock === 'locked' && baselineRef.current) {
           const deltaX = nose.x - baselineRef.current.x;
           const deltaY = nose.y - baselineRef.current.y;
           
           let progress = 0;
           let triggered = false;
+          const threshold = 0.06; // slightly more sensitive
 
-          // LEFT: x decreases (nose shifts left, coordinates shrink from right view)
-          // RIGHT: x increases
-          // UP: y decreases
-          // DOWN: y increases
-          const threshold = 0.07;
+          const dir = directionRef.current;
 
-          if (randomDirection === 'LEFT') {
-            const val = -deltaX;
+          if (dir === 'LEFT') {
+            const val = -deltaX; // mirrored camera: left = x decreases
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
-          } else if (randomDirection === 'RIGHT') {
+          } else if (dir === 'RIGHT') {
             const val = deltaX;
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
-          } else if (randomDirection === 'UP') {
+          } else if (dir === 'UP') {
             const val = -deltaY;
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
-          } else if (randomDirection === 'DOWN') {
+          } else if (dir === 'DOWN') {
             const val = deltaY;
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
@@ -328,16 +475,19 @@ export default function MarkAttendance({ onBack }) {
 
           setLivenessProgress(Math.round(progress));
 
-          if (triggered) {
+          if (triggered && !isVerifyingRef.current) {
             setFaceLock('success');
+            faceLockRef.current = 'success';
             clearInterval(timerIntervalRef.current);
             handleFaceMatchVerification();
           }
         }
       } else {
-        // Face lost
-        if (faceLock === 'locked') {
+        // Face lost — only reset if we haven't succeeded or started verifying
+        const currentFaceLock = faceLockRef.current;
+        if (currentFaceLock === 'locked') {
           setFaceLock('searching');
+          faceLockRef.current = 'searching';
           baselineRef.current = null;
           setLivenessProgress(0);
         }
@@ -346,96 +496,51 @@ export default function MarkAttendance({ onBack }) {
 
     faceMesh.onResults(onResults);
 
-    // Frame loops
-    const activeCamera = new window.Camera(videoRef.current, {
+    // Frame loop using MediaPipe Camera utility
+    const mpCamera = new window.Camera(videoRef.current, {
       onFrame: async () => {
-        if (videoRef.current && cameraActive) {
-          await faceMesh.send({ image: videoRef.current });
+        if (videoRef.current && cameraActiveRef.current && faceMeshInstanceRef.current) {
+          try {
+            await faceMeshInstanceRef.current.send({ image: videoRef.current });
+          } catch(e) {
+            // Silently handle if mesh was closed during frame send
+          }
         }
       },
       width: 640,
       height: 480
     });
 
-    activeCamera.start();
+    mediapipeCameraRef.current = mpCamera;
+    mpCamera.start();
 
     return () => {
-      activeCamera.stop();
-      faceMesh.close();
+      try { mpCamera.stop(); } catch(e) {}
+      try { faceMesh.close(); } catch(e) {}
+      mediapipeCameraRef.current = null;
+      faceMeshInstanceRef.current = null;
     };
-  }, [cameraActive, scriptsLoaded, faceLock, randomDirection]);
-
-  // Capture frame & verify with FastAPI Python Backend
-  const handleFaceMatchVerification = async () => {
-    if (isVerifying) return;
-    setIsVerifying(true);
-    setVerifyMessage('Analyzing face signature...');
-
-    // 1. Draw current camera frame to a hidden canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (videoRef.current) {
-      ctx.drawImage(videoRef.current, 0, 0, 640, 480);
-    }
-
-    // 2. Convert Canvas frame to blob
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        setIsVerifying(false);
-        setFaceLock('failed');
-        setVerifyMessage('Failed to capture camera frame. Please reload.');
-        return;
-      }
-
-      // 3. Dispatch to FastAPI Server
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const formData = new FormData();
-        formData.append('image', blob, 'face_capture.jpg');
-        formData.append('direction_used', randomDirection);
-        if (gpsData) {
-          formData.append('latitude', gpsData.lat);
-          formData.append('longitude', gpsData.lng);
-        }
-
-        const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/face-match`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: formData
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-          setVerifyResult('success');
-          setVerifyMessage(result.message || 'Attendance logged successfully.');
-          stopCamera();
-        } else {
-          setVerifyResult('failed');
-          setVerifyMessage(result.detail || 'Biometric verification failed.');
-          setFaceLock('failed');
-        }
-      } catch (err) {
-        setVerifyResult('failed');
-        setVerifyMessage('Server communication error. Please check connection.');
-        setFaceLock('failed');
-      } finally {
-        setIsVerifying(false);
-      }
-    }, 'image/jpeg', 0.95);
-  };
+  }, [cameraActive, scriptsLoaded, handleFaceMatchVerification]);
+  // NOTE: faceLock and currentDirection are NOT in deps — we use refs instead
+  // to avoid destroying and re-creating the pipeline on every state change.
 
   const getDirectionArrow = () => {
-    switch (randomDirection) {
-      case 'LEFT': return <MoveLeft className="w-10 h-10 animate-ping text-indigo-400" />;
-      case 'RIGHT': return <MoveRight className="w-10 h-10 animate-ping text-indigo-400" />;
-      case 'UP': return <MoveUp className="w-10 h-10 animate-ping text-indigo-400" />;
-      case 'DOWN': return <MoveDown className="w-10 h-10 animate-ping text-indigo-400" />;
+    switch (currentDirection) {
+      case 'LEFT': return <MoveLeft className="direction-arrow-icon animate-ping" />;
+      case 'RIGHT': return <MoveRight className="direction-arrow-icon animate-ping" />;
+      case 'UP': return <MoveUp className="direction-arrow-icon animate-ping" />;
+      case 'DOWN': return <MoveDown className="direction-arrow-icon animate-ping" />;
       default: return null;
+    }
+  };
+
+  const getDirectionHint = () => {
+    switch (currentDirection) {
+      case 'LEFT': return 'Slowly turn your head to your LEFT';
+      case 'RIGHT': return 'Slowly turn your head to your RIGHT';
+      case 'UP': return 'Slowly look UP / tilt head upward';
+      case 'DOWN': return 'Slowly look DOWN / tilt head downward';
+      default: return '';
     }
   };
 
@@ -493,7 +598,7 @@ export default function MarkAttendance({ onBack }) {
                   id="enroll-name"
                   placeholder="Enter your full name"
                   className="form-input"
-                  defaultValue={supabase.auth.getUser()?.email?.split('@')[0]}
+                  defaultValue={userEmail ? userEmail.split('@')[0] : ''}
                 />
               </div>
 
@@ -517,13 +622,6 @@ export default function MarkAttendance({ onBack }) {
                   setProfileLoading(true);
                   try {
                     const { data: { session } } = await supabase.auth.getSession();
-                    const formData = new FormData();
-                    formData.append('name', name);
-                    formData.append('email', session.user.email);
-                    formData.append('role', role);
-                    // We'll enroll with 0 photos first, then they'll be prompted to mark attendance which will lock their face?
-                    // Actually, the current backend enroll-employee Averaging vectors logic requires photos.
-                    // Let's just create a shell profile in the database directly.
                     
                     const { error } = await supabase.from('employees').insert({
                       name,
@@ -577,14 +675,19 @@ export default function MarkAttendance({ onBack }) {
               <AlertTriangle className="error-icon" />
             </div>
             <h2 className="card-title error-title">Location Rejected</h2>
-            <p className="card-description error-desc">
+            <p className="card-description error-desc" style={{ whiteSpace: 'pre-line' }}>
               {geofenceError || gpsError || "Please check your GPS settings and grant access."}
             </p>
+            {gpsData && (
+              <p className="card-description" style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.5rem' }}>
+                Debug — Employee: {userProfile?.name} (ID: {userProfile?.id?.slice(0,8)}...) | Your GPS: {gpsData.lat.toFixed(6)}, {gpsData.lng.toFixed(6)}
+              </p>
+            )}
             <button
               onClick={handleGPSCheck}
               className="btn-retry"
             >
-              <RefreshCw className="w-4 h-4 animate-spin-slow" /> Try Location Again
+              <RefreshCw className="w-4 h-4" /> Try Location Again
             </button>
           </div>
         )}
@@ -622,7 +725,7 @@ export default function MarkAttendance({ onBack }) {
                 )}
               </div>
 
-              {/* Glowing Concentric Biometric Match Concentric Rings (WOW Effect) */}
+              {/* Glowing Concentric Biometric Match Rings (WOW Effect) */}
               {faceLock === 'success' && (
                 <div className="biometric-match-rings">
                   <div className="pulse-ring-1" />
@@ -656,9 +759,11 @@ export default function MarkAttendance({ onBack }) {
                     <div className="challenge-direction-indicator">
                       {getDirectionArrow()}
                       <span className="challenge-active-title">
-                        Liveness Test: Turn Face {randomDirection}
+                        Liveness Test: Turn Face {currentDirection}
                       </span>
                     </div>
+
+                    <p className="challenge-hint">{getDirectionHint()}</p>
 
                     {/* Progress slider bar */}
                     <div className="challenge-progress-track">
@@ -669,9 +774,12 @@ export default function MarkAttendance({ onBack }) {
                     </div>
 
                     <div className="challenge-footer-info">
-                      <span className="coordinate-active-label">Nose tip coordinates tracking active</span>
-                      <span className={`timer-label ${livenessTimer < 4 ? 'timer-low animate-pulse' : ''}`}>
-                        Time remaining: {livenessTimer}s
+                      <span className="coordinate-active-label">
+                        <span className="tracking-dot" />
+                        Nose tip tracking active
+                      </span>
+                      <span className={`timer-label ${livenessTimer < 5 ? 'timer-low animate-pulse' : ''}`}>
+                        {livenessTimer}s remaining
                       </span>
                     </div>
                   </div>
@@ -709,7 +817,7 @@ export default function MarkAttendance({ onBack }) {
         {!profileLoading && userProfile && verifyResult === 'success' && (
           <div className="attendance-card success-screen-card">
             <div className="success-screen-icon-wrapper">
-              <CheckCircle className="success-screen-icon animate-[bounce_1.5s_infinite]" />
+              <CheckCircle className="success-screen-icon" />
             </div>
             <h2 className="success-screen-title">Attendance Confirmed</h2>
             <p className="success-screen-desc">
