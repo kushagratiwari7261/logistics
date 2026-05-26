@@ -22,6 +22,13 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 3000000, // Increase limit to 3MB to handle larger JS bundles
+        // SPA navigation fallback — ensures routes like /attendance are served by index.html
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [
+          /^\/api\//,           // Don't intercept API calls
+          /^\/registerSW\.js/,  // Don't intercept service worker registration
+          /^\/supabase\//,      // Don't intercept Supabase proxy calls
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

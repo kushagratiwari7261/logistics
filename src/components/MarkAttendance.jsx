@@ -327,7 +327,27 @@ export default function MarkAttendance({ onBack }) {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Refresh session to ensure a fresh, valid token before biometric call
+        const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+        
+        if (sessionErr || !session?.access_token) {
+          // Try refreshing the session explicitly
+          const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+          if (refreshErr || !refreshData?.session?.access_token) {
+            setVerifyResult('failed');
+            setVerifyMessage('Session expired. Please go back and sign in again.');
+            setFaceLock('failed');
+            faceLockRef.current = 'failed';
+            setIsVerifying(false);
+            isVerifyingRef.current = false;
+            return;
+          }
+          // Use the refreshed session
+          var activeToken = refreshData.session.access_token;
+        } else {
+          var activeToken = session.access_token;
+        }
+
         const formData = new FormData();
         formData.append('image', blob, 'face_capture.jpg');
         formData.append('direction_used', directionRef.current);
@@ -339,7 +359,7 @@ export default function MarkAttendance({ onBack }) {
         const response = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/face-match`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session?.access_token}`
+            'Authorization': `Bearer ${activeToken}`
           },
           body: formData
         });
@@ -350,6 +370,33 @@ export default function MarkAttendance({ onBack }) {
           setVerifyResult('success');
           setVerifyMessage(result.message || 'Attendance logged successfully.');
           stopCamera();
+        } else if (response.status === 401) {
+          // Auth-specific failure — try one more time with a force-refreshed token
+          console.warn('[FaceMatch] 401 received, attempting token refresh...');
+          const { data: retryRefresh } = await supabase.auth.refreshSession();
+          if (retryRefresh?.session?.access_token) {
+            const retryResponse = await fetch(`${import.meta.env.VITE_BIOMETRIC_API_URL}/api/face-match`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${retryRefresh.session.access_token}` },
+              body: formData
+            });
+            const retryResult = await retryResponse.json();
+            if (retryResponse.ok && retryResult.success) {
+              setVerifyResult('success');
+              setVerifyMessage(retryResult.message || 'Attendance logged successfully.');
+              stopCamera();
+            } else {
+              setVerifyResult('failed');
+              setVerifyMessage(retryResult.detail || 'Verification failed after token refresh. Please sign out and try again.');
+              setFaceLock('failed');
+              faceLockRef.current = 'failed';
+            }
+          } else {
+            setVerifyResult('failed');
+            setVerifyMessage('Authentication expired. Please sign out and sign in again.');
+            setFaceLock('failed');
+            faceLockRef.current = 'failed';
+          }
         } else {
           setVerifyResult('failed');
           setVerifyMessage(result.detail || 'Biometric verification failed.');
@@ -357,8 +404,9 @@ export default function MarkAttendance({ onBack }) {
           faceLockRef.current = 'failed';
         }
       } catch (err) {
+        console.error('[FaceMatch] Network error:', err);
         setVerifyResult('failed');
-        setVerifyMessage('Server communication error. Please check connection.');
+        setVerifyMessage('Server communication error. Please check your connection and try again.');
         setFaceLock('failed');
         faceLockRef.current = 'failed';
       } finally {
