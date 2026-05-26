@@ -451,16 +451,18 @@ export default function MarkAttendance({ onBack }) {
           
           let progress = 0;
           let triggered = false;
-          const threshold = 0.06; // slightly more sensitive
+          const threshold = 0.045; // faster detection threshold
 
           const dir = directionRef.current;
 
+          // Note: In raw webcam coordinates (unmirrored), moving your head to YOUR left 
+          // means moving to the RIGHT side of the sensor, so x INCREASES (val = deltaX).
           if (dir === 'LEFT') {
-            const val = -deltaX; // mirrored camera: left = x decreases
+            const val = deltaX; 
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
           } else if (dir === 'RIGHT') {
-            const val = deltaX;
+            const val = -deltaX;
             progress = Math.min(100, Math.max(0, (val / threshold) * 100));
             triggered = val >= threshold;
           } else if (dir === 'UP') {
