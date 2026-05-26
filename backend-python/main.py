@@ -163,6 +163,22 @@ def get_face_encoding_from_bytes(image_bytes: bytes) -> np.ndarray:
     
     return encodings[0]
 
+def format_face_encoding_for_db(encoding: np.ndarray) -> list:
+    """Pads a 128D face encoding to 512D to satisfy Supabase vector(512) constraints."""
+    enc_list = encoding.tolist()
+    if len(enc_list) == 128:
+        enc_list.extend([0.0] * (512 - 128))
+    return enc_list
+
+def parse_face_encoding_from_db(stored_encoding) -> np.ndarray:
+    """Parses a stored DB encoding and truncates back to 128D for distance math."""
+    if isinstance(stored_encoding, str):
+        stored_encoding = json.loads(stored_encoding)
+    arr = np.array(stored_encoding, dtype=float)
+    if len(arr) == 512:
+        arr = arr[:128]
+    return arr
+
 # ----------------------------------------------------
 # API Endpoints
 # ----------------------------------------------------
@@ -259,9 +275,7 @@ async def face_match(
         logger.info(f"No registered face encoding for {email}. Performing first-time enrollment.")
     else:
         # 2. Parse vector encoding
-        if isinstance(stored_encoding, str):
-            stored_encoding = json.loads(stored_encoding)
-        stored_encoding_arr = np.array(stored_encoding, dtype=float)
+        stored_encoding_arr = parse_face_encoding_from_db(stored_encoding)
 
     # 3. Process webcam image frame
     try:
@@ -277,7 +291,7 @@ async def face_match(
     is_match = False
     if is_first_enrollment:
         # Save this encoding as the primary face signature
-        encoding_list = user_encoding_arr.tolist()
+        encoding_list = format_face_encoding_for_db(user_encoding_arr)
         supabase.table("employees").update({"face_encoding": encoding_list}).eq("id", emp_id).execute()
         is_match = True
         logger.info(f"Auto-enrolled face for {email}")
@@ -463,7 +477,7 @@ async def enroll_employee(
 
         if len(encodings) > 0:
             avg_encoding = np.mean(encodings, axis=0)
-            encoding_list = avg_encoding.tolist()
+            encoding_list = format_face_encoding_for_db(avg_encoding)
 
     employee_data = {
         "name": name,
