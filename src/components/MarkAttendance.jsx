@@ -67,6 +67,27 @@ export default function MarkAttendance({ onBack }) {
 
         console.log('[Attendance] Employee lookup result:', data, empErr);
         setUserProfile(data);
+        
+        // Prevent double face scanning by checking if already marked today
+        if (data && data.id) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const { data: attData } = await supabase
+            .from('attendance')
+            .select('id, marked_at')
+            .eq('employee_id', data.id)
+            .eq('date', todayStr)
+            .maybeSingle();
+            
+          if (attData) {
+             const timeStr = new Date(attData.marked_at).toLocaleTimeString();
+             setVerifyResult('success');
+             setVerifyMessage(`You have already marked your attendance for today at ${timeStr}.`);
+             // Bypass geofence check loading completely since they already did it earlier
+             setGeofenceStatus('success');
+             setProfileLoading(false);
+             return;
+          }
+        }
       }
       setProfileLoading(false);
     };
