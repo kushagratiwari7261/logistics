@@ -12,28 +12,26 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     """
     token = credentials.credentials
     try:
-        # Supabase signed JWT validation using HS256
-        payload = jwt.decode(
-            token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False}  # Supabase aud parameter is usually 'authenticated'
-        )
-        user_id: str = payload.get("sub")
-        email: str = payload.get("email")
-
-        if not user_id or not email:
+        from main import get_supabase
+        supabase = get_supabase()
+        
+        # Verify the token directly with Supabase server instead of local decoding.
+        # This handles all signature and expiry validations securely.
+        user_response = supabase.auth.get_user(token)
+        
+        user = user_response.user
+        if not user or not user.email:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token: missing user ID or email"
+                detail="Invalid authentication token"
             )
 
         return {
-            "id": user_id,
-            "email": email,
-            "role": payload.get("role", "authenticated")
+            "id": user.id,
+            "email": user.email,
+            "role": user.role or "authenticated"
         }
-    except JWTError as e:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Authentication failed: {str(e)}"
