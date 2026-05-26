@@ -683,12 +683,72 @@ export default function MarkAttendance({ onBack }) {
                 Debug — Employee: {userProfile?.name} (ID: {userProfile?.id?.slice(0,8)}...) | Your GPS: {gpsData.lat.toFixed(6)}, {gpsData.lng.toFixed(6)}
               </p>
             )}
-            <button
-              onClick={handleGPSCheck}
-              className="btn-retry"
-            >
-              <RefreshCw className="w-4 h-4" /> Try Location Again
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '0.75rem' }}>
+              <button
+                onClick={handleGPSCheck}
+                className="btn-retry"
+              >
+                <RefreshCw className="w-4 h-4" /> Try Location Again
+              </button>
+              {/* Quick-fix: Update employee_office_config to current location */}
+              {gpsData && userProfile?.id && (
+                <button
+                  onClick={async () => {
+                    try {
+                      setGeofenceStatus('checking');
+                      const { error } = await supabase
+                        .from('employee_office_config')
+                        .upsert({
+                          employee_id: userProfile.id,
+                          lat: gpsData.lat,
+                          lng: gpsData.lng,
+                          radius_meters: 200,
+                          start_time: '09:00:00',
+                          end_time: '18:00:00',
+                          grace_period_minutes: 15,
+                          address: `Auto-updated (${gpsData.lat.toFixed(4)}, ${gpsData.lng.toFixed(4)})`,
+                          updated_at: new Date().toISOString()
+                        }, { onConflict: 'employee_id' });
+                      if (error) throw error;
+                      // Re-run geofence check
+                      handleGPSCheck();
+                    } catch (err) {
+                      console.error('Config update error:', err);
+                      setGeofenceStatus('blocked');
+                      setGeofenceError('Failed to update config: ' + (err.message || 'Unknown error'));
+                    }
+                  }}
+                  className="btn-retry"
+                  style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#10B981' }}
+                >
+                  <MapPin className="w-4 h-4" /> Update Config to My Location
+                </button>
+              )}
+              {/* Quick-fix: Delete employee-specific config to fall back to global */}
+              {userProfile?.id && (
+                <button
+                  onClick={async () => {
+                    try {
+                      setGeofenceStatus('checking');
+                      await supabase
+                        .from('employee_office_config')
+                        .delete()
+                        .eq('employee_id', userProfile.id);
+                      // Re-run geofence check (will now use global config)
+                      handleGPSCheck();
+                    } catch (err) {
+                      console.error('Config reset error:', err);
+                      setGeofenceStatus('blocked');
+                      setGeofenceError('Failed to reset config: ' + (err.message || 'Unknown error'));
+                    }
+                  }}
+                  className="btn-retry"
+                  style={{ background: 'rgba(251, 191, 36, 0.15)', borderColor: 'rgba(251, 191, 36, 0.3)', color: '#FBBF24' }}
+                >
+                  <RefreshCw className="w-4 h-4" /> Reset to Global Config
+                </button>
+              )}
+            </div>
           </div>
         )}
 
