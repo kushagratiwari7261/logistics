@@ -2,6 +2,7 @@ import io
 import json
 import os
 import logging
+import sys
 from datetime import datetime
 from typing import List, Optional
 import numpy as np
@@ -15,6 +16,12 @@ from haversine import haversine, Unit
 from config import settings
 from auth import get_current_user
 
+# Configure root logger so Railway captures all output
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -39,6 +46,10 @@ supabase: Client = None
 async def startup_event():
     """Initialize Supabase client on startup so env vars are guaranteed to be loaded."""
     global supabase
+    logger.info("=== Backend starting up ===")
+    logger.info(f"PORT={os.environ.get('PORT', 'not set')}")
+    logger.info(f"SUPABASE_URL set: {bool(settings.SUPABASE_URL)}")
+    logger.info(f"SUPABASE_SERVICE_KEY set: {bool(settings.SUPABASE_SERVICE_KEY)}")
     try:
         if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
             supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
@@ -46,8 +57,9 @@ async def startup_event():
         else:
             logger.warning("Supabase credentials not set — skipping client init. API calls will fail until configured.")
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase client: {e}")
+        logger.error(f"Failed to initialize Supabase client: {e}", exc_info=True)
         # Don't raise — let the app start so healthcheck can pass
+    logger.info("=== Startup complete, ready for healthcheck ===")
 
 def get_supabase() -> Client:
     """Get the Supabase client, raising a clear error if not initialized."""
@@ -114,12 +126,18 @@ def get_face_encoding_from_bytes(image_bytes: bytes) -> np.ndarray:
 # API Endpoints
 # ----------------------------------------------------
 
+@app.get("/")
+async def root_health():
+    """Root endpoint — secondary healthcheck target."""
+    return {"status": "ok"}
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint to wake up server and confirm connection."""
     return {
         "status": "healthy",
         "service": "Smart Attendance System Backend",
+        "supabase_connected": supabase is not None,
         "timestamp": datetime.now().isoformat()
     }
 
