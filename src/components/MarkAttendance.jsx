@@ -286,8 +286,8 @@ export default function MarkAttendance({ onBack }) {
     };
 
     Promise.all([
-      loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'),
-      loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js')
+      loadScript('https://unpkg.com/@mediapipe/camera_utils/camera_utils.js'),
+      loadScript('https://unpkg.com/@mediapipe/face_mesh/face_mesh.js')
     ])
       .then(() => {
         setScriptsLoaded(true);
@@ -507,7 +507,7 @@ export default function MarkAttendance({ onBack }) {
     if (!cameraActive || !scriptsLoaded || !window.FaceMesh || !videoRef.current) return;
 
     const faceMesh = new window.FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      locateFile: (file) => `https://unpkg.com/@mediapipe/face_mesh/${file}`
     });
 
     faceMesh.setOptions({
