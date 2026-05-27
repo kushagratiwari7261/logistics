@@ -13,6 +13,7 @@ export default function MarkAttendance({ onBack }) {
   const [geofenceError, setGeofenceError] = useState('');
   const [officeStartTime, setOfficeStartTime] = useState(null);
   const [timeUntilStart, setTimeUntilStart] = useState(-1);
+  const [shiftClosed, setShiftClosed] = useState(false);
   
   // Camera & Face Mesh States
   const [cameraActive, setCameraActive] = useState(false);
@@ -95,23 +96,37 @@ export default function MarkAttendance({ onBack }) {
         
         if (data && data.id) {
           let empStart = null;
+          let empEnd = null;
           const { data: empConf } = await supabase
             .from('employee_office_config')
-            .select('start_time')
+            .select('start_time, end_time')
             .eq('employee_id', data.id)
             .maybeSingle();
           if (empConf?.start_time) {
             empStart = empConf.start_time;
+            empEnd = empConf.end_time;
           } else {
             const { data: globConf } = await supabase
               .from('office_config')
-              .select('start_time')
+              .select('start_time, end_time')
               .eq('id', 1)
               .maybeSingle();
             if (globConf?.start_time) {
               empStart = globConf.start_time;
+              empEnd = globConf.end_time;
             }
           }
+
+          if (empEnd) {
+            const now = new Date();
+            const [endH, endM, endS] = empEnd.split(':').map(Number);
+            const targetEnd = new Date();
+            targetEnd.setHours(endH, endM, endS || 0, 0);
+            if (now.getTime() > targetEnd.getTime()) {
+              setShiftClosed(true);
+            }
+          }
+
           if (empStart) {
             setOfficeStartTime(empStart);
             const now = new Date();
@@ -839,7 +854,7 @@ export default function MarkAttendance({ onBack }) {
 
 
         {/* --- STEP 1: Geofencing GPS Check Loader --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'checking' && (
+        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'checking' && (
           <div className="attendance-card gps-loader-card">
             <div className="icon-wrapper animate-pulse">
               <MapPin className="gps-icon animate-bounce" />
@@ -853,7 +868,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 2: Geofencing GPS Check Denied --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'blocked' && (
+        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'blocked' && (
           <div className="attendance-card error-card">
             <div className="icon-wrapper-error">
               <AlertTriangle className="error-icon" />
@@ -937,7 +952,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- INTERMEDIATE STEP: Timer Before Office Start --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart > 0 && (
+        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart > 0 && (
           <div className="attendance-card success-screen-card" style={{marginTop: '2rem'}}>
             <div className="icon-wrapper animate-pulse" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24', margin: '0 auto 1.5rem auto' }}>
               <Clock className="w-8 h-8" />
@@ -955,7 +970,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 2.5: FaceMesh Load Error Fallback --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && meshLoadError && (
+        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && meshLoadError && (
           <div className="attendance-card error-card">
             <div className="icon-wrapper-error">
               <AlertTriangle className="error-icon" />
@@ -995,7 +1010,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 3: Camera, Face Mesh and Liveness Challenge --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && !meshLoadError && timeUntilStart === 0 && (
+        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && !meshLoadError && timeUntilStart === 0 && (
           <div className="camera-verification-flow">
             {/* Holographic Video Screen */}
             <div className="camera-viewport">
@@ -1116,7 +1131,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 4: Absolute Success Screen --- */}
-        {!profileLoading && userProfile && verifyResult === 'success' && (
+        {!profileLoading && !shiftClosed && userProfile && verifyResult === 'success' && (
           <div className="attendance-card success-screen-card">
             <div className="success-screen-icon-wrapper">
               <CheckCircle className="success-screen-icon" />
@@ -1130,6 +1145,26 @@ export default function MarkAttendance({ onBack }) {
               className="btn-success-continue"
             >
               Continue to Dashboard
+            </button>
+          </div>
+        )}
+
+        {/* --- STEP 5: SHIFT CLOSED --- */}
+        {!profileLoading && userProfile && shiftClosed && verifyResult !== 'success' && (
+          <div className="attendance-card error-card">
+            <div className="icon-wrapper-error">
+              <AlertTriangle className="error-icon" />
+            </div>
+            <h2 className="card-title error-title">Attendance Closed</h2>
+            <p className="card-description error-desc">
+              Office hours have ended for today. Please come back on the next working day.
+            </p>
+            <button
+              onClick={onBack}
+              className="btn-back"
+              style={{ margin: '1.5rem auto 0 auto', display: 'flex', background: 'rgba(255,255,255,0.1)' }}
+            >
+              <ArrowLeft className="w-4 h-4" /> Go to Dashboard
             </button>
           </div>
         )}
