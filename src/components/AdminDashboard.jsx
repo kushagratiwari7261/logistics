@@ -545,6 +545,36 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
+  const deleteEmployee = async (empId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this employee? This action cannot be undone.')) return;
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', empId);
+      if (error) throw error;
+      showStatus('success', 'Employee deleted successfully.');
+      fetchData();
+    } catch (err) {
+      showStatus('error', `Failed to delete employee: ${err.message}`);
+    }
+  };
+
+  const removeFaceData = async (empId) => {
+    if (!window.confirm('Are you sure you want to remove the face data for this employee? They will need to re-enroll on their next attendance.')) return;
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({ face_encoding: null })
+        .eq('id', empId);
+      if (error) throw error;
+      showStatus('success', 'Face data removed successfully.');
+      fetchData();
+    } catch (err) {
+      showStatus('error', `Failed to remove face data: ${err.message}`);
+    }
+  };
+
   const handleEditCustomConfig = (conf) => {
     if (!isSuperAdminUser) return;
     setConfigForm({
@@ -1276,7 +1306,7 @@ export default function AdminDashboard({ onBack }) {
                       <th >Email</th>
                       <th >Role</th>
                       <th >Registered Face</th>
-                      <th style={{textAlign: "right"}}>Status Toggle</th>
+                      <th style={{textAlign: "right"}}>Actions</th>
                     </tr>
                   </thead>
                   <tbody >
@@ -1307,10 +1337,22 @@ export default function AdminDashboard({ onBack }) {
                             {emp.role === 'office' ? 'Office' : 'Field'}
                           </span>
                         </td>
-                        <td className="admin-biometric-cell">
+                        <td className="admin-biometric-cell" style={{ verticalAlign: 'top' }}>
                           {emp.face_encoding ? (
-                            <div className="admin-face-status enrolled" title="Biometric signature saved">
-                              <div className="status-dot"></div> Enrolled
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div className="admin-face-status enrolled" title="Biometric signature saved">
+                                <div className="status-dot"></div> Enrolled
+                              </div>
+                              <button 
+                                onClick={() => removeFaceData(emp.id)} 
+                                style={{
+                                  background: 'none', border: 'none', color: '#f43f5e', 
+                                  cursor: 'pointer', fontSize: '0.75rem', display: 'flex', 
+                                  alignItems: 'center', gap: '4px', padding: 0
+                                }}
+                              >
+                                <Trash2 size={12} /> Remove Face
+                              </button>
                             </div>
                           ) : (
                             <div className="admin-face-status missing" title="No biometric data found">
@@ -1318,13 +1360,25 @@ export default function AdminDashboard({ onBack }) {
                             </div>
                           )}
                         </td>
-                        <td style={{textAlign: "right"}}>
-                          <button
-                            onClick={() => toggleEmployeeStatus(emp.id, emp.is_active)}
-                            className={`admin-toggle-btn ${emp.is_active ? 'active' : 'inactive'}`}
-                          >
-                            {emp.is_active ? 'Active' : 'Disabled'}
-                          </button>
+                        <td style={{textAlign: "right", verticalAlign: 'top'}}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                            <button
+                              onClick={() => toggleEmployeeStatus(emp.id, emp.is_active)}
+                              className={`admin-toggle-btn ${emp.is_active ? 'active' : 'inactive'}`}
+                            >
+                              {emp.is_active ? 'Active' : 'Disabled'}
+                            </button>
+                            <button
+                              onClick={() => deleteEmployee(emp.id)}
+                              style={{
+                                background: 'none', border: 'none', color: '#f43f5e', 
+                                cursor: 'pointer', fontSize: '0.75rem', display: 'flex', 
+                                alignItems: 'center', gap: '4px', padding: 0
+                              }}
+                            >
+                              <Trash2 size={12} /> Delete Emp
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

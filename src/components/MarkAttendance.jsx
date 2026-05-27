@@ -25,12 +25,15 @@ export default function MarkAttendance({ onBack }) {
   const [verifyResult, setVerifyResult] = useState(null); // 'success', 'failed'
   const [verifyMessage, setVerifyMessage] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [meshLoadError, setMeshLoadError] = useState(false);
+  const meshRetryCountRef = useRef(0);
 
   // Refs for camera & drawing canvas - critical: use refs for mutable state 
   // so the MediaPipe onResults callback always sees the latest values
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const baselineRef = useRef(null);
+  const baselineFrameRef = useRef(null); // Store a straight-on face frame for verification
   const activeStreamRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const faceMeshInstanceRef = useRef(null);
@@ -336,6 +339,7 @@ export default function MarkAttendance({ onBack }) {
         setIsVerifying(false);
         isVerifyingRef.current = false;
         baselineRef.current = null;
+        baselineFrameRef.current = null;
         
         // Pick a random challenge direction
         const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
@@ -349,9 +353,10 @@ export default function MarkAttendance({ onBack }) {
     }
   }, [stopCamera]);
 
-  // Trigger camera start when scripts load
+  // Trigger camera start when scripts load — ONLY on initial load (verifyResult === null)
+  // This prevents the infinite restart loop when face-match returns 400
   useEffect(() => {
-    if (scriptsLoaded && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart === 0) {
+    if (scriptsLoaded && geofenceStatus === 'success' && verifyResult === null && timeUntilStart === 0) {
       startCamera();
     }
     return () => {
@@ -390,17 +395,26 @@ export default function MarkAttendance({ onBack }) {
     isVerifyingRef.current = true;
     setVerifyMessage('Analyzing face signature...');
 
-    // Draw current camera frame to a hidden canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (videoRef.current) {
+    // Use the saved baseline frame (straight-on face) if available,
+    // otherwise capture the current frame. The baseline is captured when
+    // the face is first detected looking straight at the camera, which
+    // gives face_recognition on the backend a much better chance of
+    // finding a face compared to the turned-head liveness frame.
+    let captureBlob = baselineFrameRef.current;
+    
+    if (!captureBlob && videoRef.current) {
+      // Fallback: capture current frame
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext('2d');
       ctx.drawImage(videoRef.current, 0, 0, 640, 480);
+      captureBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
     }
 
-    // Convert Canvas frame to blob
-    canvas.toBlob(async (blob) => {
+    // Use the captured blob
+    const blob = captureBlob;
+    (async (blob) => {
       if (!blob) {
         setIsVerifying(false);
         isVerifyingRef.current = false;
@@ -497,7 +511,7 @@ export default function MarkAttendance({ onBack }) {
         setIsVerifying(false);
         isVerifyingRef.current = false;
       }
-    }, 'image/jpeg', 0.95);
+    })(blob);
   }, [gpsData, stopCamera]);
 
   // MediaPipe Face Mesh processing — CRITICAL: No faceLock/direction in deps!
@@ -505,7 +519,12 @@ export default function MarkAttendance({ onBack }) {
   // causing the entire FaceMesh pipeline to be destroyed and re-built.
   useEffect(() => {
     if (!cameraActive || !scriptsLoaded || !window.FaceMesh || !videoRef.current) return;
+    if (meshLoadError) return; // Don't retry if we've given up
 
+    let cancelled = false;
+
+    const initFaceMesh = async () => {
+    try {
     const faceMesh = new window.FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
     });
@@ -517,6 +536,15 @@ export default function MarkAttendance({ onBack }) {
       minTrackingConfidence: 0.5
     });
 
+    // Wait for FaceMesh to initialize (this is where the WASM assets load)
+    await faceMesh.initialize();
+
+    if (cancelled) {
+      try { faceMesh.close(); } catch(e) {}
+      return;
+    }
+
+    meshRetryCountRef.current = 0; // Reset on success
     faceMeshInstanceRef.current = faceMesh;
 
     const onResults = (results) => {
@@ -572,6 +600,14 @@ export default function MarkAttendance({ onBack }) {
         // Lock baseline when first stable face detected
         if (currentFaceLock === 'searching') {
           baselineRef.current = { x: nose.x, y: nose.y };
+          // Capture a straight-on face frame for verification
+          // This is the best moment — face is centered and looking at camera
+          if (videoRef.current) {
+            const c = document.createElement('canvas');
+            c.width = 640; c.height = 480;
+            c.getContext('2d').drawImage(videoRef.current, 0, 0, 640, 480);
+            c.toBlob((b) => { baselineFrameRef.current = b; }, 'image/jpeg', 0.95);
+          }
           setFaceLock('locked');
           faceLockRef.current = 'locked';
         }
@@ -648,13 +684,27 @@ export default function MarkAttendance({ onBack }) {
     mediapipeCameraRef.current = mpCamera;
     mpCamera.start();
 
+    } catch (err) {
+      // FaceMesh WASM asset loading failure
+      console.error('[FaceMesh] Initialization failed:', err);
+      meshRetryCountRef.current += 1;
+      if (meshRetryCountRef.current >= 2) {
+        console.error('[FaceMesh] Max retries reached, showing error UI.');
+        setMeshLoadError(true);
+      }
+    }
+    }; // end initFaceMesh
+
+    initFaceMesh();
+
     return () => {
-      try { mpCamera.stop(); } catch(e) {}
-      try { faceMesh.close(); } catch(e) {}
+      cancelled = true;
+      try { mediapipeCameraRef.current?.stop(); } catch(e) {}
+      try { faceMeshInstanceRef.current?.close(); } catch(e) {}
       mediapipeCameraRef.current = null;
       faceMeshInstanceRef.current = null;
     };
-  }, [cameraActive, scriptsLoaded, handleFaceMatchVerification]);
+  }, [cameraActive, scriptsLoaded, handleFaceMatchVerification, meshLoadError]);
   // NOTE: faceLock and currentDirection are NOT in deps — we use refs instead
   // to avoid destroying and re-creating the pipeline on every state change.
 
@@ -904,8 +954,48 @@ export default function MarkAttendance({ onBack }) {
           </div>
         )}
 
+        {/* --- STEP 2.5: FaceMesh Load Error Fallback --- */}
+        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && meshLoadError && (
+          <div className="attendance-card error-card">
+            <div className="icon-wrapper-error">
+              <AlertTriangle className="error-icon" />
+            </div>
+            <h2 className="card-title error-title">Face Mesh Module Failed</h2>
+            <p className="card-description error-desc">
+              The MediaPipe liveness detection module could not load its assets. This does not affect your face biometric match — you can still mark attendance.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '0.75rem' }}>
+              <button
+                onClick={() => {
+                  meshRetryCountRef.current = 0;
+                  setMeshLoadError(false);
+                  startCamera();
+                }}
+                className="btn-retry"
+              >
+                <RefreshCw className="w-4 h-4" /> Retry Liveness
+              </button>
+              <button
+                onClick={() => {
+                  // Skip liveness and go straight to face-match
+                  setMeshLoadError(false);
+                  setFaceLock('success');
+                  faceLockRef.current = 'success';
+                  setCurrentDirection('SKIPPED');
+                  directionRef.current = 'SKIPPED';
+                  handleFaceMatchVerification();
+                }}
+                className="btn-retry"
+                style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#10B981' }}
+              >
+                <Camera className="w-4 h-4" /> Skip Liveness — Verify Face Only
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* --- STEP 3: Camera, Face Mesh and Liveness Challenge --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart === 0 && (
+        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && !meshLoadError && timeUntilStart === 0 && (
           <div className="camera-verification-flow">
             {/* Holographic Video Screen */}
             <div className="camera-viewport">
