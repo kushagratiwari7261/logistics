@@ -149,6 +149,7 @@ export default function AdminDashboard({ onBack }) {
   const [currentAbsentIndex, setCurrentAbsentIndex] = useState(0);
   const [popupProgress, setPopupProgress] = useState(100);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(true);
   const [selectedOverrideEmp, setSelectedOverrideEmp] = useState(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [overrideLoading, setOverrideLoading] = useState(false);
@@ -403,7 +404,7 @@ export default function AdminDashboard({ onBack }) {
 
   // 5. Cycling Absentee Alerts timer loops (5 second countdowns)
   useEffect(() => {
-    if (absentEmployees.length === 0 || showOverrideModal) {
+    if (absentEmployees.length === 0 || showOverrideModal || !showAlertModal) {
       clearInterval(cyclingTimerRef.current);
       clearInterval(progressTimerRef.current);
       return;
@@ -437,7 +438,7 @@ export default function AdminDashboard({ onBack }) {
       clearInterval(cyclingTimerRef.current);
       clearInterval(progressTimerRef.current);
     };
-  }, [absentEmployees, showOverrideModal]);
+  }, [absentEmployees, showOverrideModal, showAlertModal]);
 
   // Handle Photo selection for Biometric Enrollment
   const handleNameChange = (e) => {
@@ -544,6 +545,22 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
+  const handleEditCustomConfig = (conf) => {
+    if (!isSuperAdminUser) return;
+    setConfigForm({
+      employee_id: conf.employee_id,
+      address: conf.address || '',
+      lat: conf.lat || 28.5355,
+      lng: conf.lng || 77.391,
+      radius_meters: conf.radius_meters || 100,
+      start_time: conf.start_time || '09:00:00',
+      end_time: conf.end_time || '18:00:00',
+      grace_period_minutes: conf.grace_period_minutes || 15
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showStatus('success', 'Configuration loaded for editing.');
+  };
+
   const handleDeleteCustomConfig = async (employee_id) => {
     if (!isSuperAdminUser) return;
     if (!window.confirm('Delete this custom configuration? The employee will revert to using the Global Office settings.')) return;
@@ -566,13 +583,11 @@ export default function AdminDashboard({ onBack }) {
     if (!isSuperAdminUser) return;
 
     setConfigLoading(true);
+    const adminIdentity = adminProfile?.name || adminProfile?.email || 'Admin';
 
     try {
       if (configForm.employee_id === 'global') {
-        // Update the single global office_config row (id=1)
-        const { error } = await supabase
-          .from('office_config')
-          .upsert({
+        const payload = {
             id: 1,
             lat: parseFloat(configForm.lat),
             lng: parseFloat(configForm.lng),
@@ -580,15 +595,23 @@ export default function AdminDashboard({ onBack }) {
             start_time: configForm.start_time || '09:00:00',
             end_time: configForm.end_time || '18:00:00',
             grace_period_minutes: parseInt(configForm.grace_period_minutes) || 15,
-            updated_at: new Date().toISOString()
-          });
+            updated_at: new Date().toISOString(),
+            updated_by: adminIdentity
+        };
+        
+        let { error } = await supabase.from('office_config').upsert(payload);
+        
+        if (error && error.code === 'PGRST204') {
+            const fallback = { ...payload }; delete fallback.updated_by;
+            let res = await supabase.from('office_config').upsert(fallback);
+            error = res.error;
+            if (!error) showStatus('success', 'Global config saved! (To show edits, add "updated_by" text column to office_config table in DB)');
+        } else if (!error) {
+            showStatus('success', 'Global office configuration saved successfully!');
+        }
         if (error) throw error;
-        showStatus('success', 'Global office configuration saved successfully!');
       } else {
-        // Upsert per-employee config
-        const { error } = await supabase
-          .from('employee_office_config')
-          .upsert({
+        const payload = {
             employee_id: configForm.employee_id,
             lat: parseFloat(configForm.lat),
             lng: parseFloat(configForm.lng),
@@ -597,11 +620,22 @@ export default function AdminDashboard({ onBack }) {
             end_time: configForm.end_time || '18:00:00',
             grace_period_minutes: parseInt(configForm.grace_period_minutes) || 15,
             address: configForm.address || null,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'employee_id' });
+            updated_at: new Date().toISOString(),
+            updated_by: adminIdentity
+        };
+
+        let { error } = await supabase.from('employee_office_config').upsert(payload, { onConflict: 'employee_id' });
+        
+        if (error && error.code === 'PGRST204') {
+            const fallback = { ...payload }; delete fallback.updated_by;
+            let res = await supabase.from('employee_office_config').upsert(fallback, { onConflict: 'employee_id' });
+            error = res.error;
+            if (!error) showStatus('success', 'Custom config saved! (To show edits, add "updated_by" text column to employee_office_config table)');
+        } else if (!error) {
+            const empName = employees.find(emp => emp.id === configForm.employee_id)?.name || 'Employee';
+            showStatus('success', `Custom configuration saved for ${empName}!`);
+        }
         if (error) throw error;
-        const empName = employees.find(emp => emp.id === configForm.employee_id)?.name || 'Employee';
-        showStatus('success', `Custom configuration saved for ${empName}!`);
       }
       fetchData();
     } catch (err) {
@@ -1446,6 +1480,29 @@ export default function AdminDashboard({ onBack }) {
 
                   <div className="grid grid-cols-2 gap-4 my-2">
                     <div>
+                      <label className="admin-label">Shift Start Time</label>
+                      <input
+                        type="time"
+                        required
+                        value={configForm.start_time || ''}
+                        onChange={(e) => setConfigForm({ ...configForm, start_time: e.target.value })}
+                        className="admin-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="admin-label">Shift End Time</label>
+                      <input
+                        type="time"
+                        required
+                        value={configForm.end_time || ''}
+                        onChange={(e) => setConfigForm({ ...configForm, end_time: e.target.value })}
+                        className="admin-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 my-2">
+                    <div>
                       <label className="admin-label">Geofence Radius (Meters)</label>
                       <input
                         type="number"
@@ -1552,9 +1609,19 @@ export default function AdminDashboard({ onBack }) {
                             <td><span className="admin-badge admin-badge-info">{conf.radius_meters}m</span></td>
                             <td>
                               <div className="text-sm">{conf.start_time.slice(0,5)} - {conf.end_time.slice(0,5)}</div>
+                              {conf.updated_by && <div className="text-xs mt-1" style={{color: 'var(--brand-primary)', fontWeight: '600'}}>✏️ Edited By: {conf.updated_by}</div>}
                             </td>
                             {isSuperAdminUser && (
                               <td style={{textAlign: "right", paddingRight: "1rem"}}>
+                                <button 
+                                  type="button"
+                                  onClick={() => handleEditCustomConfig(conf)}
+                                  className="admin-btn-icon"
+                                  style={{color: "var(--brand-primary)", marginRight: "0.5rem"}}
+                                  title="Edit Timings / Location"
+                                >
+                                  <Edit3 size={16} />
+                                </button>
                                 <button 
                                   type="button"
                                   onClick={() => handleDeleteCustomConfig(conf.employee_id)}
@@ -1686,16 +1753,41 @@ export default function AdminDashboard({ onBack }) {
       </main>
 
       {/* --- OVERLAY POPUP: COUNTDOWN CYCLING ABSENTEE ALERTS (BOTTOM-RIGHT) --- */}
-      {absentEmployees.length > 0 && currentAbsentEmp && !showOverrideModal && (
+      {absentEmployees.length > 0 && currentAbsentEmp && !showOverrideModal && !showAlertModal && (
+        <button 
+          onClick={() => setShowAlertModal(true)}
+          style={{
+            position: 'fixed', bottom: '20px', right: '20px', 
+            background: '#1e293b', 
+            border: '1px solid #334155',
+            padding: '10px 15px', borderRadius: '20px',
+            color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 100,
+            cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}
+        >
+          <div style={{width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'}} />
+          <span style={{fontSize: '0.85rem', fontWeight: 600}}>Absent Alerts ({absentEmployees.length})</span>
+        </button>
+      )}
+
+      {absentEmployees.length > 0 && currentAbsentEmp && !showOverrideModal && showAlertModal && (
         <div className="admin-popup-alert">
           <div className="admin-popup-header">
             <div className="admin-popup-header-left">
               <div className="admin-ping-dot" />
               <span className="admin-popup-title">Absent Employee Alert</span>
             </div>
-            <span className="admin-popup-count">
-              {currentAbsentIndex + 1} of {absentEmployees.length} missing
-            </span>
+            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+              <span className="admin-popup-count">
+                {currentAbsentIndex + 1} of {absentEmployees.length} missing
+              </span>
+              <button 
+                onClick={() => setShowAlertModal(false)}
+                style={{background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px'}}
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
 
           <div>

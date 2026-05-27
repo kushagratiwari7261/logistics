@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { MapPin, Camera, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft, MoveLeft, MoveRight, MoveUp, MoveDown } from 'lucide-react';
+import { MapPin, Camera, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft, MoveLeft, MoveRight, MoveUp, MoveDown, Clock } from 'lucide-react';
 import './MarkAttendance.css';
 
 export default function MarkAttendance({ onBack }) {
@@ -11,6 +11,8 @@ export default function MarkAttendance({ onBack }) {
   const [gpsData, setGpsData] = useState(null);
   const [geofenceStatus, setGeofenceStatus] = useState(null); // 'checking', 'success', 'blocked'
   const [geofenceError, setGeofenceError] = useState('');
+  const [officeStartTime, setOfficeStartTime] = useState(null);
+  const [timeUntilStart, setTimeUntilStart] = useState(-1);
   
   // Camera & Face Mesh States
   const [cameraActive, setCameraActive] = useState(false);
@@ -48,6 +50,26 @@ export default function MarkAttendance({ onBack }) {
   useEffect(() => { isVerifyingRef.current = isVerifying; }, [isVerifying]);
   useEffect(() => { cameraActiveRef.current = cameraActive; }, [cameraActive]);
 
+  // Countdown Timer
+  useEffect(() => {
+    if (!officeStartTime) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const [h, m, s] = officeStartTime.split(':').map(Number);
+      const target = new Date();
+      target.setHours(h, m, s || 0, 0);
+      
+      const diffMs = target.getTime() - now.getTime();
+      if (diffMs > 0) {
+        setTimeUntilStart(Math.ceil(diffMs / 1000));
+      } else {
+        setTimeUntilStart(0);
+        clearInterval(interval);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [officeStartTime]);
+
   // Load current user profile from Supabase
   useEffect(() => {
     const fetchProfile = async () => {
@@ -68,6 +90,42 @@ export default function MarkAttendance({ onBack }) {
         console.log('[Attendance] Employee lookup result:', data, empErr);
         setUserProfile(data);
         
+        if (data && data.id) {
+          let empStart = null;
+          const { data: empConf } = await supabase
+            .from('employee_office_config')
+            .select('start_time')
+            .eq('employee_id', data.id)
+            .maybeSingle();
+          if (empConf?.start_time) {
+            empStart = empConf.start_time;
+          } else {
+            const { data: globConf } = await supabase
+              .from('office_config')
+              .select('start_time')
+              .eq('id', 1)
+              .maybeSingle();
+            if (globConf?.start_time) {
+              empStart = globConf.start_time;
+            }
+          }
+          if (empStart) {
+            setOfficeStartTime(empStart);
+            const now = new Date();
+            const [h, m, s] = empStart.split(':').map(Number);
+            const target = new Date();
+            target.setHours(h, m, s || 0, 0);
+            const diffMs = target.getTime() - now.getTime();
+            if (diffMs > 0) {
+              setTimeUntilStart(Math.ceil(diffMs / 1000));
+            } else {
+              setTimeUntilStart(0);
+            }
+          } else {
+            setTimeUntilStart(0);
+          }
+        }
+
         // Prevent double face scanning by checking if already marked today
         if (data && data.id) {
           const todayStr = new Date().toLocaleDateString('en-CA');
@@ -293,7 +351,7 @@ export default function MarkAttendance({ onBack }) {
 
   // Trigger camera start when scripts load
   useEffect(() => {
-    if (scriptsLoaded && geofenceStatus === 'success' && verifyResult !== 'success') {
+    if (scriptsLoaded && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart === 0) {
       startCamera();
     }
     return () => {
@@ -302,7 +360,7 @@ export default function MarkAttendance({ onBack }) {
         activeStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [scriptsLoaded, geofenceStatus, verifyResult, startCamera]);
+  }, [scriptsLoaded, geofenceStatus, verifyResult, startCamera, timeUntilStart]);
 
   // Start the 15-second countdown once face is locked
   useEffect(() => {
@@ -828,8 +886,26 @@ export default function MarkAttendance({ onBack }) {
           </div>
         )}
 
+        {/* --- INTERMEDIATE STEP: Timer Before Office Start --- */}
+        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart > 0 && (
+          <div className="attendance-card success-screen-card" style={{marginTop: '2rem'}}>
+            <div className="icon-wrapper animate-pulse" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24', margin: '0 auto 1.5rem auto' }}>
+              <Clock className="w-8 h-8" />
+            </div>
+            <h2 className="card-title text-2xl mb-4 text-center">Office Starts At {officeStartTime?.slice(0, 5)}</h2>
+            <div className="text-4xl font-mono font-bold mb-4 text-center" style={{ color: 'var(--brand-primary)', margin: '1.5rem 0' }}>
+              {Math.floor(timeUntilStart / 3600).toString().padStart(2, '0')}:
+              {Math.floor((timeUntilStart % 3600) / 60).toString().padStart(2, '0')}:
+              {(timeUntilStart % 60).toString().padStart(2, '0')}
+            </div>
+            <p className="card-description text-center mt-4">
+              You are early! The biometric camera will automatically activate once the shift time begins. You do not need to refresh.
+            </p>
+          </div>
+        )}
+
         {/* --- STEP 3: Camera, Face Mesh and Liveness Challenge --- */}
-        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && (
+        {!profileLoading && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart === 0 && (
           <div className="camera-verification-flow">
             {/* Holographic Video Screen */}
             <div className="camera-viewport">

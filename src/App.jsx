@@ -82,7 +82,7 @@ import ShipmentTracking from './components/ShipmentTracking'
 import PaymentPage from './components/Payment'
 import sealLogo from './seal.png'
 import JobAllocation from './components/JobAllocation'
-import { Bell, CheckCircle2, X } from 'lucide-react'
+import { Bell, CheckCircle2, X, AlertTriangle } from 'lucide-react'
 import { socket } from './hooks/useMessageSubscription'
 import { supabase } from './lib/supabaseClient'
 import ForgotPassword from './components/ForgotPassword'
@@ -108,6 +108,10 @@ function App() {
   const [isStatsLoading, setIsStatsLoading] = useState(false)
   const [isJobsLoading, setIsJobsLoading] = useState(false)
   const [isShipmentsLoading, setIsShipmentsLoading] = useState(false)
+
+  // --- Attendance Reminder System ---
+  const [showAttendanceAlert, setShowAttendanceAlert] = useState(false)
+  const [attendanceAlertMessage, setAttendanceAlertMessage] = useState('')
 
   // --- Notification System State ---
   const [inAppNotifications, setInAppNotifications] = useState([])
@@ -459,6 +463,95 @@ function App() {
       };
     }
   }, [isAuthenticated, user?.id]);
+
+  // --- Attendance Reminder System ---
+  useEffect(() => {
+    if (!isAuthenticated || !user?.email) return;
+
+    let intervalId = null;
+    let employeeId = null;
+    let officeStart = null;
+
+    const checkAttendance = async () => {
+      try {
+        if (!employeeId) {
+          const { data: emp } = await supabase
+            .from('employees')
+            .select('id')
+            .ilike('email', user.email)
+            .maybeSingle();
+            
+          if (!emp) return;
+          employeeId = emp.id;
+          
+          let empStart = null;
+          const { data: empConf } = await supabase
+            .from('employee_office_config')
+            .select('start_time')
+            .eq('employee_id', employeeId)
+            .maybeSingle();
+            
+          if (empConf?.start_time) {
+            empStart = empConf.start_time;
+          } else {
+            const { data: globConf } = await supabase
+              .from('office_config')
+              .select('start_time')
+              .eq('id', 1)
+              .maybeSingle();
+            if (globConf?.start_time) {
+              empStart = globConf.start_time;
+            }
+          }
+          officeStart = empStart;
+        }
+
+        if (!employeeId || !officeStart) return;
+
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const { data: attData } = await supabase
+          .from('attendance')
+          .select('id')
+          .eq('employee_id', employeeId)
+          .eq('date', todayStr)
+          .maybeSingle();
+          
+        if (attData) {
+          // Already marked today
+          setShowAttendanceAlert(false);
+          if (intervalId) clearInterval(intervalId);
+          return;
+        }
+
+        const now = new Date();
+        const [hStart, mStart, sStart] = officeStart.split(':').map(Number);
+        const startTarget = new Date();
+        startTarget.setHours(hStart, mStart, sStart || 0, 0);
+        
+        const endTarget = new Date();
+        endTarget.setHours(12, 0, 0, 0);
+
+        if (now >= startTarget && now <= endTarget) {
+          setShowAttendanceAlert(true);
+          setAttendanceAlertMessage('Reminder: Please mark your attendance for today!');
+          if (notificationAudio.current) {
+            notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
+          }
+        } else {
+          setShowAttendanceAlert(false);
+        }
+      } catch (err) {
+        console.error('Attendance check error:', err);
+      }
+    };
+
+    checkAttendance();
+    intervalId = setInterval(checkAttendance, 5 * 60 * 1000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isAuthenticated, user?.email]);
 
   // Fetch data when authenticated
   useEffect(() => {
@@ -1032,6 +1125,39 @@ function App() {
                   <button onClick={() => setError(null)}>×</button>
                 </div>
               )}
+
+              {showAttendanceAlert && (
+                <div style={{
+                  position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+                  backgroundColor: '#ef4444', color: 'white', padding: '1rem 2rem',
+                  borderRadius: '12px', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+                  zIndex: 9999, display: 'flex', alignItems: 'center', gap: '12px',
+                  fontWeight: '600'
+                }}>
+                  <AlertTriangle size={24} className="animate-pulse" />
+                  <span>{attendanceAlertMessage}</span>
+                  <button 
+                    onClick={() => {
+                      setShowAttendanceAlert(false);
+                      navigate('/attendance');
+                    }}
+                    style={{
+                      marginLeft: '1rem', padding: '0.5rem 1rem', background: 'white',
+                      color: '#ef4444', border: 'none', borderRadius: '6px',
+                      cursor: 'pointer', fontWeight: 'bold'
+                    }}
+                  >
+                    Mark Now
+                  </button>
+                  <button 
+                    onClick={() => setShowAttendanceAlert(false)}
+                    style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '0.5rem' }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              )}
+
               <Routes>
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/vendors" element={<ProtectedRoute><CustomerPage partnerType="vendor" /></ProtectedRoute>} />

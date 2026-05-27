@@ -199,7 +199,7 @@ async def health_check():
     }
 
 @app.post("/api/geofence-check")
-async def check_geofence(
+def check_geofence(
     latitude: float = Form(...),
     longitude: float = Form(...),
     current_user: dict = Depends(get_current_user)
@@ -244,7 +244,7 @@ async def check_geofence(
     }
 
 @app.post("/api/face-match")
-async def face_match(
+def face_match(
     image: UploadFile = File(...),
     latitude: float = Form(None),
     longitude: float = Form(None),
@@ -279,7 +279,7 @@ async def face_match(
 
     # 3. Process webcam image frame
     try:
-        contents = await image.read()
+        contents = image.file.read()
         user_encoding_arr = get_face_encoding_from_bytes(contents)
     except Exception as e:
         raise HTTPException(
@@ -434,7 +434,7 @@ async def face_match(
     }
 
 @app.post("/api/enroll-employee")
-async def enroll_employee(
+def enroll_employee(
     name: str = Form(...),
     email: str = Form(...),
     role: str = Form(...),
@@ -468,7 +468,7 @@ async def enroll_employee(
         encodings = []
         for idx, img_file in enumerate(upload_images):
             try:
-                contents = await img_file.read()
+                contents = img_file.file.read()
                 enc = get_face_encoding_from_bytes(contents)
                 encodings.append(enc)
             except Exception as e:
@@ -512,7 +512,7 @@ async def enroll_employee(
 
 
 @app.post("/api/office-config")
-async def update_office_config(
+def update_office_config(
     lat: float = Form(...),
     lng: float = Form(...),
     radius_meters: float = Form(...),
@@ -584,7 +584,7 @@ async def update_office_config(
     }
 
 @app.delete("/api/office-config/{employee_id}")
-async def delete_employee_config(
+def delete_employee_config(
     employee_id: str,
     current_user: dict = Depends(get_current_user)
 ):
@@ -608,7 +608,7 @@ async def delete_employee_config(
     }
 
 @app.post("/api/holidays")
-async def add_holiday(
+def add_holiday(
     name: str = Form(...),
     holiday_date: str = Form(...),  # 'YYYY-MM-DD'
     current_user: dict = Depends(get_current_user)
@@ -651,7 +651,7 @@ async def add_holiday(
     }
 
 @app.delete("/api/holidays/{holiday_id}")
-async def delete_holiday(
+def delete_holiday(
     holiday_id: str,
     current_user: dict = Depends(get_current_user)
 ):
