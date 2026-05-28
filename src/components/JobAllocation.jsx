@@ -1056,6 +1056,33 @@ const JobAllocation = ({ user }) => {
           .ticket-modal { border-radius: 16px; max-height: 95vh; }
           .modal-top, .m-form { padding-left: 20px; padding-right: 20px; }
         }
+
+        /* ── Dark Mode Overrides ── */
+        [data-theme="dark"] .page-container { background: var(--bg-base); color: var(--text-primary); }
+        [data-theme="dark"] .brand-h1 { color: var(--text-primary); }
+        [data-theme="dark"] .search-pill { background: var(--bg-surface); border-color: var(--border); }
+        [data-theme="dark"] .search-pill input { color: var(--text-primary); }
+        [data-theme="dark"] .ticket-card, [data-theme="dark"] .ticket-modal, [data-theme="dark"] .modal-top, [data-theme="dark"] .m-form { background: var(--bg-surface); border-color: var(--border); }
+        [data-theme="dark"] .ticket-card:hover { border-color: var(--brand-primary); }
+        [data-theme="dark"] .ticket-name, [data-theme="dark"] .m-text h2 { color: var(--text-primary); }
+        [data-theme="dark"] .ticket-brief { color: var(--text-secondary); }
+        [data-theme="dark"] .task-tabs button:hover, [data-theme="dark"] .p-name { color: var(--text-primary); }
+        [data-theme="dark"] .task-tabs button span { background: var(--bg-surface-2); color: var(--text-primary); }
+        [data-theme="dark"] .checkbox-pill { background: var(--bg-surface); border-color: var(--border); }
+        [data-theme="dark"] .checkbox-pill:hover { background: var(--bg-surface-2); border-color: var(--brand-primary); }
+        [data-theme="dark"] .checkbox-pill span { color: var(--text-primary); }
+        [data-theme="dark"] .select-wrapper, [data-theme="dark"] .input-field, [data-theme="dark"] .m-form textarea { background: var(--bg-surface-2); border-color: var(--border); color: var(--text-primary); }
+        [data-theme="dark"] .select-wrapper select, [data-theme="dark"] .input-field input, [data-theme="dark"] .m-form textarea { color: var(--text-primary); }
+        [data-theme="dark"] .m-close { background: var(--bg-surface-2); border-color: var(--border); }
+        [data-theme="dark"] .action-trigger-btn.secondary { background: var(--bg-surface); color: var(--text-primary); border-color: var(--border); }
+        [data-theme="dark"] .action-trigger-btn.secondary:hover { background: var(--bg-surface-2); border-color: var(--brand-primary); }
+        [data-theme="dark"] .ticket-bottom, [data-theme="dark"] .modal-top { border-color: var(--border); }
+        [data-theme="dark"] .priority-label { background: var(--bg-surface-2); color: var(--text-secondary); }
+        [data-theme="dark"] .high .priority-label { background: var(--danger-bg); color: var(--danger); }
+        [data-theme="dark"] .low .priority-label { background: var(--success-bg); color: var(--success); }
+        [data-theme="dark"] .edit-mini-btn { background: var(--bg-surface-2); color: var(--text-secondary); }
+        [data-theme="dark"] .edit-mini-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
+        [data-theme="dark"] .modal-top::before { background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-secondary) 100%); }
       `}</style>
     </motion.div>
   )

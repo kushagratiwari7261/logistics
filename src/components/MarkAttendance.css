@@ -738,3 +738,57 @@
     50% { top: 198px; opacity: 0.8; }
   }
 }
+
+/* ── Light Mode Overrides ── */
+[data-theme="light"] .attendance-container {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+[data-theme="light"] .attendance-card,
+[data-theme="light"] .success-screen-card,
+[data-theme="light"] .registration-card {
+  background: var(--bg-surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+[data-theme="light"] .header-title,
+[data-theme="light"] .challenge-active-title,
+[data-theme="light"] .success-screen-title,
+[data-theme="light"] .card-title {
+  background: none;
+  -webkit-text-fill-color: var(--text-primary);
+  color: var(--text-primary);
+}
+[data-theme="light"] .card-description,
+[data-theme="light"] .header-subtitle,
+[data-theme="light"] .loading-placeholder-text {
+  color: var(--text-secondary);
+}
+[data-theme="light"] .camera-viewport {
+  background-color: var(--bg-inset);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+[data-theme="light"] .btn-back,
+[data-theme="light"] .btn-retry-scanning {
+  background: var(--bg-surface-2);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+[data-theme="light"] .btn-back:hover,
+[data-theme="light"] .btn-retry-scanning:hover {
+  background: var(--bg-inset);
+}
+[data-theme="light"] .form-input {
+  background: var(--bg-surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+[data-theme="light"] .challenge-card {
+  background: var(--bg-surface-2);
+  border-color: var(--border);
+}
+[data-theme="light"] .challenge-progress-track {
+  background: var(--bg-inset);
+  border-color: var(--border);
+}

@@ -93,6 +93,7 @@ import { applyColorMode, applyAccent } from './utils/themeUtils'
 import MarkAttendance from './components/MarkAttendance'
 import AdminDashboard from './components/AdminDashboard'
 import AttendanceStats from './components/AttendanceStats'
+import GlobalJobForm from './components/GlobalJobForm'
 
 
 function App() {
@@ -1185,6 +1186,7 @@ function App() {
                 } />
               </Routes>
             </main>
+            {isAuthenticated && <GlobalJobForm />}
           </div>
         }
       />

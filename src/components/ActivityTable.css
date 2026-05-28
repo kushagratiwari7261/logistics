@@ -121,19 +121,152 @@
   padding: 0;
 }
 
-.new-shipment-header {
-  padding: 20px 25px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface-2);
+/* Windows App Style Modal */
+.job-modal.full-screen-modal {
+  max-width: 95vw;
+  width: 100%;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.new-shipment-header h1 {
+.full-height-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: none !important;
+  width: 100%;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 25px;
+  background: var(--bg-surface-2);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  user-select: none;
+}
+
+.window-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.window-controls-left h1 {
+  font-size: 1.5rem;
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.8rem;
 }
 
-/* Progress Steps */
+.window-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.window-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.window-btn:hover {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+.window-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Header specific overrides for blue background */
+.window-header .window-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.window-header .window-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.window-header .window-btn.close-btn:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+/* Minimized bar close button uses standard hover */
+.window-btn.close-btn:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+.content-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+/* Minimized Taskbar Style */
+.minimized-job-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  z-index: 9999;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: slideUp 0.3s ease;
+}
+
+.minimized-job-bar:hover {
+  transform: translateX(-50%) translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+}
+
+.minimized-job-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.minimized-job-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.minimized-actions {
+  display: flex;
+  gap: 5px;
+}
+
+@keyframes slideUp {
+  from { bottom: -50px; opacity: 0; }
+  to { bottom: 20px; opacity: 1; }
+}
+
+[data-theme="dark"] .minimized-job-bar {
+  background: var(--bg-surface-2);
+  border-color: var(--border);
+}
 .progress-steps {
   display: flex;
   justify-content: space-between;

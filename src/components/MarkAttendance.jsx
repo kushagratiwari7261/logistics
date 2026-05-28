@@ -14,7 +14,8 @@ export default function MarkAttendance({ onBack }) {
   const [officeStartTime, setOfficeStartTime] = useState(null);
   const [timeUntilStart, setTimeUntilStart] = useState(-1);
   const [shiftClosed, setShiftClosed] = useState(false);
-  
+  const [isSunday, setIsSunday] = useState(new Date().getDay() === 0);
+
   // Camera & Face Mesh States
   const [cameraActive, setCameraActive] = useState(false);
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
@@ -62,7 +63,7 @@ export default function MarkAttendance({ onBack }) {
       const [h, m, s] = officeStartTime.split(':').map(Number);
       const target = new Date();
       target.setHours(h, m, s || 0, 0);
-      
+
       const diffMs = target.getTime() - now.getTime();
       if (diffMs > 0) {
         setTimeUntilStart(Math.ceil(diffMs / 1000));
@@ -93,7 +94,7 @@ export default function MarkAttendance({ onBack }) {
 
         console.log('[Attendance] Employee lookup result:', data, empErr);
         setUserProfile(data);
-        
+
         if (data && data.id) {
           let empStart = null;
           let empEnd = null;
@@ -153,15 +154,15 @@ export default function MarkAttendance({ onBack }) {
             .eq('employee_id', data.id)
             .eq('date', todayStr)
             .maybeSingle();
-            
+
           if (attData) {
-             const timeStr = new Date(attData.marked_at).toLocaleTimeString();
-             setVerifyResult('success');
-             setVerifyMessage(`You have already marked your attendance for today at ${timeStr}.`);
-             // Bypass geofence check loading completely since they already did it earlier
-             setGeofenceStatus('success');
-             setProfileLoading(false);
-             return;
+            const timeStr = new Date(attData.marked_at).toLocaleTimeString();
+            setVerifyResult('success');
+            setVerifyMessage(`You have already marked your attendance for today at ${timeStr}.`);
+            // Bypass geofence check loading completely since they already did it earlier
+            setGeofenceStatus('success');
+            setProfileLoading(false);
+            return;
           }
         }
       }
@@ -325,11 +326,11 @@ export default function MarkAttendance({ onBack }) {
     cameraActiveRef.current = false;
     clearInterval(timerIntervalRef.current);
     if (mediapipeCameraRef.current) {
-      try { mediapipeCameraRef.current.stop(); } catch(e) {}
+      try { mediapipeCameraRef.current.stop(); } catch (e) { }
       mediapipeCameraRef.current = null;
     }
     if (faceMeshInstanceRef.current) {
-      try { faceMeshInstanceRef.current.close(); } catch(e) {}
+      try { faceMeshInstanceRef.current.close(); } catch (e) { }
       faceMeshInstanceRef.current = null;
     }
   }, []);
@@ -355,7 +356,7 @@ export default function MarkAttendance({ onBack }) {
         isVerifyingRef.current = false;
         baselineRef.current = null;
         baselineFrameRef.current = null;
-        
+
         // Pick a random challenge direction
         const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
         setCurrentDirection(dir);
@@ -416,7 +417,7 @@ export default function MarkAttendance({ onBack }) {
     // gives face_recognition on the backend a much better chance of
     // finding a face compared to the turned-head liveness frame.
     let captureBlob = baselineFrameRef.current;
-    
+
     if (!captureBlob && videoRef.current) {
       // Fallback: capture current frame
       const canvas = document.createElement('canvas');
@@ -442,7 +443,7 @@ export default function MarkAttendance({ onBack }) {
       try {
         // Refresh session to ensure a fresh, valid token before biometric call
         const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
-        
+
         if (sessionErr || !session?.access_token) {
           // Try refreshing the session explicitly
           const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
@@ -539,183 +540,183 @@ export default function MarkAttendance({ onBack }) {
     let cancelled = false;
 
     const initFaceMesh = async () => {
-    try {
-    const faceMesh = new window.FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    // Wait for FaceMesh to initialize (this is where the WASM assets load)
-    await faceMesh.initialize();
-
-    if (cancelled) {
-      try { faceMesh.close(); } catch(e) {}
-      return;
-    }
-
-    meshRetryCountRef.current = 0; // Reset on success
-    faceMeshInstanceRef.current = faceMesh;
-
-    const onResults = (results) => {
-      if (!canvasRef.current || !videoRef.current) return;
-      const canvasCtx = canvasRef.current.getContext('2d');
-      const width = canvasRef.current.width;
-      const height = canvasRef.current.height;
-
-      // Clear overlay
-      canvasCtx.clearRect(0, 0, width, height);
-
-      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        const landmarks = results.multiFaceLandmarks[0];
-        
-        // Landmark 1: Nose tip
-        const nose = landmarks[1];
-        
-        // Draw face mesh outline (draw key points for visual feedback)
-        const keyPoints = [1, 33, 263, 61, 291, 199, 10, 152]; // nose, eyes, mouth corners, forehead, chin
-        keyPoints.forEach((idx) => {
-          const pt = landmarks[idx];
-          canvasCtx.beginPath();
-          canvasCtx.arc(pt.x * width, pt.y * height, 3, 0, 2 * Math.PI);
-          canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.7)';
-          canvasCtx.fill();
+      try {
+        const faceMesh = new window.FaceMesh({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
         });
 
-        // Draw the main tracking dot on nose
-        canvasCtx.beginPath();
-        canvasCtx.arc(nose.x * width, nose.y * height, 7, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = '#10B981';
-        canvasCtx.fill();
-        canvasCtx.strokeStyle = '#FFFFFF';
-        canvasCtx.lineWidth = 2;
-        canvasCtx.stroke();
-
-        // Draw face bounding outline
-        const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 
-                            397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 
-                            172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10];
-        canvasCtx.beginPath();
-        faceOutline.forEach((idx, i) => {
-          const pt = landmarks[idx];
-          if (i === 0) canvasCtx.moveTo(pt.x * width, pt.y * height);
-          else canvasCtx.lineTo(pt.x * width, pt.y * height);
+        faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
         });
-        canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.35)';
-        canvasCtx.lineWidth = 1.5;
-        canvasCtx.stroke();
 
-        const currentFaceLock = faceLockRef.current;
+        // Wait for FaceMesh to initialize (this is where the WASM assets load)
+        await faceMesh.initialize();
 
-        // Lock baseline when first stable face detected
-        if (currentFaceLock === 'searching') {
-          baselineRef.current = { x: nose.x, y: nose.y };
-          // Capture a straight-on face frame for verification
-          // This is the best moment — face is centered and looking at camera
-          if (videoRef.current) {
-            const c = document.createElement('canvas');
-            c.width = 640; c.height = 480;
-            c.getContext('2d').drawImage(videoRef.current, 0, 0, 640, 480);
-            c.toBlob((b) => { baselineFrameRef.current = b; }, 'image/jpeg', 0.95);
-          }
-          setFaceLock('locked');
-          faceLockRef.current = 'locked';
+        if (cancelled) {
+          try { faceMesh.close(); } catch (e) { }
+          return;
         }
 
-        // Liveness Direction Tracker
-        if (currentFaceLock === 'locked' && baselineRef.current) {
-          const deltaX = nose.x - baselineRef.current.x;
-          const deltaY = nose.y - baselineRef.current.y;
-          
-          let progress = 0;
-          let triggered = false;
-          const threshold = 0.045; // faster detection threshold
+        meshRetryCountRef.current = 0; // Reset on success
+        faceMeshInstanceRef.current = faceMesh;
 
-          const dir = directionRef.current;
+        const onResults = (results) => {
+          if (!canvasRef.current || !videoRef.current) return;
+          const canvasCtx = canvasRef.current.getContext('2d');
+          const width = canvasRef.current.width;
+          const height = canvasRef.current.height;
 
-          // Note: In raw webcam coordinates (unmirrored), moving your head to YOUR left 
-          // means moving to the RIGHT side of the sensor, so x INCREASES (val = deltaX).
-          if (dir === 'LEFT') {
-            const val = deltaX; 
-            progress = Math.min(100, Math.max(0, (val / threshold) * 100));
-            triggered = val >= threshold;
-          } else if (dir === 'RIGHT') {
-            const val = -deltaX;
-            progress = Math.min(100, Math.max(0, (val / threshold) * 100));
-            triggered = val >= threshold;
-          } else if (dir === 'UP') {
-            const val = -deltaY;
-            progress = Math.min(100, Math.max(0, (val / threshold) * 100));
-            triggered = val >= threshold;
-          } else if (dir === 'DOWN') {
-            const val = deltaY;
-            progress = Math.min(100, Math.max(0, (val / threshold) * 100));
-            triggered = val >= threshold;
+          // Clear overlay
+          canvasCtx.clearRect(0, 0, width, height);
+
+          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0];
+
+            // Landmark 1: Nose tip
+            const nose = landmarks[1];
+
+            // Draw face mesh outline (draw key points for visual feedback)
+            const keyPoints = [1, 33, 263, 61, 291, 199, 10, 152]; // nose, eyes, mouth corners, forehead, chin
+            keyPoints.forEach((idx) => {
+              const pt = landmarks[idx];
+              canvasCtx.beginPath();
+              canvasCtx.arc(pt.x * width, pt.y * height, 3, 0, 2 * Math.PI);
+              canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.7)';
+              canvasCtx.fill();
+            });
+
+            // Draw the main tracking dot on nose
+            canvasCtx.beginPath();
+            canvasCtx.arc(nose.x * width, nose.y * height, 7, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = '#10B981';
+            canvasCtx.fill();
+            canvasCtx.strokeStyle = '#FFFFFF';
+            canvasCtx.lineWidth = 2;
+            canvasCtx.stroke();
+
+            // Draw face bounding outline
+            const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+              397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+              172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10];
+            canvasCtx.beginPath();
+            faceOutline.forEach((idx, i) => {
+              const pt = landmarks[idx];
+              if (i === 0) canvasCtx.moveTo(pt.x * width, pt.y * height);
+              else canvasCtx.lineTo(pt.x * width, pt.y * height);
+            });
+            canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.35)';
+            canvasCtx.lineWidth = 1.5;
+            canvasCtx.stroke();
+
+            const currentFaceLock = faceLockRef.current;
+
+            // Lock baseline when first stable face detected
+            if (currentFaceLock === 'searching') {
+              baselineRef.current = { x: nose.x, y: nose.y };
+              // Capture a straight-on face frame for verification
+              // This is the best moment — face is centered and looking at camera
+              if (videoRef.current) {
+                const c = document.createElement('canvas');
+                c.width = 640; c.height = 480;
+                c.getContext('2d').drawImage(videoRef.current, 0, 0, 640, 480);
+                c.toBlob((b) => { baselineFrameRef.current = b; }, 'image/jpeg', 0.95);
+              }
+              setFaceLock('locked');
+              faceLockRef.current = 'locked';
+            }
+
+            // Liveness Direction Tracker
+            if (currentFaceLock === 'locked' && baselineRef.current) {
+              const deltaX = nose.x - baselineRef.current.x;
+              const deltaY = nose.y - baselineRef.current.y;
+
+              let progress = 0;
+              let triggered = false;
+              const threshold = 0.045; // faster detection threshold
+
+              const dir = directionRef.current;
+
+              // Note: In raw webcam coordinates (unmirrored), moving your head to YOUR left 
+              // means moving to the RIGHT side of the sensor, so x INCREASES (val = deltaX).
+              if (dir === 'LEFT') {
+                const val = deltaX;
+                progress = Math.min(100, Math.max(0, (val / threshold) * 100));
+                triggered = val >= threshold;
+              } else if (dir === 'RIGHT') {
+                const val = -deltaX;
+                progress = Math.min(100, Math.max(0, (val / threshold) * 100));
+                triggered = val >= threshold;
+              } else if (dir === 'UP') {
+                const val = -deltaY;
+                progress = Math.min(100, Math.max(0, (val / threshold) * 100));
+                triggered = val >= threshold;
+              } else if (dir === 'DOWN') {
+                const val = deltaY;
+                progress = Math.min(100, Math.max(0, (val / threshold) * 100));
+                triggered = val >= threshold;
+              }
+
+              setLivenessProgress(Math.round(progress));
+
+              if (triggered && !isVerifyingRef.current) {
+                setFaceLock('success');
+                faceLockRef.current = 'success';
+                clearInterval(timerIntervalRef.current);
+                handleFaceMatchVerification();
+              }
+            }
+          } else {
+            // Face lost — only reset if we haven't succeeded or started verifying
+            const currentFaceLock = faceLockRef.current;
+            if (currentFaceLock === 'locked') {
+              setFaceLock('searching');
+              faceLockRef.current = 'searching';
+              baselineRef.current = null;
+              setLivenessProgress(0);
+            }
           }
+        };
 
-          setLivenessProgress(Math.round(progress));
+        faceMesh.onResults(onResults);
 
-          if (triggered && !isVerifyingRef.current) {
-            setFaceLock('success');
-            faceLockRef.current = 'success';
-            clearInterval(timerIntervalRef.current);
-            handleFaceMatchVerification();
-          }
-        }
-      } else {
-        // Face lost — only reset if we haven't succeeded or started verifying
-        const currentFaceLock = faceLockRef.current;
-        if (currentFaceLock === 'locked') {
-          setFaceLock('searching');
-          faceLockRef.current = 'searching';
-          baselineRef.current = null;
-          setLivenessProgress(0);
+        // Frame loop using MediaPipe Camera utility
+        const mpCamera = new window.Camera(videoRef.current, {
+          onFrame: async () => {
+            if (videoRef.current && cameraActiveRef.current && faceMeshInstanceRef.current) {
+              try {
+                await faceMeshInstanceRef.current.send({ image: videoRef.current });
+              } catch (e) {
+                // Silently handle if mesh was closed during frame send
+              }
+            }
+          },
+          width: 640,
+          height: 480
+        });
+
+        mediapipeCameraRef.current = mpCamera;
+        mpCamera.start();
+
+      } catch (err) {
+        // FaceMesh WASM asset loading failure
+        console.error('[FaceMesh] Initialization failed:', err);
+        meshRetryCountRef.current += 1;
+        if (meshRetryCountRef.current >= 2) {
+          console.error('[FaceMesh] Max retries reached, showing error UI.');
+          setMeshLoadError(true);
         }
       }
-    };
-
-    faceMesh.onResults(onResults);
-
-    // Frame loop using MediaPipe Camera utility
-    const mpCamera = new window.Camera(videoRef.current, {
-      onFrame: async () => {
-        if (videoRef.current && cameraActiveRef.current && faceMeshInstanceRef.current) {
-          try {
-            await faceMeshInstanceRef.current.send({ image: videoRef.current });
-          } catch(e) {
-            // Silently handle if mesh was closed during frame send
-          }
-        }
-      },
-      width: 640,
-      height: 480
-    });
-
-    mediapipeCameraRef.current = mpCamera;
-    mpCamera.start();
-
-    } catch (err) {
-      // FaceMesh WASM asset loading failure
-      console.error('[FaceMesh] Initialization failed:', err);
-      meshRetryCountRef.current += 1;
-      if (meshRetryCountRef.current >= 2) {
-        console.error('[FaceMesh] Max retries reached, showing error UI.');
-        setMeshLoadError(true);
-      }
-    }
     }; // end initFaceMesh
 
     initFaceMesh();
 
     return () => {
       cancelled = true;
-      try { mediapipeCameraRef.current?.stop(); } catch(e) {}
-      try { faceMeshInstanceRef.current?.close(); } catch(e) {}
+      try { mediapipeCameraRef.current?.stop(); } catch (e) { }
+      try { faceMeshInstanceRef.current?.close(); } catch (e) { }
       mediapipeCameraRef.current = null;
       faceMeshInstanceRef.current = null;
     };
@@ -752,7 +753,7 @@ export default function MarkAttendance({ onBack }) {
       <div className="attendance-content">
         {/* Top bar header */}
         <div className="attendance-header">
-          <button 
+          <button
             onClick={() => { stopCamera(); onBack(); }}
             className="btn-back"
           >
@@ -788,12 +789,12 @@ export default function MarkAttendance({ onBack }) {
             <p className="card-description">
               Welcome! Please complete your one-time biometric registration to start marking attendance.
             </p>
-            
+
             <div className="registration-form">
               <div className="form-group">
                 <label className="input-label">Full Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="enroll-name"
                   placeholder="Enter your full name"
                   className="form-input"
@@ -817,20 +818,20 @@ export default function MarkAttendance({ onBack }) {
                     alert('Please enter your name.');
                     return;
                   }
-                  
+
                   setProfileLoading(true);
                   try {
                     const { data: { session } } = await supabase.auth.getSession();
-                    
+
                     const { error } = await supabase.from('employees').insert({
                       name,
                       email: session.user.email,
                       role,
                       is_active: true
                     });
-                    
+
                     if (error) throw error;
-                    
+
                     // Refresh profile
                     const { data } = await supabase
                       .from('employees')
@@ -854,7 +855,7 @@ export default function MarkAttendance({ onBack }) {
 
 
         {/* --- STEP 1: Geofencing GPS Check Loader --- */}
-        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'checking' && (
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && geofenceStatus === 'checking' && (
           <div className="attendance-card gps-loader-card">
             <div className="icon-wrapper animate-pulse">
               <MapPin className="gps-icon animate-bounce" />
@@ -868,7 +869,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 2: Geofencing GPS Check Denied --- */}
-        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'blocked' && (
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && geofenceStatus === 'blocked' && (
           <div className="attendance-card error-card">
             <div className="icon-wrapper-error">
               <AlertTriangle className="error-icon" />
@@ -879,7 +880,7 @@ export default function MarkAttendance({ onBack }) {
             </p>
             {gpsData && (
               <p className="card-description" style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.5rem' }}>
-                Debug — Employee: {userProfile?.name} (ID: {userProfile?.id?.slice(0,8)}...) | Your GPS: {gpsData.lat.toFixed(6)}, {gpsData.lng.toFixed(6)}
+                Debug — Employee: {userProfile?.name} (ID: {userProfile?.id?.slice(0, 8)}...) | Your GPS: {gpsData.lat.toFixed(6)}, {gpsData.lng.toFixed(6)}
               </p>
             )}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '0.75rem' }}>
@@ -952,8 +953,8 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- INTERMEDIATE STEP: Timer Before Office Start --- */}
-        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart > 0 && (
-          <div className="attendance-card success-screen-card" style={{marginTop: '2rem'}}>
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && timeUntilStart > 0 && (
+          <div className="attendance-card success-screen-card" style={{ marginTop: '2rem' }}>
             <div className="icon-wrapper animate-pulse" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24', margin: '0 auto 1.5rem auto' }}>
               <Clock className="w-8 h-8" />
             </div>
@@ -970,7 +971,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 2.5: FaceMesh Load Error Fallback --- */}
-        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && meshLoadError && (
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && meshLoadError && (
           <div className="attendance-card error-card">
             <div className="icon-wrapper-error">
               <AlertTriangle className="error-icon" />
@@ -1010,21 +1011,21 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 3: Camera, Face Mesh and Liveness Challenge --- */}
-        {!profileLoading && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && !meshLoadError && timeUntilStart === 0 && (
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && geofenceStatus === 'success' && verifyResult !== 'success' && !meshLoadError && timeUntilStart === 0 && (
           <div className="camera-verification-flow">
             {/* Holographic Video Screen */}
             <div className="camera-viewport">
               {/* Webcam Video */}
-              <video 
+              <video
                 ref={videoRef}
-                autoPlay 
-                playsInline 
+                autoPlay
+                playsInline
                 muted
                 className="camera-video"
               />
 
               {/* Dynamic canvas face tracker overlays */}
-              <canvas 
+              <canvas
                 ref={canvasRef}
                 width={640}
                 height={480}
@@ -1035,7 +1036,7 @@ export default function MarkAttendance({ onBack }) {
               <div className="scanner-overlay-container">
                 <div className={`scanner-circle-outer ${faceLock === 'success' ? 'success' : ''}`} />
                 <div className={`scanner-circle-inner ${faceLock === 'success' ? 'success' : ''}`} />
-                
+
                 {/* scanning laser sweep line */}
                 {faceLock === 'searching' && (
                   <div className="scanner-laser" />
@@ -1084,7 +1085,7 @@ export default function MarkAttendance({ onBack }) {
 
                     {/* Progress slider bar */}
                     <div className="challenge-progress-track">
-                      <div 
+                      <div
                         className="challenge-progress-fill"
                         style={{ width: `${livenessProgress}%` }}
                       />
@@ -1117,7 +1118,7 @@ export default function MarkAttendance({ onBack }) {
                     <AlertTriangle className="failed-icon animate-pulse" />
                     <h3 className="challenge-failed-title">Verification Failure</h3>
                     <p className="challenge-failed-desc">{verifyMessage || 'Verification expired.'}</p>
-                    <button 
+                    <button
                       onClick={startCamera}
                       className="btn-retry-scanning"
                     >
@@ -1131,7 +1132,7 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 4: Absolute Success Screen --- */}
-        {!profileLoading && !shiftClosed && userProfile && verifyResult === 'success' && (
+        {!profileLoading && !isSunday && !shiftClosed && userProfile && verifyResult === 'success' && (
           <div className="attendance-card success-screen-card">
             <div className="success-screen-icon-wrapper">
               <CheckCircle className="success-screen-icon" />
@@ -1149,15 +1150,15 @@ export default function MarkAttendance({ onBack }) {
           </div>
         )}
 
-        {/* --- STEP 5: SHIFT CLOSED --- */}
-        {!profileLoading && userProfile && shiftClosed && verifyResult !== 'success' && (
+        {/* --- STEP 4.5: SUNDAY OFF --- */}
+        {!profileLoading && userProfile && isSunday && (
           <div className="attendance-card error-card">
             <div className="icon-wrapper-error">
               <AlertTriangle className="error-icon" />
             </div>
-            <h2 className="card-title error-title">Attendance Closed</h2>
+            <h2 className="card-title error-title">Sunday</h2>
             <p className="card-description error-desc">
-              Office hours have ended for today. Please come back on the next working day.
+              sunday no attandance sunday is fun day
             </p>
             <button
               onClick={onBack}
@@ -1166,6 +1167,20 @@ export default function MarkAttendance({ onBack }) {
             >
               <ArrowLeft className="w-4 h-4" /> Go to Dashboard
             </button>
+          </div>
+        )}
+
+        {/* --- STEP 5: SHIFT CLOSED --- */}
+        {!profileLoading && userProfile && shiftClosed && !isSunday && (
+          <div className="attendance-card error-card">
+            <div className="icon-wrapper-error">
+              <AlertTriangle className="error-icon" />
+            </div>
+            <h2 className="card-title error-title">Attendance Closed</h2>
+            <p className="card-description error-desc">
+              come tommorow
+            </p>
+
           </div>
         )}
       </div>

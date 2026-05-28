@@ -150,7 +150,7 @@ const INITIAL_ORG_FORM_DATA = {
   state: ''
 };
 
-const ActiveJob = () => {
+const GlobalJobForm = () => {
   const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState('auto');
@@ -386,17 +386,6 @@ const ActiveJob = () => {
   }, [getLocationFields]);
 
   // Load jobs on component mount
-  
-  useEffect(() => {
-    const handleJobUpdated = () => {
-      fetchJobs();
-    };
-    window.addEventListener('job_data_updated', handleJobUpdated);
-    return () => {
-      window.removeEventListener('job_data_updated', handleJobUpdated);
-    };
-  }, [fetchJobs]);
-
   useEffect(() => {
     fetchJobs();
     
@@ -534,6 +523,20 @@ const ActiveJob = () => {
 
   // ============ FIX 4: CLEAR STORAGE ON CANCEL ============
   const handleCancel = useCallback(() => {
+    setActiveStep(1);
+    setJobType('');
+    setTradeDirection('');
+    setShowJobForm(false);
+    setEditingJob(null);
+    setValidationErrors({});
+    setFormData({...INITIAL_FORM_DATA, jobNo: generateJobNumber()});
+    
+    sessionStorage.removeItem('job_is_minimized');
+    sessionStorage.removeItem('editing_job');
+    sessionStorage.removeItem('creating_job');
+    window.dispatchEvent(new Event('job_state_changed'));
+  }, []); 
+  const handleCancelOrig = useCallback(() => {
     setActiveStep(1);
     setJobType('');
     setTradeDirection('');
@@ -786,8 +789,7 @@ const ActiveJob = () => {
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
       handleCancel();
       setSelectedFile(null);
-      sessionStorage.removeItem('editing_job');
-      sessionStorage.removeItem('creating_job');
+      window.dispatchEvent(new Event('job_data_updated'));
       
       setSuccess(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
       
@@ -1420,251 +1422,356 @@ const ActiveJob = () => {
 
   return (
     <>
-      {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner">Loading...</div>
-        </div>
-      )}
 
-      {error && (
-        <div className="error-message">
-          Error: {error}
-          <button onClick={() => setError(null)}>Dismiss</button>
-        </div>
-      )}
-
-      {success && (
-        <div className="success-message">
-          {success}
-          <button onClick={() => setSuccess(false)}>Dismiss</button>
-        </div>
-      )}
-      
-      <div className="card expandable-card">
-        <div className="table-header">
-          <h2>Current Active Jobs</h2>
-          <button className="add-shipment-btn" onClick={() => setShowJobForm(true)}>
-            <span className="plus-icon">+</span>
-            Add Job
-          </button>
-        </div>
-        <div 
-          className="table-container" 
-          ref={tableContainerRef}
-          style={{ maxHeight: 'calc(100vh - 250px)', minHeight: '500px', overflowY: 'auto' }}
-        >
-          <table className="activity-table">
-            <thead>
-              <tr>
-                <th>Job No.</th>
-                <th>Client</th>
-                <th>Type</th>
-                <th>Direction</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Created At</th>
-                <th>Updated At</th>
-                <th>Author</th>
-                <th>ETA</th>
-                <th>POD</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.length > 0 ? (
-                jobs.map((job, index) => (
-                  <tr key={index} onClick={() => handleJobSelect(job)} className="job-row">
-                    <td>{job.jobNo}</td>
-                    <td>{job.client}</td>
-                    <td>{job.job_type}</td>
-                    <td>{job.tradeDirection}</td>
-                    <td>
-                      {job.job_type === 'AIR FREIGHT' ? job.airport_of_departure : 
-                       job.job_type === 'TRANSPORT' ? job.from_location :
-                       job.pol}
-                    </td>
-                    <td>
-                      {job.job_type === 'AIR FREIGHT' ? job.airport_of_destination : 
-                       job.job_type === 'TRANSPORT' ? job.to_location :
-                       job.pod}
-                    </td>
-                    <td>{job.createdAt}</td>
-                    <td>{job.updatedAt}</td>
-                    <td>
-                      {job.created_by && <div className="audit-badge" title={`Created By: ${job.created_by}`}><UserPlus size={12} /> {job.created_by.split('@')[0]}</div>}
-                      {job.updated_by && <div className="audit-badge edit" title={`Updated By: ${job.updated_by}`}><PenLine size={12} /> {job.updated_by.split('@')[0]}</div>}
-                    </td>
-                    <td>
-                      {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
-                    </td>
-                    <td>
-                      {job.pod_attachment ? (
-                        <a 
-                          href={getFileUrl(job.pod_attachment, 'pod-attachments')} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="pod-table-link"
-                          title="View POD"
-                        >
-                          <FileText size={18} />
-                        </a>
-                      ) : '—'}
-                    </td>
-                    <td className="actions-cell">
-                      <button 
-                        className="edit-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditJob(job);
-                        }}
-                        title="Edit Job"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirmDelete(job);
-                        }}
-                        title="Delete Job"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="11" style={{textAlign: 'center', padding: '20px'}}>
-                    No active jobs found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content delete-modal">
-            <div className="modal-header">
-              <h2>Confirm Delete</h2>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to delete job #{jobToDelete?.jobNo}?</p>
-              <p>This action cannot be undone.</p>
-              {jobToDelete && (jobToDelete.created_by || jobToDelete.updated_by) && (
-                <div className="delete-author-info" style={{marginTop: '15px', padding: '10px', background: 'var(--bg-surface-2)', borderRadius: '6px', fontSize: '0.85rem'}}>
-                  <strong>Author Information:</strong>
-                  <div style={{marginTop: '5px'}}>
-                    {jobToDelete.created_by && <div>Created by: {jobToDelete.created_by}</div>}
-                    {jobToDelete.updated_by && <div>Last edited by: {jobToDelete.updated_by}</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button 
-                className="cancel-button"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="delete-confirm-button"
-                onClick={handleDeleteJob}
-              >
-                Delete
-              </button>
+      {sessionStorage.getItem('job_is_minimized') === 'true' && (
+        <div className="minimized-job-bar" onClick={() => { sessionStorage.removeItem('job_is_minimized'); window.dispatchEvent(new Event('job_state_changed')); }}>
+          <div className="minimized-job-content">
+            <span className="minimized-job-title">
+              {editingJob ? 'Editing Job' : 'Creating Job'} - {jobType || 'Draft'}
+            </span>
+            <div className="minimized-actions">
+              <button className="window-btn" title="Restore"><Maximize2 size={14} /></button>
+              <button className="window-btn close-btn" onClick={(e) => { e.stopPropagation(); handleCancel(); }} title="Close"><X size={14} /></button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Organization Creation Modal */}
-      {showOrgModal && (
+  {showJobForm && (
         <div className="modal-overlay">
-          <div className="modal-content org-modal">
-            <div className="modal-header">
-              <h2>Create Organization</h2>
-              <button 
-                className="close-button"
-                onClick={() => setShowOrgModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="modal-body org-modal-body">
-              <div className="org-form-container">
-                <div className="org-form-grid">
-                  {[
-                    { label: 'Name', name: 'name', type: 'text' },
-                    { label: 'Record Status', name: 'recordStatus', type: 'select', options: ['Active', 'Inactive'] },
-                    { label: 'Sales person', name: 'salesPerson', type: 'text' },
-                    { label: 'Category List', name: 'category', type: 'select', options: CATEGORIES },
-                    { label: 'Branch', name: 'branch', type: 'text' },
-                    { label: 'Contact Person', name: 'contactPerson', type: 'text' },
-                    { label: 'Door No', name: 'doorNo', type: 'text' },
-                    { label: 'Building Name', name: 'buildingName', type: 'text' },
-                    { label: 'Street', name: 'street', type: 'text' },
-                    { label: 'Area', name: 'area', type: 'text' },
-                    { label: 'City', name: 'city', type: 'text' },
-                    { label: 'State', name: 'state', type: 'text' },
-                  ].map((field, index) => (
-                    <div key={index} className="org-form-group">
-                      <label>{field.label}</label>
-                      {field.type === 'select' ? (
-                        <select 
-                          name={field.name}
-                          value={orgFormData[field.name]}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        >
-                          {field.options.map((option, i) => (
-                            <option key={i} value={option}>{option}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input 
-                          type={field.type} 
-                          name={field.name}
-                          value={orgFormData[field.name]}
-                          onChange={handleOrgInputChange}
-                          className="transparent-input"
-                        />
-                      )}
+          <div className="modal-content job-modal">
+            <div className="new-shipment-card">
+              <div className="new-shipment-header">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
+                  {editingJob && (
+                    <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
+                      {editingJob.created_by && <span className="audit-badge"><UserPlus size={12} /> {editingJob.created_by.split('@')[0]}</span>}
+                      {editingJob.updated_by && <span className="audit-badge edit"><PenLine size={12} /> {editingJob.updated_by.split('@')[0]}</span>}
                     </div>
-                  ))}
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Steps */}
+              <div className="progress-steps">
+                {STEPS.map((step, index) => (
+                  <div 
+                    key={`step-${index}`} 
+                    className={`step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''}`}
+                  >
+                    <div className="step-number">{index + 1}</div>
+                    <div className="step-label">{step}</div>
+                  </div>
+                ))}
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Step Content */}
+              <div className="step-content">
+                {activeStep === 1 && (
+                  <div className="shipment-type-selection">
+                    <h2>What type of Job would you like to {editingJob ? 'edit' : 'create'}?</h2>
+                    {validationErrors.jobType && (
+                      <div className="validation-error">{validationErrors.jobType}</div>
+                    )}
+                    <div className="shipment-type-grid">
+                      {JOB_TYPES.map((type, index) => (
+                        <div 
+                          key={`type-${index}`} 
+                          className={`shipment-type-card ${jobType === type ? 'selected' : ''}`}
+                          onClick={() => handleJobTypeSelect(type)}
+                        >
+                          {type}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 2 && (
+                  <div className="trade-direction-selection">
+                    <h2>Is this an Export, Import{jobType === 'TRANSPORT' ? ', or Local' : ''} job?</h2>
+                    {validationErrors.tradeDirection && (
+                      <div className="validation-error">{validationErrors.tradeDirection}</div>
+                    )}
+                    <div className="trade-direction-grid">
+                      {(TRADE_DIRECTIONS[jobType] || ['EXPORT', 'IMPORT']).map((direction, index) => (
+                        <div 
+                          key={`direction-${index}`} 
+                          className={`trade-direction-card ${tradeDirection === direction ? 'selected' : ''}`}
+                          onClick={() => handleTradeDirectionSelect(direction)}
+                        >
+                          {direction}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 3 && renderStep3Fields()}
+
+                {activeStep === 4 && (
+                  <div className="summary-step">
+                    <h2>Summary - {tradeDirection} - {jobType}</h2>
+                    
+                    <div className="client-branch-section">
+                      <div className="client-info">
+                        <span className="label">Client No</span>
+                        <span className="value">{formData.client_no}</span>
+                      </div>
+                    </div>
+
+                    {jobType === 'AIR FREIGHT' ? (
+                      <>
+                        <div className="shipper-section">
+                          <span className="label">Shipper</span>
+                          <span className="value">{formData.shipper}</span>
+                        </div>
+                        
+                        <div className="location-summary">
+                          <div className="summary-row">
+                            <span className="label">{getLocationColumnHeaders(jobType)[0]}:</span>
+                            <span className="value">{formData.airport_of_departure}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span className="label">{getLocationColumnHeaders(jobType)[1]}:</span>
+                            <span className="value">{formData.airport_of_destination}</span>
+                          </div>
+                        </div>
+
+                        <div className="divider"></div>
+
+                        <div className="booking-info-section">
+                          <h3>Air Freight Booking Info</h3>
+                          <div className="booking-info-grid">
+                            {[
+                              { label: 'Job No:', value: formData.jobNo },
+                              { label: 'Shipper:', value: formData.shipper },
+                              { label: 'Consignee:', value: formData.consignee },
+                              { label: 'Notify Party:', value: formData.notify_party },
+                              { label: 'Airport of Departure:', value: formData.airport_of_departure },
+                              { label: 'Airport of Destination:', value: formData.airport_of_destination },
+                              { label: 'No of Packages:', value: formData.no_of_packages },
+                              { label: 'Gross Weight:', value: formData.grossWeight },
+                              { label: 'Dimension (CMS):', value: formData.dimension_cms },
+                              { label: 'Chargeable Weight:', value: formData.chargeable_weight },
+                              { label: 'Client No:', value: formData.client_no },
+                              { label: 'Name of Airline:', value: formData.name_of_airline },
+                              { label: 'AWB:', value: formData.awb },
+                              { label: 'From:', value: formData.flight_from },
+                              { label: 'To:', value: formData.flight_to },
+                              { label: 'ETA (Date):', value: formData.flight_eta },
+                              { label: 'Invoice No:', value: formData.invoiceNo },
+                              { label: 'Invoice Date:', value: formData.invoiceDate },
+                            ].map((item, index) => (
+                              <div key={index} className="booking-info-row">
+                                <span className="label">{item.label}</span>
+                                <span className="value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : jobType === 'TRANSPORT' ? (
+                      <>
+                        <div className="shipper-section">
+                          <span className="label">Shipper</span>
+                          <span className="value">{formData.shipper_name}</span>
+                        </div>
+
+                        <div className="divider"></div>
+                        
+                        <div className="location-summary">
+                          <div className="summary-row">
+                            <span className="label">{getLocationColumnHeaders(jobType)[0]}:</span>
+                            <span className="value">{formData.from}</span>
+                          </div>
+                          <div className="summary-row">
+                            <span className="label">{getLocationColumnHeaders(jobType)[1]}:</span>
+                            <span className="value">{formData.to}</span>
+                          </div>
+                        </div>
+
+                        <div className="booking-info-section">
+                          <h3>Transport Booking Info</h3>
+                          <div className="booking-info-grid">
+                            {[
+                              { label: 'Job No:', value: formData.jobNo },
+                              { label: 'Port:', value: formData.port },
+                              { label: 'LCL/FCL:', value: formData.lclFcl },
+                              { label: 'Vehicle Type:', value: formData.vehicle_type },
+                              { label: 'Container No:', value: formData.containerNo },
+                              { label: 'Size:', value: formData.size },
+                              { label: 'LRN No:', value: formData.lrn_no },
+                              { label: 'From:', value: formData.from },
+                              { label: 'To:', value: formData.to },
+                              { label: 'Container Type:', value: formData.containerType },
+                              { label: 'Shipper Name:', value: formData.shipper_name },
+                              { label: 'Party Name:', value: formData.party_name },
+                              { label: 'Factory Reporting Date:', value: formData.factory_reporting_date },
+                              { label: 'Factory Reporting Out:', value: formData.factory_reporting_out },
+                              { label: 'Offloading Date:', value: formData.offloading_date },
+                              { label: 'Days of Detention:', value: formData.days_of_detention },
+                              { label: 'Transporter:', value: formData.transporter },
+                              { label: 'Vehicle Buy Amount:', value: formData.vehicle_buy_amount },
+                              { label: 'Vehicle Billing Amount:', value: formData.vehicle_billing_amount },
+                              { label: 'Movement:', value: formData.movement },
+                              { label: 'Driver Name:', value: formData.driver_name },
+                              { label: 'Driver Mobile No:', value: formData.driver_mobile_no },
+                              { label: 'Bill No:', value: formData.bill_no },
+                              { label: 'Bill Date:', value: formData.bill_date },
+                              { label: 'Amount:', value: formData.amount },
+                            ].map((item, index) => (
+                              <div key={index} className="booking-info-row">
+                                <span className="label">{item.label}</span>
+                                <span className="value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {formData.pod_attachment && (
+                          <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d' }}>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached</strong>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="divider"></div>
+
+                        <div className="booking-info-section">
+                          <h3>Booking Info</h3>
+                          <div className="booking-info-grid">
+                            {[
+                              { label: 'Job No:', value: formData.jobNo },
+                              ...(tradeDirection === 'EXPORT' ? [{ label: 'Exporter:', value: formData.exporter }] : []),
+                              ...(tradeDirection === 'IMPORT' ? [{ label: 'Importer:', value: formData.importer }] : []),
+                              { label: 'Invoice No:', value: formData.invoiceNo },
+                              { label: 'Invoice Date:', value: formData.invoiceDate },
+                              { label: 'Stuffing Date:', value: formData.stuffingDate },
+                              { label: 'H/O Date:', value: formData.hoDate },
+                              { label: 'Terms:', value: formData.terms },
+                              { label: 'Consignee:', value: formData.consignee },
+                              ...(tradeDirection === 'EXPORT' ? [
+                                { label: 'S/B No:', value: formData.sbNo },
+                                { label: 'S/B Date:', value: formData.sbDate }
+                              ] : []),
+                              ...(tradeDirection === 'IMPORT' ? [
+                                { label: 'BOE:', value: formData.boeNo },
+                                { label: 'BOE Date:', value: formData.boeDate }
+                              ] : []),
+                              { label: 'Container Type:', value: formData.containerType },
+                              { label: 'POL:', value: formData.pol },
+                              { label: 'POD:', value: formData.pod },
+                              { label: 'Destination:', value: formData.destination },
+                              { label: 'Commodity:', value: formData.commodity },
+                              { label: 'Invoice Value:', value: formData.invoiceValue },
+                              { label: 'GR Weight:', value: formData.grWeight },
+                              { label: 'Net Weight:', value: formData.netWeight },
+                              { label: 'RAIL Out Date:', value: formData.railOutDate },
+                              { label: 'Container No:', value: formData.containerNo },
+                              { label: 'No of CNTR:', value: formData.noOfCntr },
+                              { label: 'Volume:', value: formData.volume },
+                              { label: 'S/Line:', value: formData.sLine },
+                              { label: 'MBL No:', value: formData.mblNo },
+                              { label: 'MBL Date:', value: formData.mblDate },
+                              { label: 'HBL No:', value: formData.hblNo },
+                              { label: 'HBL DT:', value: formData.hblDt },
+                              { label: 'VESSEL:', value: formData.vessel },
+                              { label: 'VOY:', value: formData.voy },
+                              { label: 'ETD:', value: formData.etd ? new Date(formData.etd).toLocaleString() : 'N/A' },
+                              { label: 'SOB:', value: formData.sob },
+                              { label: 'ETA:', value: formData.eta ? new Date(formData.eta).toLocaleString() : 'N/A' },
+                              { label: 'A/C:', value: formData.ac },
+                              { label: 'Bill No:', value: formData.billNo },
+                              { label: 'Bill Date:', value: formData.billDate },
+                              { label: 'C/C Port:', value: formData.ccPort },
+                            ].map((item, index) => (
+                              <div key={index} className="booking-info-row">
+                                <span className="label">{item.label}</span>
+                                <span className="value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {formData.pod_attachment && (
+                          <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d' }}>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached</strong>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <div className="divider"></div>
+
+                    {/* Checkbox Section */}
+                    <div className="confirmation-checkboxes">
+                      {[
+                        { id: 'confirm1', label: 'I confirm the accuracy of all information' },
+                        { id: 'confirm2', label: 'I agree to the terms and conditions' },
+                        { id: 'confirm3', label: 'I authorize this job' },
+                      ].map((item, index) => (
+                        <div key={index} className="checkbox-item">
+                          <input type="checkbox" id={item.id} required />
+                          <label htmlFor={item.id}>{item.label}</label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="confirmation-prompt">
+                      <p>Are you sure you want to {editingJob ? 'update' : 'create'} the job?</p>
+                      <div className="confirmation-buttons">
+                        <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
+                        <button className="confirm-btn" onClick={handleCreateJob}>
+                          {editingJob ? 'Update' : 'Create'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="navigation-buttons">
+                <button className="cancel-button" onClick={handleCancel}>
+                  X Cancel
+                </button>
+                <div className="step-buttons">
+                  {activeStep > 1 && (
+                    <button className="back-button" onClick={handleBack}>
+                      Previous
+                    </button>
+                  )}
+                  {activeStep < STEPS.length && (
+                    <button className="next-button" onClick={handleNext}>
+                      Next
+                    </button>
+                  )}
+                  {activeStep === STEPS.length && (
+                    <button className="confirm-button" onClick={handleCreateJob}>
+                      {editingJob ? 'Update Job' : 'Confirm & Create Job'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-            
-            <div className="modal-footer org-modal-footer">
-              <button 
-                className="org-cancel-button"
-                onClick={() => setShowOrgModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="org-confirm-button"
-                onClick={handleCreateOrganization}
-              >
-                Create Organization
-              </button>
-            </div>
           </div>
         </div>
       )}
-      
-      {showJobSummary && renderJobSummary()}
-    </>
-  );
-};
 
-export default ActiveJob;
+          </>
+  );
+}
+
+export default GlobalJobForm;
