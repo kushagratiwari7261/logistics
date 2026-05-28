@@ -283,8 +283,8 @@
   display: flex;
   justify-content: space-between;
   padding: 20px 30px;
-  border-top: 1px solid var(--border);
-  background-color: var(--bg-surface-2);
+  border-top: none;
+  background-color: transparent;
 }
 
 .cancel-button {

@@ -893,8 +893,16 @@ const ActiveJob = () => {
     };
     
     setFormData(formDataFromJob);
-    setShowJobForm(true);
-    setActiveStep(3);
+    // Dispatch event to open GlobalJobForm with edit data
+    window.dispatchEvent(new CustomEvent('open_global_job_form', {
+      detail: {
+        ...job,
+        _formData: formDataFromJob,
+        _jobType: job.job_type,
+        _tradeDirection: job.trade_direction,
+        _activeStep: 3
+      }
+    }));
   }, []);
   
   // Handle delete job
@@ -1443,7 +1451,7 @@ const ActiveJob = () => {
       <div className="card expandable-card">
         <div className="table-header">
           <h2>Current Active Jobs</h2>
-          <button className="add-shipment-btn" onClick={() => setShowJobForm(true)}>
+          <button className="add-shipment-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: null }))}>
             <span className="plus-icon">+</span>
             Add Job
           </button>

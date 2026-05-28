@@ -2,7 +2,7 @@
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText, ArrowLeft, ArrowRight, Minus, X, Maximize2 } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
 
@@ -150,115 +150,31 @@ const INITIAL_ORG_FORM_DATA = {
   state: ''
 };
 
-const GlobalJobForm = () => {
+const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState('auto');
-  const [showJobForm, setShowJobForm] = useState(false);
-  const [activeStep, setActiveStep] = useState(1);
-  const [jobType, setJobType] = useState('');
-  const [tradeDirection, setTradeDirection] = useState('');
+  
+  
+  const [maxStepReached, setMaxStepReached] = useState(formConfig.initialState?.maxStepReached || 1);
+  const [activeStep, setActiveStep] = useState(formConfig.initialState?.activeStep || 1);
+  const [jobType, setJobType] = useState(formConfig.initialState?.jobType || '');
+  const [tradeDirection, setTradeDirection] = useState(formConfig.initialState?.tradeDirection || '');
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [formData, setFormData] = useState(formConfig.initialState?.formData || INITIAL_FORM_DATA);
   const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
-  const [editingJob, setEditingJob] = useState(null);
+  const [editingJob, setEditingJob] = useState(formConfig.initialState?.editingJob || null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobSummary, setShowJobSummary] = useState(false);
   const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
   const [selectedFile, setSelectedFile] = useState(null);
-
-  // ============ FIX 1: RESTORE STATE ON MOUNT ============
-  useEffect(() => {
-    // Restore editing state if exists
-    const savedEditingState = sessionStorage.getItem('editing_job');
-    const savedCreatingState = sessionStorage.getItem('creating_job');
-    
-    if (savedEditingState) {
-      try {
-        const state = JSON.parse(savedEditingState);
-        setEditingJob(state.job);
-        setFormData(state.formData);
-        setJobType(state.jobType);
-        setTradeDirection(state.tradeDirection);
-        setActiveStep(state.activeStep);
-        setShowJobForm(true);
-        console.log('Restored editing state from sessionStorage');
-      } catch (e) {
-        console.error('Error restoring editing state:', e);
-        sessionStorage.removeItem('editing_job');
-      }
-    } else if (savedCreatingState) {
-      try {
-        const state = JSON.parse(savedCreatingState);
-        setFormData(state.formData);
-        setJobType(state.jobType);
-        setTradeDirection(state.tradeDirection);
-        setActiveStep(state.activeStep);
-        setShowJobForm(true);
-        console.log('Restored creating state from sessionStorage');
-      } catch (e) {
-        console.error('Error restoring creating state:', e);
-        sessionStorage.removeItem('creating_job');
-      }
-    }
-  }, []); // Empty dependency array - run only once on mount
-
-  // ============ FIX 2: AUTO-SAVE STATE TO SESSIONSTORAGE ============
-  useEffect(() => {
-    if (showJobForm && editingJob) {
-      // Save editing state to sessionStorage
-      sessionStorage.setItem('editing_job', JSON.stringify({
-        job: editingJob,
-        formData: formData,
-        jobType: jobType,
-        tradeDirection: tradeDirection,
-        activeStep: activeStep
-      }));
-    } else if (showJobForm) {
-      // Save creating state
-      sessionStorage.setItem('creating_job', JSON.stringify({
-        formData: formData,
-        jobType: jobType,
-        tradeDirection: tradeDirection,
-        activeStep: activeStep
-      }));
-    } else {
-      // Clear saved state when modal is closed
-      sessionStorage.removeItem('editing_job');
-      sessionStorage.removeItem('creating_job');
-    }
-  }, [showJobForm, editingJob, formData, jobType, tradeDirection, activeStep]);
-
-  // ============ FIX 3: PREVENT TAB DISCARD ============
-  useEffect(() => {
-    if (!showJobForm) return;
-
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-
-    // Add warning before leaving page
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // Keep page active to prevent Chrome tab discarding
-    const keepAlive = setInterval(() => {
-      document.title = document.title; // Dummy operation
-    }, 30000); // Every 30 seconds
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      clearInterval(keepAlive);
-    };
-  }, [showJobForm]);
 
   // Memoize required fields based on job type
   const requiredFields = useMemo(() => {
@@ -510,6 +426,7 @@ const GlobalJobForm = () => {
   const handleNext = useCallback(() => {
     if (validateStep(activeStep)) {
       if (activeStep < STEPS.length) {
+        setMaxStepReached(Math.max(maxStepReached, activeStep + 1));
         setActiveStep(activeStep + 1);
       }
     }
@@ -522,33 +439,12 @@ const GlobalJobForm = () => {
   }, [activeStep]);
 
   // ============ FIX 4: CLEAR STORAGE ON CANCEL ============
-  const handleCancel = useCallback(() => {
-    setActiveStep(1);
-    setJobType('');
-    setTradeDirection('');
-    setShowJobForm(false);
-    setEditingJob(null);
-    setValidationErrors({});
-    setFormData({...INITIAL_FORM_DATA, jobNo: generateJobNumber()});
-    
-    sessionStorage.removeItem('job_is_minimized');
-    sessionStorage.removeItem('editing_job');
-    sessionStorage.removeItem('creating_job');
-    window.dispatchEvent(new Event('job_state_changed'));
-  }, []); 
-  const handleCancelOrig = useCallback(() => {
-    setActiveStep(1);
-    setJobType('');
-    setTradeDirection('');
-    setShowJobForm(false);
-    setEditingJob(null);
-    setValidationErrors({});
-    setFormData({...INITIAL_FORM_DATA, jobNo: generateJobNumber()});
-    
-    // Clear sessionStorage
-    sessionStorage.removeItem('editing_job');
-    sessionStorage.removeItem('creating_job');
-  }, []);
+    const handleCancel = useCallback((e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    onClose(formConfig.id);
+  }, [formConfig.id, onClose]);
+ 
+  
 
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -787,7 +683,7 @@ const GlobalJobForm = () => {
       }
       
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
-      handleCancel();
+      onClose(formConfig.id);
       setSelectedFile(null);
       window.dispatchEvent(new Event('job_data_updated'));
       
@@ -1423,32 +1319,46 @@ const GlobalJobForm = () => {
   return (
     <>
 
-      {sessionStorage.getItem('job_is_minimized') === 'true' && (
-        <div className="minimized-job-bar" onClick={() => { sessionStorage.removeItem('job_is_minimized'); window.dispatchEvent(new Event('job_state_changed')); }}>
+      {formConfig.isMinimized && (
+        <div className="minimized-job-bar" onClick={() => onRestore(formConfig.id)}>
           <div className="minimized-job-content">
             <span className="minimized-job-title">
               {editingJob ? 'Editing Job' : 'Creating Job'} - {jobType || 'Draft'}
             </span>
             <div className="minimized-actions">
               <button className="window-btn" title="Restore"><Maximize2 size={14} /></button>
-              <button className="window-btn close-btn" onClick={(e) => { e.stopPropagation(); handleCancel(); }} title="Close"><X size={14} /></button>
+              <button className="window-btn close-btn" onClick={(e) => { e.stopPropagation(); onClose(formConfig.id); }} title="Close"><X size={14} /></button>
             </div>
           </div>
         </div>
       )}
-  {showJobForm && (
+  {!formConfig.isMinimized && (
         <div className="modal-overlay">
-          <div className="modal-content job-modal">
-            <div className="new-shipment-card">
-              <div className="new-shipment-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <h1>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
+          <div className="modal-content job-modal full-screen-modal">
+            <div className="new-shipment-card full-height-card">
+              <div className="new-shipment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button className="window-btn" onClick={handleBack} disabled={activeStep === 1} title="Back" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: activeStep === 1 ? 'not-allowed' : 'pointer', opacity: activeStep === 1 ? 0.4 : 1, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
+                    <ArrowLeft size={16} />
+                  </button>
+                  <button className="window-btn" onClick={handleNext} disabled={activeStep >= Math.max(maxStepReached, STEPS.length)} title="Forward" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: activeStep >= Math.min(maxStepReached, STEPS.length) ? 'not-allowed' : 'pointer', opacity: activeStep >= Math.min(maxStepReached, STEPS.length) ? 0.4 : 1, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
+                    <ArrowRight size={16} />
+                  </button>
+                  <h1 style={{ margin: 0, fontSize: '1.2rem' }}>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
                   {editingJob && (
                     <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
                       {editingJob.created_by && <span className="audit-badge"><UserPlus size={12} /> {editingJob.created_by.split('@')[0]}</span>}
                       {editingJob.updated_by && <span className="audit-badge edit"><PenLine size={12} /> {editingJob.updated_by.split('@')[0]}</span>}
                     </div>
                   )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button onClick={() => onMinimize(formConfig.id)} title="Minimize" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
+                    <Minus size={16} />
+                  </button>
+                  <button onClick={handleCancel} title="Close" style={{ background: '#e74c3c', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}>
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -1472,7 +1382,7 @@ const GlobalJobForm = () => {
               </div>
 
               {/* Step Content */}
-              <div className="step-content">
+              <div className="step-content content-scrollable">
                 {activeStep === 1 && (
                   <div className="shipment-type-selection">
                     <h2>What type of Job would you like to {editingJob ? 'edit' : 'create'}?</h2>
@@ -1744,15 +1654,9 @@ const GlobalJobForm = () => {
 
               {/* Navigation Buttons */}
               <div className="navigation-buttons">
-                <button className="cancel-button" onClick={handleCancel}>
-                  X Cancel
-                </button>
+
                 <div className="step-buttons">
-                  {activeStep > 1 && (
-                    <button className="back-button" onClick={handleBack}>
-                      Previous
-                    </button>
-                  )}
+
                   {activeStep < STEPS.length && (
                     <button className="next-button" onClick={handleNext}>
                       Next
@@ -1773,5 +1677,95 @@ const GlobalJobForm = () => {
           </>
   );
 }
+
+
+
+const GlobalJobForm = () => {
+  const [forms, setForms] = useState(() => {
+    const saved = sessionStorage.getItem('job_forms_v2');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('job_forms_v2', JSON.stringify(forms));
+  }, [forms]);
+
+  useEffect(() => {
+    const handleOpenGlobalForm = (e) => {
+      const jobToEdit = e.detail;
+      const newFormId = jobToEdit ? `edit-${jobToEdit.id}` : `new-${Date.now()}`;
+      
+      setForms(prev => {
+        const existingForm = prev.find(f => f.id === newFormId);
+        if (existingForm) {
+           return prev.map(f => f.id === newFormId ? { ...f, isMinimized: false } : { ...f, isMinimized: true });
+        }
+        
+        const newForm = {
+          id: newFormId,
+          isMinimized: false,
+          initialState: jobToEdit ? {
+            editingJob: jobToEdit,
+            jobType: jobToEdit._jobType || jobToEdit.job_type || '',
+            tradeDirection: jobToEdit._tradeDirection || jobToEdit.trade_direction || '',
+            formData: jobToEdit._formData || { ...INITIAL_FORM_DATA, jobNo: generateJobNumber() },
+            activeStep: jobToEdit._activeStep || 3,
+            maxStepReached: jobToEdit._activeStep || 3
+          } : {
+             editingJob: null,
+             jobType: '',
+             tradeDirection: '',
+             formData: { ...INITIAL_FORM_DATA, jobNo: generateJobNumber() },
+             activeStep: 1,
+             maxStepReached: 1
+          }
+        };
+
+        return [...prev.map(f => ({...f, isMinimized: true})), newForm];
+      });
+    };
+
+    window.addEventListener('open_global_job_form', handleOpenGlobalForm);
+    return () => window.removeEventListener('open_global_job_form', handleOpenGlobalForm);
+  }, []);
+
+  const handleClose = useCallback((id) => {
+    setForms(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  const handleMinimize = useCallback((id) => {
+    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true } : f));
+  }, []);
+
+  const handleRestore = useCallback((id) => {
+    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: false } : { ...f, isMinimized: true }));
+  }, []);
+
+  return (
+    <>
+      {forms.map(form => !form.isMinimized && (
+        <JobFormWindow
+           key={form.id}
+           formConfig={form}
+           onClose={handleClose}
+           onMinimize={handleMinimize}
+           onRestore={handleRestore}
+        />
+      ))}
+
+      <div className="minimized-taskbar-container">
+        {forms.map(form => form.isMinimized && (
+          <JobFormWindow
+             key={form.id}
+             formConfig={form}
+             onClose={handleClose}
+             onMinimize={handleMinimize}
+             onRestore={handleRestore}
+          />
+        ))}
+      </div>
+    </>
+  );
+};
 
 export default GlobalJobForm;
