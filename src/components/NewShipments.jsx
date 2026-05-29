@@ -113,7 +113,7 @@ const INITIAL_FORM_DATA = {
   billNo: '',
   billDate: '',
   ccPort: '',
-  pod_attachment: '',
+  pod_documents: [],
 };
 
 const INITIAL_ORG_FORM_DATA = {
@@ -154,7 +154,17 @@ const NewShipments = () => {
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
   const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  const handleFileSelect = (e) => {
+    if (e.target.files) {
+      setSelectedFiles(prev => [...prev, ...Array.from(e.target.files)]);
+    }
+  };
+
+  const removeSelectedFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     const savedEditingState = sessionStorage.getItem('editing_shipment');
@@ -365,9 +375,17 @@ const NewShipments = () => {
         ...shipment
       }));
       
+      localStorage.setItem('cache_new_shipments', JSON.stringify(mappedShipments));
       setShipments(mappedShipments);
     } catch (error) {
-      setError(error.message);
+      if (error.message.includes('Failed to fetch') || !navigator.onLine) {
+        window.dispatchEvent(new Event('force_offline'));
+        const cached = localStorage.getItem('cache_new_shipments');
+        if (cached) setShipments(JSON.parse(cached));
+        else setShipments([]);
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -583,7 +601,7 @@ const NewShipments = () => {
     setEditingShipment(null);
     setValidationErrors({});
     setFormData(INITIAL_FORM_DATA);
-    setSelectedFile(null);
+    setSelectedFiles([]);
     
     sessionStorage.removeItem('editing_shipment');
     sessionStorage.removeItem('creating_shipment');
@@ -709,10 +727,17 @@ const NewShipments = () => {
           console.warn('Could not fetch user for audit trail', err);
         }
 
-        let podUrl = formData.pod_attachment;
-        if (selectedFile) {
-          const uploadResult = await uploadFile(selectedFile, userId, 'pod-attachments');
-          podUrl = uploadResult.path;
+        let podDocs = formData.pod_documents ? [...formData.pod_documents] : [];
+        if (selectedFiles && selectedFiles.length > 0) {
+          for (const file of selectedFiles) {
+            const uploadResult = await uploadFile(file, userId, 'pod-attachments');
+            if (uploadResult && uploadResult.path) {
+              podDocs.push({
+                path: uploadResult.path,
+                name: file.name
+              });
+            }
+          }
         }
         
         const formatDateForDB = (dateValue) => {
@@ -773,7 +798,7 @@ const NewShipments = () => {
           mtd_registration_no: formatStringForDB(formData.mtdRegistrationNo),
           shipment_type: shipmentType,
           trade_direction: formatStringForDB(formData.tradeDirection),
-          pod_attachment: podUrl,
+          pod_documents: podDocs,
           updated_at: new Date().toISOString(),
           
           airport_of_departure: formatStringForDB(formData.airport_of_departure),
@@ -872,7 +897,7 @@ const NewShipments = () => {
         setLoading(false);
       }
     }
-  }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel, selectedFile, uploadFile]);
+  }, [formData, shipmentType, editingShipment, activeStep, validateStep, handleCancel, selectedFiles, uploadFile]);
 
   const handleEditShipment = useCallback((shipment) => {
     setEditingShipment(shipment);
@@ -912,7 +937,8 @@ const NewShipments = () => {
       remarks: shipment.remarks,
       tradeDirection: shipment.trade_direction || 'EXPORT',
       mtdRegistrationNo: shipment.mtd_registration_no || '',
-      pod_attachment: shipment.pod_attachment || '',
+      ccPort: shipment.cc_port || '',
+      pod_documents: shipment.pod_documents || (shipment.pod_attachment ? [{ path: shipment.pod_attachment, name: 'Legacy POD' }] : []),
       
       airport_of_departure: shipment.airport_of_departure,
       airport_of_destination: shipment.airport_of_destination,
@@ -956,7 +982,6 @@ const NewShipments = () => {
       ac: shipment.ac,
       billNo: shipment.billNo,
       billDate: shipment.billDate,
-      ccPort: shipment.ccPort,
     };
     
     setFormData(formDataFromShipment);
@@ -1251,17 +1276,22 @@ const NewShipments = () => {
                       {shipment.updated_by && <div className="audit-badge edit" title={`Updated By: ${shipment.updated_by}`}><PenLine size={12} /> {shipment.updated_by.split('@')[0]}</div>}
                     </td>
                     <td>
-                      {shipment.pod_attachment ? (
-                        <a 
-                          href={getFileUrl(shipment.pod_attachment, 'pod-attachments')} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="pod-table-link"
-                          title="View POD"
-                        >
-                          <FileText size={18} />
-                        </a>
+                      {shipment.pod_documents && shipment.pod_documents.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {shipment.pod_documents.map((doc, idx) => (
+                            <a 
+                              key={idx}
+                              href={getFileUrl(doc.path, 'pod-attachments')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="pod-table-link"
+                              title={`View POD: ${doc.name || 'Document ' + (idx + 1)}`}
+                            >
+                              <FileText size={18} />
+                            </a>
+                          ))}
+                        </div>
                       ) : '—'}
                     </td>
                     <td className="actions-cell">
@@ -1617,16 +1647,41 @@ const NewShipments = () => {
                         <FileUp size={18} /> Proof of Delivery (POD)
                       </h3>
                       <div className="pod-upload-input-group">
-                        <label>Upload POD Document (PDF/Image)</label>
+                        <label>Upload POD Documents (PDF/Image)</label>
                         <input 
                           type="file" 
-                          onChange={(e) => setSelectedFile(e.target.files[0])}
+                          multiple
+                          onChange={handleFileSelect}
                           accept=".pdf,image/*"
                         />
                         {uploading && <div className="upload-progress">Uploading: {uploadProgress}%</div>}
-                        {formData.pod_attachment && !selectedFile && (
-                          <div className="pod-status-badge carried-over">
-                            <ExternalLink size={14} /> Existing POD attached (from Job)
+                        
+                        {selectedFiles && selectedFiles.length > 0 && (
+                          <div className="selected-files-list" style={{ marginTop: '10px' }}>
+                            <h4>Files to upload ({selectedFiles.length}):</h4>
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                              {selectedFiles.map((file, index) => (
+                                <li key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                                  <span style={{ fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{file.name}</span>
+                                  <button type="button" onClick={() => removeSelectedFile(index)} style={{ background: 'none', border: 'none', color: 'red', cursor: 'pointer' }}><X size={14} /></button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {formData.pod_documents && formData.pod_documents.length > 0 && (
+                          <div className="existing-pod-files" style={{ marginTop: '10px' }}>
+                            <h4>Existing PODs ({formData.pod_documents.length}):</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              {formData.pod_documents.map((doc, idx) => (
+                                <div key={idx} className="pod-status-badge" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: 'var(--bg-surface-hover)', borderRadius: '4px' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                                    <ExternalLink size={12} /> {doc.name || `Document ${idx + 1}`}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1974,12 +2029,25 @@ const NewShipments = () => {
                       </>
                     )}
 
-                    {formData.pod_attachment && (
-                      <div className="pod-summary-alert">
+                    {formData.pod_documents && formData.pod_documents.length > 0 && (
+                      <div className="pod-summary-alert" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div className="pod-summary-alert-header">
-                          <FileText size={18} /> Proof of Delivery (POD) attached
+                          <FileText size={18} /> Proof of Delivery (POD) attached ({formData.pod_documents.length} files)
                         </div>
                         {formData.jobNo && <div className="pod-summary-alert-note">Carried over from Job #{formData.jobNo}</div>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' }}>
+                          {formData.pod_documents.map((doc, idx) => (
+                            <a 
+                              key={idx}
+                              href={getFileUrl(doc.path, 'pod-attachments')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#166534', textDecoration: 'underline' }}
+                            >
+                              <ExternalLink size={14} /> {doc.name || `Document ${idx + 1}`}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
 

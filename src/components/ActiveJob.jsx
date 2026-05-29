@@ -20,12 +20,7 @@ const CATEGORIES = [
   'CAREER', 'CAREER AGENT'
 ];
 
-// Function to generate unique job numbers
-const generateJobNumber = () => {
-  const timestamp = new Date().getTime().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `${timestamp}${random}`;
-};
+// Constants for better maintainability
 
 // Initial form data
 const INITIAL_FORM_DATA = {
@@ -40,7 +35,7 @@ const INITIAL_FORM_DATA = {
   poi: '',
   pod: '',
   pof: '',
-  jobNo: generateJobNumber(),
+  jobNo: '',
   etd: '',
   eta: '',
   incoterms: '',
@@ -132,7 +127,7 @@ const INITIAL_FORM_DATA = {
   bill_no: '',
   bill_date: '',
   amount: '',
-  pod_attachment: ''
+  pod_documents: []
 };
 
 const INITIAL_ORG_FORM_DATA = {
@@ -377,9 +372,17 @@ const ActiveJob = () => {
         };
       });
       
+      localStorage.setItem('cache_job_orders', JSON.stringify(mappedJobs));
       setJobs(mappedJobs);
     } catch (error) {
-      setError(error.message);
+      if (error.message.includes('Failed to fetch') || !navigator.onLine) {
+        window.dispatchEvent(new Event('force_offline'));
+        const cached = localStorage.getItem('cache_job_orders');
+        if (cached) setJobs(JSON.parse(cached));
+        else setJobs([]);
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -540,7 +543,7 @@ const ActiveJob = () => {
     setShowJobForm(false);
     setEditingJob(null);
     setValidationErrors({});
-    setFormData({...INITIAL_FORM_DATA, jobNo: generateJobNumber()});
+    setFormData({...INITIAL_FORM_DATA, jobNo: ''});
     
     // Clear sessionStorage
     sessionStorage.removeItem('editing_job');
@@ -753,7 +756,7 @@ const ActiveJob = () => {
         
         job_type: jobType,
         trade_direction: tradeDirection,
-        pod_attachment: podUrl,
+        pod_documents: formData.pod_documents || [],
         status: 'active',
         updated_at: new Date().toISOString()
       };
@@ -889,7 +892,7 @@ const ActiveJob = () => {
       bill_no: safeValue(job.bill_no),
       bill_date: job.bill_date ? new Date(job.bill_date).toISOString().split('T')[0] : '',
       amount: safeValue(job.amount),
-      pod_attachment: safeValue(job.pod_attachment),
+      pod_documents: job.pod_documents || [],
     };
     
     setFormData(formDataFromJob);
@@ -1012,9 +1015,9 @@ const ActiveJob = () => {
                 accept=".pdf,image/*"
               />
               {uploading && <div className="upload-progress">Uploading: {uploadProgress}%</div>}
-              {formData.pod_attachment && !selectedFile && (
+              {formData.pod_documents && formData.pod_documents.length > 0 && (
                 <div className="pod-status-badge">
-                  <ExternalLink size={14} /> Existing POD attached
+                  <ExternalLink size={14} /> Existing POD(s) attached
                 </div>
               )}
             </div>
@@ -1102,9 +1105,9 @@ const ActiveJob = () => {
                 accept=".pdf,image/*"
               />
               {uploading && <div className="upload-progress">Uploading: {uploadProgress}%</div>}
-              {formData.pod_attachment && !selectedFile && (
+              {formData.pod_documents && formData.pod_documents.length > 0 && (
                 <div className="pod-status-badge">
-                  <ExternalLink size={14} /> Existing POD attached
+                  <ExternalLink size={14} /> Existing POD(s) attached
                 </div>
               )}
             </div>
@@ -1166,6 +1169,7 @@ const ActiveJob = () => {
                     value={formData[field.name]}
                     onChange={handleInputChange}
                     className={validationErrors[field.name] ? 'error' : ''}
+                    disabled={field.name === 'jobNo'}
                   />
                   {validationErrors[field.name] && 
                     <span className="field-error">{validationErrors[field.name]}</span>
@@ -1191,9 +1195,9 @@ const ActiveJob = () => {
                 accept=".pdf,image/*"
               />
               {uploading && <div className="upload-progress">Uploading: {uploadProgress}%</div>}
-              {formData.pod_attachment && !selectedFile && (
+              {formData.pod_documents && formData.pod_documents.length > 0 && (
                 <div className="pod-status-badge">
-                  <ExternalLink size={14} /> Existing POD attached
+                  <ExternalLink size={14} /> Existing POD(s) attached
                 </div>
               )}
             </div>
@@ -1276,18 +1280,23 @@ const ActiveJob = () => {
                      getValue(selectedJob.eta)}
                   </span>
                 </div>
-                {selectedJob.pod_attachment && (
+                {selectedJob.pod_documents && selectedJob.pod_documents.length > 0 && (
                   <div className="summary-row" style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
-                    <span className="label">Proof of Delivery (POD):</span>
-                    <span className="value">
-                      <a 
-                        href={getFileUrl(selectedJob.pod_attachment, 'pod-attachments')} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="pod-preview-link"
-                      >
-                        <ExternalLink size={14} /> View Document
-                      </a>
+                    <span className="label" style={{ alignSelf: 'flex-start', paddingTop: '5px' }}>Proof of Delivery (POD):</span>
+                    <span className="value" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {selectedJob.pod_documents.map((doc, idx) => (
+                        <a
+                          key={idx}
+                          href={getFileUrl(doc.path, 'pod-attachments')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pod-preview-link"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', background: 'var(--bg-surface-hover)', borderRadius: '4px', textDecoration: 'none' }}
+                        >
+                          <ExternalLink size={14} />
+                          {doc.podNo ? <strong style={{ color: 'var(--text-primary)' }}>[{doc.podNo}]</strong> : null} {doc.name || `Document ${idx + 1}`}
+                        </a>
+                      ))}
                     </span>
                   </div>
                 )}
@@ -1346,12 +1355,32 @@ const ActiveJob = () => {
                     <span className="value">{getValue(selectedJob.container_type)}</span>
                   </div>
                   <div className="summary-row">
-                    <span className="label">Shipper Name:</span>
-                    <span className="value">{getValue(selectedJob.shipper_name)}</span>
+                    <span className="label">Consignee:</span>
+                    <span className="value">{getValue(selectedJob.consignee)}</span>
                   </div>
                   <div className="summary-row">
-                    <span className="label">Party Name:</span>
-                    <span className="value">{getValue(selectedJob.party_name)}</span>
+                    <span className="label">Consignee Address:</span>
+                    <span className="value">{getValue(selectedJob.consignee_address)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Consignee Contact:</span>
+                    <span className="value">{getValue(selectedJob.consignee_contact)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Consignor:</span>
+                    <span className="value">{getValue(selectedJob.shipper)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Ship To:</span>
+                    <span className="value">{getValue(selectedJob.ship_to)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Ship To Address:</span>
+                    <span className="value">{getValue(selectedJob.ship_to_address)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Ship To Contact:</span>
+                    <span className="value">{getValue(selectedJob.ship_to_contact)}</span>
                   </div>
                   <div className="summary-row">
                     <span className="label">Transporter:</span>
@@ -1366,8 +1395,24 @@ const ActiveJob = () => {
                     <span className="value">{getValue(selectedJob.vehicle_billing_amount)}</span>
                   </div>
                   <div className="summary-row">
+                    <span className="label">Description of Goods:</span>
+                    <span className="value">{getValue(selectedJob.description_of_goods)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">No of Packages:</span>
+                    <span className="value">{getValue(selectedJob.no_of_packages)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Weight:</span>
+                    <span className="value">{getValue(selectedJob.gross_weight)}</span>
+                  </div>
+                  <div className="summary-row">
                     <span className="label">Amount:</span>
                     <span className="value">{getValue(selectedJob.amount)}</span>
+                  </div>
+                  <div className="summary-row">
+                    <span className="label">Advance:</span>
+                    <span className="value">{getValue(selectedJob.advance)}</span>
                   </div>
                 </div>
               ) : (
@@ -1408,6 +1453,97 @@ const ActiveJob = () => {
                     <span className="label">Container No:</span>
                     <span className="value">{getValue(selectedJob.container_no)}</span>
                   </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Additional Documents Section */}
+            {(selectedJob.invoice_attachment?.path || selectedJob.eway_bill_attachment?.path || selectedJob.goods_attachment?.path) && (
+              <div className="summary-section" style={{ marginTop: '20px' }}>
+                <h3><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Additional Documents</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedJob.invoice_attachment?.path && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+                        <FileText size={16} color="var(--primary-color)" />
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Invoice</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{selectedJob.invoice_attachment.name || 'Invoice Document'}</span>
+                      </span>
+                      <a 
+                        href={getFileUrl(selectedJob.invoice_attachment.path, 'invoice-attachments')} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px', background: 'var(--primary-color)', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500' }}
+                      >
+                        <ExternalLink size={12} /> View
+                      </a>
+                    </div>
+                  )}
+                  {selectedJob.eway_bill_attachment?.path && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+                        <FileText size={16} color="var(--primary-color)" />
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>E-Way Bill</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{selectedJob.eway_bill_attachment.name || 'E-Way Bill Document'}</span>
+                      </span>
+                      <a 
+                        href={getFileUrl(selectedJob.eway_bill_attachment.path, 'eway-bill-attachments')} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px', background: 'var(--primary-color)', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500' }}
+                      >
+                        <ExternalLink size={12} /> View
+                      </a>
+                    </div>
+                  )}
+                  {selectedJob.goods_attachment?.path && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+                        <FileText size={16} color="var(--primary-color)" />
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Goods</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{selectedJob.goods_attachment.name || 'Goods Document'}</span>
+                      </span>
+                      <a 
+                        href={getFileUrl(selectedJob.goods_attachment.path, 'goods-attachments')} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px', background: 'var(--primary-color)', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500' }}
+                      >
+                        <ExternalLink size={12} /> View
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Dedicated POD Documents Section */}
+            <div className="summary-section" style={{ marginTop: '20px' }}>
+              <h3><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />POD Documents</h3>
+              {selectedJob.pod_documents && selectedJob.pod_documents.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedJob.pod_documents.map((doc, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+                        <FileText size={16} color="var(--primary-color)" />
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>#{idx + 1}</span>
+                        {doc.podNo && <span style={{ background: 'var(--primary-color)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>POD: {doc.podNo}</span>}
+                        <span style={{ color: 'var(--text-secondary)' }}>{doc.name || `Document ${idx + 1}`}</span>
+                      </span>
+                      <a 
+                        href={getFileUrl(doc.path, 'pod-attachments')} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px', background: 'var(--primary-color)', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500' }}
+                      >
+                        <ExternalLink size={12} /> View
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+                  No POD documents attached to this job.
                 </div>
               )}
             </div>
@@ -1506,17 +1642,22 @@ const ActiveJob = () => {
                       {job.job_type === 'AIR FREIGHT' ? job.flight_eta : job.eta}
                     </td>
                     <td>
-                      {job.pod_attachment ? (
-                        <a 
-                          href={getFileUrl(job.pod_attachment, 'pod-attachments')} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="pod-table-link"
-                          title="View POD"
-                        >
-                          <FileText size={18} />
-                        </a>
+                      {job.pod_documents && job.pod_documents.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {job.pod_documents.map((doc, idx) => (
+                            <a 
+                              key={idx}
+                              href={getFileUrl(doc.path, 'pod-attachments')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="pod-table-link"
+                              title={`View POD: ${doc.name || 'Document ' + (idx + 1)}`}
+                            >
+                              <FileText size={18} />
+                            </a>
+                          ))}
+                        </div>
                       ) : '—'}
                     </td>
                     <td className="actions-cell">

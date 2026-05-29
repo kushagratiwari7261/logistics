@@ -31,7 +31,14 @@ const InvoicesPage = () => {
       
       if (error) {
         console.error('Error fetching invoices:', error);
-        setError('Failed to load invoices. Please try again.');
+        if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+          window.dispatchEvent(new Event('force_offline'));
+          const cached = localStorage.getItem('cache_invoices');
+          if (cached) setInvoices(JSON.parse(cached));
+          else setInvoices([]);
+        } else {
+          setError('Failed to load invoices. Please try again.');
+        }
         return;
       }
       
@@ -61,10 +68,18 @@ const InvoicesPage = () => {
       }));
       
       console.log('Mapped invoices:', mappedInvoices);
+      localStorage.setItem('cache_invoices', JSON.stringify(mappedInvoices));
       setInvoices(mappedInvoices);
     } catch (error) {
       console.error('Error in fetchInvoices:', error);
-      setError('An unexpected error occurred. Please try again.');
+      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+        window.dispatchEvent(new Event('force_offline'));
+        const cached = localStorage.getItem('cache_invoices');
+        if (cached) setInvoices(JSON.parse(cached));
+        else setInvoices([]);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

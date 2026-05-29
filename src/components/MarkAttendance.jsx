@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { MapPin, Camera, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft, MoveLeft, MoveRight, MoveUp, MoveDown, Clock } from 'lucide-react';
+import { MapPin, Camera, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft, MoveLeft, MoveRight, MoveUp, MoveDown, Clock, WifiOff } from 'lucide-react';
+import { useNetworkState } from '../hooks/useNetworkState';
 import './MarkAttendance.css';
 
 export default function MarkAttendance({ onBack }) {
+  const isOffline = useNetworkState();
   const [userProfile, setUserProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -750,8 +752,35 @@ export default function MarkAttendance({ onBack }) {
       <div className="attendance-decor-1" />
       <div className="attendance-decor-2" />
 
-      <div className="attendance-content">
-        {/* Top bar header */}
+      {isOffline ? (
+        <div className="attendance-content">
+          <div className="attendance-header">
+            <button
+              onClick={() => { stopCamera(); onBack(); }}
+              className="btn-back"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+            </button>
+            <div className="header-brand-info">
+              <h1 className="header-title">Biometric Attendance</h1>
+            </div>
+          </div>
+          <div className="attendance-card">
+            <div className="icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+              <WifiOff className="gps-icon" />
+            </div>
+            <h2 className="card-title" style={{ color: '#ef4444' }}>Internet Connection Required</h2>
+            <p className="card-description">
+              Marking attendance requires an active internet connection to verify your location and biometrics against our secure servers.
+            </p>
+            <p className="card-description" style={{ marginTop: 16 }}>
+              Please connect to the internet and try again.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="attendance-content">
+          {/* Top bar header */}
         <div className="attendance-header">
           <button
             onClick={() => { stopCamera(); onBack(); }}
@@ -1184,6 +1213,7 @@ export default function MarkAttendance({ onBack }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

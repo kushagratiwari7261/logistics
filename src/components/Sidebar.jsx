@@ -18,7 +18,8 @@ import {
   UserPlus,
   ClipboardCheck,
   Fingerprint,
-  ShieldCheck
+  ShieldCheck,
+  Search
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -71,6 +72,11 @@ const menuSections = [
         to: '/job-allocation',
         label: 'Job Allocation',
         icon: <ClipboardCheck size={20} />,
+      },
+      {
+        to: '/job-enquiry',
+        label: 'Job Enquiry',
+        icon: <Search size={20} />,
       },
       {
         to: '/job-orders',

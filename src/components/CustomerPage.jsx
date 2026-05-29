@@ -81,22 +81,71 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
 
       if (error) {
         // Fallback for when Column doesn't exist yet or other errors
-        console.warn("Error fetching by type, fetching all as fallback:", error);
+        console.warn(`Error fetching ${partnerType}s:`, error);
+        
+        // If it's a network error, fallback to cache
+        if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+          window.dispatchEvent(new Event('force_offline'));
+          const cached = localStorage.getItem(`cache_customers_${partnerType}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setCustomers(parsed);
+            setFilteredCustomers(parsed);
+          } else {
+            setCustomers([]);
+            setFilteredCustomers([]);
+          }
+          return;
+        }
+
         const { data: allData, error: allErr } = await supabase
           .from('vendors')
           .select('*')
           .order('createdat', { ascending: false });
 
-        if (allErr) throw allErr;
-        setCustomers(allData || []);
-        setFilteredCustomers(allData || []);
+        if (allErr) {
+          if (allErr.message?.includes('Failed to fetch') || !navigator.onLine) {
+            window.dispatchEvent(new Event('force_offline'));
+            const cached = localStorage.getItem(`cache_customers_${partnerType}`);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              setCustomers(parsed);
+              setFilteredCustomers(parsed);
+            } else {
+              setCustomers([]);
+              setFilteredCustomers([]);
+            }
+            return;
+          }
+          throw allErr;
+        }
+        
+        const validAllData = allData || [];
+        localStorage.setItem(`cache_customers_${partnerType}`, JSON.stringify(validAllData));
+        setCustomers(validAllData);
+        setFilteredCustomers(validAllData);
       } else {
-        setCustomers(data || []);
-        setFilteredCustomers(data || []);
+        const validData = data || [];
+        localStorage.setItem(`cache_customers_${partnerType}`, JSON.stringify(validData));
+        setCustomers(validData);
+        setFilteredCustomers(validData);
       }
     } catch (error) {
-      console.error(`Error fetching ${partnerType}s:`, error);
-      setError(error.message);
+      console.error(`Error fetching ${partnerType}s catch block:`, error);
+      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+        window.dispatchEvent(new Event('force_offline'));
+        const cached = localStorage.getItem(`cache_customers_${partnerType}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setCustomers(parsed);
+          setFilteredCustomers(parsed);
+        } else {
+          setCustomers([]);
+          setFilteredCustomers([]);
+        }
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }

@@ -85,6 +85,7 @@ import JobAllocation from './components/JobAllocation'
 import { Bell, CheckCircle2, X, AlertTriangle } from 'lucide-react'
 import { socket } from './hooks/useMessageSubscription'
 import { supabase } from './lib/supabaseClient'
+import { useNetworkState } from './hooks/useNetworkState'
 import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import TrackShipment from './components/TrackShipment'
@@ -94,6 +95,8 @@ import MarkAttendance from './components/MarkAttendance'
 import AdminDashboard from './components/AdminDashboard'
 import AttendanceStats from './components/AttendanceStats'
 import GlobalJobForm from './components/GlobalJobForm'
+import GlobalEnquiryForm from './components/JobEnquiryForm'
+import JobEnquiryPage from './components/JobEnquiryPage'
 
 
 function App() {
@@ -118,6 +121,32 @@ function App() {
   const [inAppNotifications, setInAppNotifications] = useState([])
   const notificationAudio = useRef(null)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
+
+  // --- Network & Data Safety ---
+  const isOffline = useNetworkState();
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      // Check if there are active forms in session storage
+      try {
+        const jobsRaw = sessionStorage.getItem('job_forms_v1');
+        const enqRaw = sessionStorage.getItem('enquiry_forms_v1');
+        const jobs = jobsRaw ? JSON.parse(jobsRaw) : [];
+        const enqs = enqRaw ? JSON.parse(enqRaw) : [];
+        
+        if (jobs.length > 0 || enqs.length > 0) {
+          e.preventDefault();
+          e.returnValue = 'You have unsaved forms open. Are you sure you want to leave?';
+          return e.returnValue;
+        }
+      } catch (err) {
+        // Ignored
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // Initialize and Unlock Audio (Browsers require a user gesture to play sound)
   useEffect(() => {
@@ -781,24 +810,31 @@ function App() {
 
       if (shipmentsError || jobsError || invoicesError || messagesError) {
         console.error('Error fetching stats:', { shipmentsError, jobsError, invoicesError, messagesError });
-        // Fallback to default values
-        setStatsData([
-          { label: 'Total Shipments', value: '0', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
-          { label: 'Jobs', value: '0', icon: 'teal', id: 'Jobs', path: '/job-orders' },
-          { label: 'Invoices', value: '0', icon: 'yellow', id: 'Invoices', path: '/invoices' },
-          { label: 'Messages', value: '0', icon: 'red', id: 'Messages', path: '/messages' }
-        ]);
+        const cached = localStorage.getItem('cache_dashboard_stats');
+        if (cached) {
+          setStatsData(JSON.parse(cached));
+        } else {
+          // Fallback to default values
+          setStatsData([
+            { label: 'Total Shipments', value: '0', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
+            { label: 'Jobs', value: '0', icon: 'teal', id: 'Jobs', path: '/job-orders' },
+            { label: 'Invoices', value: '0', icon: 'yellow', id: 'Invoices', path: '/invoices' },
+            { label: 'Messages', value: '0', icon: 'red', id: 'Messages', path: '/messages' }
+          ]);
+        }
         return;
       }
 
       const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
 
-      setStatsData([
+      const newStats = [
         { label: 'Total Shipments', value: formatNumber(totalShipments), icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
         { label: 'Jobs', value: formatNumber(jobsCount), icon: 'teal', id: 'Jobs', path: '/job-orders' },
         { label: 'Invoices', value: formatNumber(invoicesCount || totalShipments), icon: 'yellow', id: 'Invoices', path: '/invoices' },
         { label: 'Messages', value: formatNumber(messagesCount), icon: 'red', id: 'Messages', path: '/messages' }
-      ]);
+      ];
+      localStorage.setItem('cache_dashboard_stats', JSON.stringify(newStats));
+      setStatsData(newStats);
     } catch (error) {
       console.error('Error in fetchStatsData:', error);
       setError('Failed to load statistics data.');
@@ -818,11 +854,12 @@ function App() {
 
       if (error) {
         console.error('Error fetching jobs:', error);
-        setDashboardJobsData([
-          { id: 'JOB-001', customer: 'Acme Corp', status: 'In Progress', date: '2024-07-26' },
-          { id: 'JOB-002', customer: 'Global Imports', status: 'Completed', date: '2024-07-25' },
-          { id: 'JOB-003', customer: 'Tech Solutions', status: 'Pending', date: '2024-07-24' }
-        ]);
+        const cached = localStorage.getItem('cache_dashboard_jobs');
+        if (cached) {
+          setDashboardJobsData(JSON.parse(cached));
+        } else {
+          setDashboardJobsData([]);
+        }
         return;
       }
 
@@ -835,6 +872,7 @@ function App() {
         date: job.job_date ? new Date(job.job_date).toLocaleDateString() : 'Unknown date'
       }));
 
+      localStorage.setItem('cache_dashboard_jobs', JSON.stringify(fetchJobs));
       setDashboardJobsData(fetchJobs);
     } catch (error) {
       console.error('Error in fetchJobsData:', error);
@@ -856,11 +894,12 @@ function App() {
 
       if (error) {
         console.error('Error fetching shipments:', error);
-        setDashboardShipmentsData([
-          { id: 'SHIP-12345', destination: 'New York', status: 'In Transit', date: '2024-07-26' },
-          { id: 'SHIP-67890', destination: 'Los Angeles', status: 'Delivered', date: '2024-07-25' },
-          { id: 'SHIP-11223', destination: 'Chicago', status: 'Processing', date: '2024-07-24' }
-        ]);
+        const cached = localStorage.getItem('cache_dashboard_shipments');
+        if (cached) {
+          setDashboardShipmentsData(JSON.parse(cached));
+        } else {
+          setDashboardShipmentsData([]);
+        }
         return;
       }
 
@@ -873,6 +912,7 @@ function App() {
         date: shipment.created_at ? new Date(shipment.created_at).toLocaleDateString() : 'Unknown date'
       }));
 
+      localStorage.setItem('cache_dashboard_shipments', JSON.stringify(formattedData));
       setDashboardShipmentsData(formattedData);
     } catch (error) {
       console.error('Error in fetchShipmentsData:', error);
@@ -1067,7 +1107,20 @@ function App() {
   }
 
   return (
-    <Routes>
+    <>
+      {isOffline && (
+        <div style={{
+          position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#ef4444', color: 'white', padding: '10px 24px',
+          borderRadius: 30, zIndex: 999999, display: 'flex', alignItems: 'center', gap: 10,
+          boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', fontWeight: 600, fontSize: 14,
+          animation: 'pageIn 0.3s ease-out'
+        }}>
+          <AlertTriangle size={18} />
+          You are currently offline. Working in offline mode.
+        </div>
+      )}
+      <Routes>
       {/* ── Auth routes — full screen, no sidebar ── */}
       <Route
         path="/login"
@@ -1170,6 +1223,7 @@ function App() {
                 <Route path="/tracking" element={<ProtectedRoute><ShipmentTracking /></ProtectedRoute>} />
                 <Route path="/payments" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                 <Route path="/dsr" element={<ProtectedRoute><DSRPage /></ProtectedRoute>} />
+                <Route path="/job-enquiry" element={<ProtectedRoute><JobEnquiryPage /></ProtectedRoute>} />
                 <Route path="/job-orders" element={<ProtectedRoute><ActiveJob /></ProtectedRoute>} />
                 <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
                 <Route path="/job-allocation" element={<ProtectedRoute><JobAllocation user={user} /></ProtectedRoute>} />
@@ -1187,10 +1241,12 @@ function App() {
               </Routes>
             </main>
             {isAuthenticated && <GlobalJobForm />}
+            {isAuthenticated && <GlobalEnquiryForm />}
           </div>
         }
       />
     </Routes>
+    </>
   );
 }
 

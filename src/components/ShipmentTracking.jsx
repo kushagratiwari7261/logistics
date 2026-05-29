@@ -325,18 +325,21 @@ function ShipmentDetail({ shipment, onBack, onRefresh }) {
                                 <span className="st-info-value">{value}</span>
                             </div>
                         ))}
-                        {shipment.pod_attachment && (
+                        {shipment.pod_documents && shipment.pod_documents.length > 0 && (
                             <div className="st-info-row" style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
-                                <span className="st-info-label">Proof of Delivery (POD)</span>
-                                <span className="st-info-value">
-                                    <a 
-                                        href={getFileUrl(shipment.pod_attachment, 'pod-attachments')} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        style={{ color: '#6366f1', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', fontWeight: 'bold' }}
-                                    >
-                                        <ExternalLink size={14} /> View Document
-                                    </a>
+                                <span className="st-info-label" style={{ alignSelf: 'flex-start', paddingTop: '5px' }}>Proof of Delivery (POD)</span>
+                                <span className="st-info-value" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    {shipment.pod_documents.map((doc, idx) => (
+                                        <a 
+                                            key={idx}
+                                            href={getFileUrl(doc.path, 'pod-attachments')} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#6366f1', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', fontWeight: 'bold' }}
+                                        >
+                                            <ExternalLink size={14} /> View Document: {doc.name || `Document ${idx + 1}`}
+                                        </a>
+                                    ))}
                                 </span>
                             </div>
                         )}
@@ -375,7 +378,7 @@ function ShipmentList({ onSelect }) {
         setLoading(true);
         let q = supabase
             .from('shipments')
-            .select('id,shipment_no,job_no,client,por,pod,status,shipment_type,current_location,etd,eta,awb,hbl_no,updated_at,shipment_date,sb_no,sb_date,boe_no,boe_date,trade_direction,pod_attachment')
+            .select('*')
             .order('updated_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 
