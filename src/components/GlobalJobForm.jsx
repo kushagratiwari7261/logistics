@@ -493,10 +493,10 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 0;
-      
+
       const diffTime = endDate.getTime() - startDate.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       // 24 hours (1 day) free
       return Math.max(0, diffDays - 1);
     };
@@ -584,7 +584,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const handleInputChange = useCallback((e) => {
     const { name, value, type, files } = e.target;
     const valToSet = type === 'file' ? (files && files[0] ? files[0] : null) : value;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: valToSet
@@ -1128,7 +1128,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
     const handleNoOfPodsInputChange = (e) => {
       let value = parseInt(e.target.value);
       if (isNaN(value) || value < 0) value = 0;
-      
+
       setNewPods(prev => {
         const currentLength = prev.length;
         if (value > currentLength) {
@@ -1180,10 +1180,10 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           {/* Add New Attachments */}
           <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontSize: '0.9rem', fontWeight: '600' }}>Add New Attachments:</label>
-            <input 
-              type="number" 
-              min="0" 
-              value={newPods.length} 
+            <input
+              type="number"
+              min="0"
+              value={newPods.length}
               onChange={handleNoOfPodsInputChange}
               style={{ width: '80px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)' }}
             />
@@ -1193,8 +1193,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
             <div key={index} className="pod-entry-row" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px', background: 'var(--bg-surface)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.85rem' }}>Attachment No.</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Enter No"
                   value={pod.podNo}
                   onChange={(e) => handlePodNoChange(index, e.target.value)}
@@ -1203,8 +1203,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               </div>
               <div style={{ flex: 2 }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.85rem' }}>Upload Document (PDF/Image)</label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   onChange={(e) => handlePodFileSelect(index, e)}
                   accept=".pdf,image/*"
                   style={{ width: '100%', padding: '5px' }}
@@ -1305,7 +1305,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                       <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
                         {clientSuggestions.map((sug, i) => (
                           <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
-                            setFormData(prev => ({...prev, [field.name]: sug}));
+                            setFormData(prev => ({ ...prev, [field.name]: sug }));
                             setShowClientSuggestions(false);
                           }}>
                             {sug}
@@ -1389,11 +1389,11 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               { label: 'Weight', name: 'grossWeight', type: 'number' },
               { label: 'Amount', name: 'amount', type: 'number' },
               { label: 'Advance', name: 'advance', type: 'number' },
-            ].map((field, index) => 
+            ].map((field, index) =>
               field.condition !== false && (
-              <div key={index} className="form-group">
-                <label>{field.label} <span className="required">*</span></label>
-                {field.type === 'autocomplete' ? (
+                <div key={index} className="form-group">
+                  <label>{field.label} <span className="required">*</span></label>
+                  {field.type === 'autocomplete' ? (
                     <div style={{ position: 'relative' }}>
                       <input
                         type="text"
@@ -1420,7 +1420,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
                           {clientSuggestions.map((sug, i) => (
                             <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
-                              setFormData(prev => ({...prev, [field.name]: sug}));
+                              setFormData(prev => ({ ...prev, [field.name]: sug }));
                               setShowClientSuggestions(false);
                             }}>
                               {sug}
@@ -1429,19 +1429,19 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         </ul>
                       )}
                     </div>
-                ) : (
-                  <input
-                    type={field.type}
-                    name={field.name}
-                    value={field.type === 'file' ? undefined : (formData[field.name] || '')}
-                    onChange={handleInputChange}
-                    className={validationErrors[field.name] ? 'error' : ''}
-                  />
-                )}
-                {validationErrors[field.name] &&
-                  <span className="field-error">{validationErrors[field.name]}</span>
-                }
-              </div>
+                  ) : (
+                    <input
+                      type={field.type}
+                      name={field.name}
+                      value={field.type === 'file' ? undefined : (formData[field.name] || '')}
+                      onChange={handleInputChange}
+                      className={validationErrors[field.name] ? 'error' : ''}
+                    />
+                  )}
+                  {validationErrors[field.name] &&
+                    <span className="field-error">{validationErrors[field.name]}</span>
+                  }
+                </div>
               )
             )}
           </div>
@@ -1549,7 +1549,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
                           {clientSuggestions.map((sug, i) => (
                             <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
-                              setFormData(prev => ({...prev, [field.name]: sug}));
+                              setFormData(prev => ({ ...prev, [field.name]: sug }));
                               setShowClientSuggestions(false);
                             }}>
                               {sug}
@@ -1779,8 +1779,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                   <div className="summary-row">
                     <span className="label">Invoice Attachment:</span>
                     <span className="value">
-                      {selectedJob.invoice_attachment?.path ? 
-                        <a href={getFileUrl(selectedJob.invoice_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> : 
+                      {selectedJob.invoice_attachment?.path ?
+                        <a href={getFileUrl(selectedJob.invoice_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> :
                         'No File'}
                     </span>
                   </div>
@@ -1791,8 +1791,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                   <div className="summary-row">
                     <span className="label">E-Way Bill Attachment:</span>
                     <span className="value">
-                      {selectedJob.eway_bill_attachment?.path ? 
-                        <a href={getFileUrl(selectedJob.eway_bill_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> : 
+                      {selectedJob.eway_bill_attachment?.path ?
+                        <a href={getFileUrl(selectedJob.eway_bill_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> :
                         'No File'}
                     </span>
                   </div>
@@ -1803,8 +1803,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                   <div className="summary-row">
                     <span className="label">Goods Attachment:</span>
                     <span className="value">
-                      {selectedJob.goods_attachment?.path ? 
-                        <a href={getFileUrl(selectedJob.goods_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> : 
+                      {selectedJob.goods_attachment?.path ?
+                        <a href={getFileUrl(selectedJob.goods_attachment.path)} target="_blank" rel="noopener noreferrer">View</a> :
                         'No File'}
                     </span>
                   </div>
@@ -1880,9 +1880,9 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         {doc.podNo && <span style={{ background: 'var(--primary-color)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>POD: {doc.podNo}</span>}
                         <span style={{ color: 'var(--text-secondary)' }}>{doc.name || `Document ${idx + 1}`}</span>
                       </span>
-                      <a 
-                        href={getFileUrl(doc.path, 'pod-attachments')} 
-                        target="_blank" 
+                      <a
+                        href={getFileUrl(doc.path, 'pod-attachments')}
+                        target="_blank"
                         rel="noopener noreferrer"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px', background: 'var(--primary-color)', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '500' }}
                       >

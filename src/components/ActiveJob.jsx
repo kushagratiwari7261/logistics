@@ -168,6 +168,7 @@ const ActiveJob = () => {
   const [showJobSummary, setShowJobSummary] = useState(false);
   const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
   const [selectedFile, setSelectedFile] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ============ FIX 1: RESTORE STATE ON MOUNT ============
   useEffect(() => {
@@ -1562,6 +1563,27 @@ const ActiveJob = () => {
     );
   }, [selectedJob, getLocationColumnHeaders]);
 
+  const filteredJobs = useMemo(() => {
+    if (!searchQuery) return jobs;
+    const lowerQuery = searchQuery.toLowerCase();
+    return jobs.filter(job => {
+      const fromLoc = job.job_type === 'AIR FREIGHT' ? job.airport_of_departure : job.job_type === 'TRANSPORT' ? job.from_location : job.pol;
+      const toLoc = job.job_type === 'AIR FREIGHT' ? job.airport_of_destination : job.job_type === 'TRANSPORT' ? job.to_location : job.pod;
+      return (
+        (job.jobNo && job.jobNo.toString().toLowerCase().includes(lowerQuery)) ||
+        (job.client && job.client.toLowerCase().includes(lowerQuery)) ||
+        (job.job_type && job.job_type.toLowerCase().includes(lowerQuery)) ||
+        (job.tradeDirection && job.tradeDirection.toLowerCase().includes(lowerQuery)) ||
+        (fromLoc && fromLoc.toLowerCase().includes(lowerQuery)) ||
+        (toLoc && toLoc.toLowerCase().includes(lowerQuery)) ||
+        (job.createdAt && job.createdAt.toLowerCase().includes(lowerQuery)) ||
+        (job.updatedAt && job.updatedAt.toLowerCase().includes(lowerQuery)) ||
+        (job.created_by && job.created_by.toLowerCase().includes(lowerQuery)) ||
+        (job.updated_by && job.updated_by.toLowerCase().includes(lowerQuery))
+      );
+    });
+  }, [jobs, searchQuery]);
+
   return (
     <>
       {loading && (
@@ -1585,12 +1607,21 @@ const ActiveJob = () => {
       )}
       
       <div className="card expandable-card">
-        <div className="table-header">
+        <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h2>Current Active Jobs</h2>
-          <button className="add-shipment-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: null }))}>
-            <span className="plus-icon">+</span>
-            Add Job
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <input 
+              type="text" 
+              placeholder="Search jobs..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', minWidth: '250px' }}
+            />
+            <button className="add-shipment-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: null }))}>
+              <span className="plus-icon">+</span>
+              Add Job
+            </button>
+          </div>
         </div>
         <div 
           className="table-container" 
@@ -1615,8 +1646,8 @@ const ActiveJob = () => {
               </tr>
             </thead>
             <tbody>
-              {jobs.length > 0 ? (
-                jobs.map((job, index) => (
+              {filteredJobs.length > 0 ? (
+                filteredJobs.map((job, index) => (
                   <tr key={index} onClick={() => handleJobSelect(job)} className="job-row">
                     <td>{job.jobNo}</td>
                     <td>{job.client}</td>
@@ -1686,8 +1717,10 @@ const ActiveJob = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" style={{textAlign: 'center', padding: '20px'}}>
-                    No active jobs found
+                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      No active jobs found matching your search.
+                    </div>
                   </td>
                 </tr>
               )}
