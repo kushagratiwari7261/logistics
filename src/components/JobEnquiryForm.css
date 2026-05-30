@@ -979,22 +979,83 @@
   z-index: 9998;
 }
 
- / *   - - - - - - - - - -   M o d a l   C l o s e   B u t t o n   - - - - - - - - - -   * / 
- . e n q u i r y - m o d a l - c l o s e   { 
-     b a c k g r o u n d :   t r a n s p a r e n t   ! i m p o r t a n t ; 
-     b o r d e r :   n o n e ; 
-     c u r s o r :   p o i n t e r ; 
-     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
-     b o r d e r - r a d i u s :   4 p x ; 
-     p a d d i n g :   4 p x ; 
-     d i s p l a y :   f l e x ; 
-     a l i g n - i t e m s :   c e n t e r ; 
-     j u s t i f y - c o n t e n t :   c e n t e r ; 
-     t r a n s i t i o n :   a l l   0 . 2 s ; 
- } 
- 
- . e n q u i r y - m o d a l - c l o s e : h o v e r   { 
-     b a c k g r o u n d :   r g b a ( 1 2 8 ,   1 2 8 ,   1 2 8 ,   0 . 1 5 )   ! i m p o r t a n t ; 
-     c o l o r :   v a r ( - - t e x t - p r i m a r y ) ; 
- }  
- 
+ /* ---------- Modal Close Button ---------- */
+.enquiry-modal-close {
+  background: transparent !important;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.enquiry-modal-close:hover {
+  background: rgba(128, 128, 128, 0.15) !important;
+  color: var(--text-primary);
+}
+
+/* ---------- Mobile Responsiveness ---------- */
+@media (max-width: 768px) {
+  .enquiry-modal-content {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+  
+  .enquiry-header {
+    padding: 12px 16px;
+  }
+
+  .enquiry-header-left h1 {
+    font-size: 1rem;
+  }
+  
+  .enquiry-body {
+    padding: 16px;
+  }
+  
+  .enquiry-footer {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .enquiry-progress-steps {
+    padding: 12px 8px;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .enquiry-step-label {
+    display: none; /* Hide labels on mobile to save space */
+  }
+
+  .enquiry-step-connector {
+    width: 30px;
+  }
+  
+  .enquiry-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .enquiry-btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .enquiry-type-grid, .enquiry-direction-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .enquiry-type-card, .enquiry-direction-card {
+    max-width: 100%;
+  }
+}

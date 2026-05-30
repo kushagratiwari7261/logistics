@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Briefcase, Clock, Bell, CheckCircle2, AlertTriangle, Info, X, UserPlus, Users } from 'lucide-react'
+import { Plus, Briefcase, Clock, Bell, CheckCircle2, AlertTriangle, Info, X, UserPlus, Users, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
@@ -132,6 +132,15 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         >
           <Briefcase size={16} />
           New Job
+        </button>
+        <button
+          className="primary-button"
+          onClick={() => navigate('/job-enquiry')}
+          id="new-enquiry-btn"
+          style={{ background: 'linear-gradient(135deg, #1e40af, #2563eb)', boxShadow: '0 3px 16px rgba(30,64,175,0.3)' }}
+        >
+          <FileText size={16} />
+          New Enquiry
         </button>
 
         <button
