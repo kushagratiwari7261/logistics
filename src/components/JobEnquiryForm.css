@@ -519,6 +519,7 @@
   min-width: 220px;
   box-shadow: 0 4px 16px rgba(30, 64, 175, 0.35);
   transition: all 0.2s ease;
+  pointer-events: auto;
 }
 
 .enquiry-minimized-bar:hover {

@@ -2,6 +2,7 @@
 import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { UserPlus, PenLine, FileUp, ExternalLink, FileText, ArrowLeft, ArrowRight, Minus, X, Maximize2 } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
@@ -201,6 +202,28 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const [showJobSummary, setShowJobSummary] = useState(false);
   const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
   const [newPods, setNewPods] = useState([{ podNo: '', file: null }]);
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  const fetchClientSuggestions = useCallback(async (searchTerm) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setClientSuggestions([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('vendorName, partner_type')
+        .ilike('vendorName', `%${searchTerm}%`)
+        .limit(10);
+      if (!error && data) {
+        const uniqueNames = Array.from(new Set(data.map(d => d.vendorName)));
+        setClientSuggestions(uniqueNames);
+      }
+    } catch (err) {
+      console.error('Error fetching client suggestions:', err);
+    }
+  }, []);
 
   // Fetch next sequential job number on load if creating new job
   useEffect(() => {
@@ -1121,7 +1144,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
     return (
       <div className="pod-upload-section">
         <h3 className="pod-upload-header">
-          <FileUp size={18} /> Proof of Delivery (POD)
+          <FileUp size={18} /> Attachments
         </h3>
         <div className="pod-upload-input-group">
 
@@ -1129,7 +1152,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           {formData.pod_documents && formData.pod_documents.length > 0 && (
             <div className="existing-pod-files" style={{ marginBottom: '20px' }}>
               <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <FileText size={14} /> Previously Attached PODs ({formData.pod_documents.length}):
+                <FileText size={14} /> Previously Attached ({formData.pod_documents.length}):
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {formData.pod_documents.map((doc, idx) => (
@@ -1137,7 +1160,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     <span style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
                       <FileText size={14} color="var(--primary-color)" />
                       <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>#{idx + 1}</span>
-                      {doc.podNo && <span style={{ background: 'var(--primary-color)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>POD: {doc.podNo}</span>}
+                      {doc.podNo && <span style={{ background: 'var(--primary-color)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>No: {doc.podNo}</span>}
                       <span style={{ color: 'var(--text-secondary)' }}>{doc.name || `Document ${idx + 1}`}</span>
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1154,9 +1177,9 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
             </div>
           )}
 
-          {/* Add New PODs */}
+          {/* Add New Attachments */}
           <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label style={{ fontSize: '0.9rem', fontWeight: '600' }}>Add New PODs:</label>
+            <label style={{ fontSize: '0.9rem', fontWeight: '600' }}>Add New Attachments:</label>
             <input 
               type="number" 
               min="0" 
@@ -1169,10 +1192,10 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           {newPods.map((pod, index) => (
             <div key={index} className="pod-entry-row" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px', background: 'var(--bg-surface)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.85rem' }}>POD No.</label>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.85rem' }}>Attachment No.</label>
                 <input 
                   type="text" 
-                  placeholder="Enter POD No"
+                  placeholder="Enter No"
                   value={pod.podNo}
                   onChange={(e) => handlePodNoChange(index, e.target.value)}
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)' }}
@@ -1211,6 +1234,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           <div className="form-grid-two-column">
             {[
               { label: 'Job No.', name: 'jobNo', type: 'text' },
+              { label: 'Client Name', name: 'client', type: 'autocomplete' },
               { label: 'Shipper', name: 'shipper', type: 'text' },
               { label: 'Consignee', name: 'consignee', type: 'text' },
               { label: 'Notify Party', name: 'notify_party', type: 'text' },
@@ -1253,6 +1277,42 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                       className={validationErrors[field.name] ? 'error' : ''}
                       style={{ flex: 1 }}
                     />
+                  </div>
+                ) : field.type === 'autocomplete' ? (
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      name={field.name}
+                      value={formData[field.name] || ''}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        if (field.name === 'client') {
+                          fetchClientSuggestions(e.target.value);
+                          setShowClientSuggestions(true);
+                        }
+                      }}
+                      className={validationErrors[field.name] ? 'error' : ''}
+                      onFocus={() => {
+                        if (field.name === 'client' && formData[field.name]) {
+                          fetchClientSuggestions(formData[field.name]);
+                          setShowClientSuggestions(true);
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
+                      autoComplete="off"
+                    />
+                    {showClientSuggestions && clientSuggestions.length > 0 && field.name === 'client' && (
+                      <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+                        {clientSuggestions.map((sug, i) => (
+                          <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
+                            setFormData(prev => ({...prev, [field.name]: sug}));
+                            setShowClientSuggestions(false);
+                          }}>
+                            {sug}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ) : (
                   <input
@@ -1302,18 +1362,16 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
             </div>
             {[
               { label: 'Job No.', name: 'jobNo', type: 'text' },
+              { label: 'Client Name', name: 'client', type: 'autocomplete' },
               { label: 'Vehicle Type', name: 'vehicle_type', type: 'text' },
               { label: 'LRN No', name: 'lrn_no', type: 'text' },
               { label: 'From', name: 'from', type: 'text' },
               { label: 'To', name: 'to', type: 'text' },
               { label: 'Consignee', name: 'consignee', type: 'text' },
-              { label: 'Consignee Address', name: 'consignee_address', type: 'text' },
-              { label: 'Consignee Contact No', name: 'consignee_contact', type: 'text' },
               { label: 'Consignor', name: 'shipper', type: 'text' },
-              { label: 'Ship To', name: 'ship_to', type: 'text' },
-              { label: 'Ship To Address', name: 'ship_to_address', type: 'text' },
-              { label: 'Ship To Contact No', name: 'ship_to_contact', type: 'text' },
-              { label: 'Factory Reporting Date', name: 'factory_reporting_date', type: 'date' },
+              { label: 'S/B No', name: 'sbNo', type: 'text', condition: tradeDirection === 'EXPORT' },
+              { label: 'BOE', name: 'boeNo', type: 'text', condition: tradeDirection === 'IMPORT' },
+              { label: 'Factory Reporting Date', name: 'factory_reporting_date', type: 'date', condition: tradeDirection !== 'IMPORT' },
               { label: 'Dispatch Date', name: 'dispatch_date', type: 'date' },
               { label: 'Reporting Date', name: 'reporting_date', type: 'date' },
               { label: 'Unloading Date', name: 'unloading_date', type: 'date' },
@@ -1324,33 +1382,68 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               { label: 'Vehicle Number', name: 'vehicle_number', type: 'text' },
               { label: 'Driver Name', name: 'driver_name', type: 'text' },
               { label: 'Driver Mobile No', name: 'driver_mobile_no', type: 'text' },
-              { label: 'Order No', name: 'order_no', type: 'text' },
-              { label: 'Order Date', name: 'order_date', type: 'date' },
-              { label: 'Invoice Number', name: 'invoiceNo', type: 'text' },
-              { label: 'Invoice Attachment', name: 'invoice_attachment', type: 'file' },
               { label: 'E-Way Bill Number', name: 'eway_bill_no', type: 'text' },
               { label: 'E-Way Bill Attachment', name: 'eway_bill_attachment', type: 'file' },
               { label: 'Description of Goods', name: 'description_of_goods', type: 'text' },
-              { label: 'Goods Attachment', name: 'goods_attachment', type: 'file' },
               { label: 'No of Packages', name: 'no_of_packages', type: 'number' },
               { label: 'Weight', name: 'grossWeight', type: 'number' },
               { label: 'Amount', name: 'amount', type: 'number' },
               { label: 'Advance', name: 'advance', type: 'number' },
-            ].map((field, index) => (
+            ].map((field, index) => 
+              field.condition !== false && (
               <div key={index} className="form-group">
                 <label>{field.label} <span className="required">*</span></label>
-                <input
-                  type={field.type}
-                  name={field.name}
-                  value={field.type === 'file' ? undefined : (formData[field.name] || '')}
-                  onChange={handleInputChange}
-                  className={validationErrors[field.name] ? 'error' : ''}
-                />
+                {field.type === 'autocomplete' ? (
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        name={field.name}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          if (field.name === 'client') {
+                            fetchClientSuggestions(e.target.value);
+                            setShowClientSuggestions(true);
+                          }
+                        }}
+                        className={validationErrors[field.name] ? 'error' : ''}
+                        onFocus={() => {
+                          if (field.name === 'client' && formData[field.name]) {
+                            fetchClientSuggestions(formData[field.name]);
+                            setShowClientSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
+                        autoComplete="off"
+                      />
+                      {showClientSuggestions && clientSuggestions.length > 0 && field.name === 'client' && (
+                        <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+                          {clientSuggestions.map((sug, i) => (
+                            <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
+                              setFormData(prev => ({...prev, [field.name]: sug}));
+                              setShowClientSuggestions(false);
+                            }}>
+                              {sug}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                ) : (
+                  <input
+                    type={field.type}
+                    name={field.name}
+                    value={field.type === 'file' ? undefined : (formData[field.name] || '')}
+                    onChange={handleInputChange}
+                    className={validationErrors[field.name] ? 'error' : ''}
+                  />
+                )}
                 {validationErrors[field.name] &&
                   <span className="field-error">{validationErrors[field.name]}</span>
                 }
               </div>
-            ))}
+              )
+            )}
           </div>
 
           <div className="client-os-info">
@@ -1367,16 +1460,20 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           <div className="form-grid-two-column">
             {[
               { label: 'Job No.', name: 'jobNo', type: 'text', condition: true },
+              { label: 'Client Name', name: 'client', type: 'autocomplete', condition: true },
               { label: 'Exporter', name: 'exporter', type: 'text', condition: tradeDirection === 'EXPORT' },
               { label: 'Importer', name: 'importer', type: 'text', condition: tradeDirection === 'IMPORT' },
               { label: 'Invoice No', name: 'invoiceNo', type: 'text', condition: true },
               { label: 'Invoice Date', name: 'invoiceDate', type: 'date', condition: true },
+              { label: 'MBL No', name: 'mblNo', type: 'text', condition: true },
+              { label: 'MBL Date', name: 'mblDate', type: 'date', condition: true },
+              { label: 'HBL No', name: 'hblNo', type: 'text', condition: true },
+              { label: 'HBL DT', name: 'hblDt', type: 'date', condition: true },
               { label: 'Container Type', name: 'containerType', type: 'text', condition: true },
               { label: 'Container No', name: 'containerNo', type: 'text', condition: true },
               { label: 'No of CNTR', name: 'noOfCntr', type: 'number', condition: true },
               { label: 'Pickup Date', name: 'stuffingDate', type: 'date', condition: true },
               { label: 'Terms', name: 'terms', type: 'text', condition: true },
-              { label: 'HAL / ', name: 'hal', type: 'text', condition: true },
               { label: 'Consignee', name: 'consignee', type: 'text', condition: true },
               { label: 'Commodity', name: 'commodity', type: 'text', condition: true },
               { label: 'S/B No', name: 'sbNo', type: 'text', condition: true },
@@ -1393,18 +1490,11 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               { label: 'Net Weight', name: 'netWeight', type: 'number', condition: true },
               { label: 'S/Line', name: 'sLine', type: 'text', condition: true },
               { label: 'Vessel/voyage', name: 'vessel', type: 'text', condition: true },
-              { label: 'MBL No', name: 'mblNo', type: 'text', condition: true },
-              { label: 'MBL Date', name: 'mblDate', type: 'date', condition: true },
-              { label: 'HBL No', name: 'hblNo', type: 'text', condition: true },
-              { label: 'HBL DT', name: 'hblDt', type: 'date', condition: true },
               { label: 'ETD', name: 'etd', type: 'datetime-local', condition: true },
               { label: 'ETA', name: 'eta', type: 'datetime-local', condition: true },
               { label: 'SOB', name: 'sob', type: 'text', condition: true },
               { label: 'SOB Date', name: 'sobDate', type: 'date', condition: true },
-              { label: 'A/C', name: 'ac', type: 'text', condition: true },
               { label: 'C/C Port', name: 'ccPort', type: 'text', condition: true },
-              { label: 'Order No', name: 'orderNo', type: 'text', condition: true },
-              { label: 'Order Date', name: 'orderDate', type: 'date', condition: true },
               { label: 'Buying Rate', name: 'buyingRate', type: 'currency-amount', currencyName: 'buyingCurrency', condition: true },
               { label: 'Selling Rate', name: 'sellingRate', type: 'currency-amount', currencyName: 'sellingCurrency', condition: true },
               { label: 'Exchange Rate', name: 'exchangeRate', type: 'number', condition: true },
@@ -1427,17 +1517,53 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                       <input
                         type="number"
                         name={field.name}
-                        value={formData[field.name]}
+                        value={formData[field.name] || ''}
                         onChange={handleInputChange}
                         className={validationErrors[field.name] ? 'error' : ''}
                         style={{ flex: 1 }}
                       />
                     </div>
+                  ) : field.type === 'autocomplete' ? (
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        name={field.name}
+                        value={formData[field.name] || ''}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          if (field.name === 'client') {
+                            fetchClientSuggestions(e.target.value);
+                            setShowClientSuggestions(true);
+                          }
+                        }}
+                        className={validationErrors[field.name] ? 'error' : ''}
+                        onFocus={() => {
+                          if (field.name === 'client' && formData[field.name]) {
+                            fetchClientSuggestions(formData[field.name]);
+                            setShowClientSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
+                        autoComplete="off"
+                      />
+                      {showClientSuggestions && clientSuggestions.length > 0 && field.name === 'client' && (
+                        <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+                          {clientSuggestions.map((sug, i) => (
+                            <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
+                              setFormData(prev => ({...prev, [field.name]: sug}));
+                              setShowClientSuggestions(false);
+                            }}>
+                              {sug}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   ) : (
                     <input
                       type={field.type}
                       name={field.name}
-                      value={formData[field.name]}
+                      value={formData[field.name] || ''}
                       onChange={handleInputChange}
                       className={validationErrors[field.name] ? 'error' : ''}
                     />
@@ -1458,7 +1584,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         </div>
       );
     }
-  }, [jobType, tradeDirection, formData, handleInputChange, validationErrors]);
+  }, [jobType, tradeDirection, formData, handleInputChange, validationErrors, renderPodUploadSection]);
 
   // Render job summary based on job type
   const renderJobSummary = useCallback(() => {
@@ -1535,7 +1661,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                 </div>
                 {selectedJob.pod_documents && selectedJob.pod_documents.length > 0 && (
                   <div className="summary-row" style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
-                    <span className="label" style={{ alignSelf: 'flex-start', paddingTop: '5px' }}>Proof of Delivery (POD):</span>
+                    <span className="label" style={{ alignSelf: 'flex-start', paddingTop: '5px' }}>Attachments:</span>
                     <span className="value" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       {selectedJob.pod_documents.map((doc, idx) => (
                         <a
@@ -1744,7 +1870,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
             {/* Dedicated POD Documents Section */}
             <div className="summary-section">
-              <h3><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />POD Documents</h3>
+              <h3><FileText size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Attached Documents</h3>
               {selectedJob.pod_documents && selectedJob.pod_documents.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {selectedJob.pod_documents.map((doc, idx) => (
@@ -1964,7 +2090,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         {formData.pod_documents && formData.pod_documents.length > 0 && (
                           <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d', marginBottom: '8px' }}>
-                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached ({formData.pod_documents.length})</strong>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Attachments ({formData.pod_documents.length})</strong>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '24px' }}>
                               {formData.pod_documents.map((doc, idx) => (
@@ -2048,7 +2174,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         {formData.pod_documents && formData.pod_documents.length > 0 && (
                           <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d', marginBottom: '8px' }}>
-                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached ({formData.pod_documents.length})</strong>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Attachments ({formData.pod_documents.length})</strong>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '24px' }}>
                               {formData.pod_documents.map((doc, idx) => (
@@ -2075,7 +2201,6 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                               { label: 'Invoice Date:', value: formData.invoiceDate },
                               { label: 'Pickup Date:', value: formData.stuffingDate },
                               { label: 'Terms:', value: formData.terms },
-                              { label: 'HAL / :', value: formData.hal },
                               { label: 'Consignee:', value: formData.consignee },
                               { label: 'Commodity:', value: formData.commodity },
                               ...(tradeDirection === 'EXPORT' ? [
@@ -2127,7 +2252,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                         {formData.pod_documents && formData.pod_documents.length > 0 && (
                           <div className="summary-pod-section" style={{ marginTop: '15px', padding: '10px', background: 'rgba(54, 179, 126, 0.1)', borderRadius: '6px', border: '1px solid rgba(54, 179, 126, 0.3)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a7a4d', marginBottom: '8px' }}>
-                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Proof of Delivery (POD) attached ({formData.pod_documents.length})</strong>
+                              <FileText size={16} /> <strong style={{ fontSize: '0.9rem' }}>Attachments ({formData.pod_documents.length})</strong>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '24px' }}>
                               {formData.pod_documents.map((doc, idx) => (
@@ -2291,17 +2416,32 @@ const GlobalJobForm = () => {
         />
       ))}
 
-      <div className="minimized-taskbar-container">
-        {forms.map(form => form.isMinimized && (
-          <JobFormWindow
-            key={form.id}
-            formConfig={form}
-            onClose={handleClose}
-            onMinimize={handleMinimize}
-            onRestore={handleRestore}
-          />
-        ))}
-      </div>
+      {document.getElementById('minimized-taskbar-root') ? createPortal(
+        <>
+          {forms.map(form => form.isMinimized && (
+            <JobFormWindow
+              key={form.id}
+              formConfig={form}
+              onClose={handleClose}
+              onMinimize={handleMinimize}
+              onRestore={handleRestore}
+            />
+          ))}
+        </>,
+        document.getElementById('minimized-taskbar-root')
+      ) : (
+        <div className="minimized-taskbar-container">
+          {forms.map(form => form.isMinimized && (
+            <JobFormWindow
+              key={form.id}
+              formConfig={form}
+              onClose={handleClose}
+              onMinimize={handleMinimize}
+              onRestore={handleRestore}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 };

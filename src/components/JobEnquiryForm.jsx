@@ -1,6 +1,7 @@
 // src/components/JobEnquiryForm.jsx
 import './JobEnquiryForm.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchNextEnquiryNumber } from '../utils/enquiryUtils';
@@ -509,17 +510,32 @@ const GlobalEnquiryForm = () => {
         />
       ))}
 
-      <div className="enquiry-minimized-taskbar">
-        {forms.map(form => form.isMinimized && (
-          <EnquiryFormWindow
-            key={form.id}
-            formConfig={form}
-            onClose={handleClose}
-            onMinimize={handleMinimize}
-            onRestore={handleRestore}
-          />
-        ))}
-      </div>
+      {document.getElementById('minimized-taskbar-root') ? createPortal(
+        <>
+          {forms.map(form => form.isMinimized && (
+            <EnquiryFormWindow
+              key={form.id}
+              formConfig={form}
+              onClose={handleClose}
+              onMinimize={handleMinimize}
+              onRestore={handleRestore}
+            />
+          ))}
+        </>,
+        document.getElementById('minimized-taskbar-root')
+      ) : (
+        <div className="enquiry-minimized-taskbar">
+          {forms.map(form => form.isMinimized && (
+            <EnquiryFormWindow
+              key={form.id}
+              formConfig={form}
+              onClose={handleClose}
+              onMinimize={handleMinimize}
+              onRestore={handleRestore}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 };

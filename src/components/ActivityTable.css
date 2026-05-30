@@ -221,7 +221,6 @@
   padding-bottom: 80px;
 }
 
-/* Minimized Taskbar Container */
 .minimized-taskbar-container {
   position: fixed;
   bottom: 20px;
@@ -233,6 +232,7 @@
   max-width: 90vw;
   overflow-x: auto;
   padding: 10px;
+  pointer-events: none;
 }
 
 /* Minimized Taskbar Style */
@@ -246,6 +246,7 @@
   transition: all 0.3s ease;
   animation: slideUp 0.3s ease;
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 .minimized-job-bar:hover {

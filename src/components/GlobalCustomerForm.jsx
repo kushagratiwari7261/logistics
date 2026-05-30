@@ -1,174 +1,85 @@
-import './CustomerManagement.css';
-import React, { useState, useEffect } from "react";
-import { X } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from "react";
+import { Minus, X, Maximize2 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { supabase } from '../lib/supabaseClient';
+import './CustomerManagement.css';
 
-const CustomerPage = ({ partnerType = 'customer' }) => {
-  const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [viewModal, setViewModal] = useState(false);
-  const [viewingCustomer, setViewingCustomer] = useState(null);
+const INITIAL_FORM_DATA = {
+  vendorName: "", country: "", address1: "", address2: "", city: "", state: "", postalCode: "",
+  contactPerson: "", telephone: "", mobile: "", email: "", bankAccountNumber: "", beneficiaryAccountName: "",
+  bankName: "", bankAddress: "", bankBranchState: "", bankBranchName: "", bankMicrCode: "", bankRtgsIfscCode: "",
+  accountType: "", currency: "", panNumber: "", tanNumber: "", gstNumber: "", gstinDivision: "",
+  hsnCode: "", vendorType: "", gstNotApplicableReason: "", msmeVendor: "", msmeCertificationDate: "",
+  msmeRegNo: "", vendor_no: "", declaration: false
+};
 
+const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
+  const { id, partnerType, editingCustomer, isMinimized } = formConfig;
   const displayType = partnerType.charAt(0).toUpperCase() + partnerType.slice(1);
 
-  const handleView = (customer) => {
-    setViewingCustomer(customer);
-    fetchCustomerFiles(customer.id);
-    setViewModal(true);
-  };
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
-  const [files, setFiles] = useState({
-    excelFile: null,
-    pdfFile: null,
-    panScan: null,
-    cancelledCheque: null,
-    gstRegistration: null,
-    msmeCertificate: null
-  });
-
+  const [error, setError] = useState(null);
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
-  const [formData, setFormData] = useState({
-    vendorName: "",
-    country: "",
-    address1: "",
-    address2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    contactPerson: "",
-    telephone: "",
-    mobile: "",
-    email: "",
-    bankAccountNumber: "",
-    beneficiaryAccountName: "",
-    bankName: "",
-    bankAddress: "",
-    bankBranchState: "",
-    bankBranchName: "",
-    bankMicrCode: "",
-    bankRtgsIfscCode: "",
-    accountType: "",
-    currency: "",
-    panNumber: "",
-    tanNumber: "",
-    gstNumber: "",
-    gstinDivision: "",
-    hsnCode: "",
-    vendorType: "",
-    gstNotApplicableReason: "",
-    msmeVendor: "",
-    msmeCertificationDate: "",
-    msmeRegNo: "",
-    vendor_no: "",
-    declaration: false
+
+  const [files, setFiles] = useState({
+    excelFile: null, pdfFile: null, panScan: null, cancelledCheque: null, gstRegistration: null, msmeCertificate: null
   });
 
-
-  // Fetch partners from Supabase filtered by type
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-        .eq('partner_type', partnerType)
-        .order('createdat', { ascending: false });
-
-      if (error) {
-        // Fallback for when Column doesn't exist yet or other errors
-        console.warn(`Error fetching ${partnerType}s:`, error);
-
-        // If it's a network error, fallback to cache
-        if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
-          window.dispatchEvent(new Event('force_offline'));
-          const cached = localStorage.getItem(`cache_customers_${partnerType}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            setCustomers(parsed);
-            setFilteredCustomers(parsed);
-          } else {
-            setCustomers([]);
-            setFilteredCustomers([]);
-          }
-          return;
-        }
-
-        const { data: allData, error: allErr } = await supabase
-          .from('vendors')
-          .select('*')
-          .order('createdat', { ascending: false });
-
-        if (allErr) {
-          if (allErr.message?.includes('Failed to fetch') || !navigator.onLine) {
-            window.dispatchEvent(new Event('force_offline'));
-            const cached = localStorage.getItem(`cache_customers_${partnerType}`);
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              setCustomers(parsed);
-              setFilteredCustomers(parsed);
-            } else {
-              setCustomers([]);
-              setFilteredCustomers([]);
-            }
-            return;
-          }
-          throw allErr;
-        }
-
-        const validAllData = allData || [];
-        localStorage.setItem(`cache_customers_${partnerType}`, JSON.stringify(validAllData));
-        setCustomers(validAllData);
-        setFilteredCustomers(validAllData);
-      } else {
-        const validData = data || [];
-        localStorage.setItem(`cache_customers_${partnerType}`, JSON.stringify(validData));
-        setCustomers(validData);
-        setFilteredCustomers(validData);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${partnerType}s catch block:`, error);
-      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
-        window.dispatchEvent(new Event('force_offline'));
-        const cached = localStorage.getItem(`cache_customers_${partnerType}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setCustomers(parsed);
-          setFilteredCustomers(parsed);
-        } else {
-          setCustomers([]);
-          setFilteredCustomers([]);
-        }
-      } else {
-        setError(error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [formData, setFormData] = useState({ ...INITIAL_FORM_DATA });
 
   useEffect(() => {
     if (editingCustomer) {
+      setFormData(editingCustomer);
       fetchCustomerFiles(editingCustomer.id);
     }
+    fetchCountries();
   }, [editingCustomer]);
 
-  // Handle auto-opening modal via URL parameter (for Header quick-actions)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('add') === 'true') {
-      handleAddNew();
-      // Remove the parameter from URL without refreshing
-      window.history.replaceState({}, '', window.location.pathname);
+    if (formData.country) {
+      fetchStates(formData.country);
     }
-  }, [partnerType]); // Re-run when switching between vendor/customer pages
+  }, [formData.country]);
 
+  const fetchCountries = async () => {
+    try {
+      const response = await fetch("https://restcountries.com/v3.1/all?fields=name");
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error('Invalid response format');
+      const sortedCountries = data
+        .map(country => country.name?.common)
+        .filter(Boolean)
+        .sort();
+      setCountries(sortedCountries);
+    } catch (error) {
+      console.error("Error fetching countries, using fallback list:", error);
+      // Fallback list of common countries
+      setCountries([
+        "Afghanistan", "Argentina", "Australia", "Bangladesh", "Belgium", "Brazil",
+        "Canada", "China", "Denmark", "Egypt", "Finland", "France", "Germany",
+        "Greece", "Hong Kong", "India", "Indonesia", "Iran", "Iraq", "Ireland",
+        "Israel", "Italy", "Japan", "Kenya", "Kuwait", "Malaysia", "Mexico",
+        "Nepal", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
+        "Pakistan", "Philippines", "Poland", "Portugal", "Qatar", "Russia",
+        "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
+        "Sri Lanka", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
+        "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
+      ]);
+    }
+  };
+  const fetchStates = async (country) => {
+    try {
+      const sampleStates = [
+        "State 1", "State 2", "State 3", "State 4", "State 5"
+      ];
+      setStates(sampleStates);
+    } catch (error) {
+      console.error("Error fetching states:", error);
+    }
+  };
   const fetchCustomerFiles = async (customerId) => {
     try {
       const { data, error } = await supabase
@@ -193,7 +104,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       console.error("Error fetching customer files:", error);
     }
   };
-
   const handleFileUpload = async (file, fileType, customerId) => {
     try {
       setUploading(true);
@@ -236,7 +146,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       setUploadProgress(prev => ({ ...prev, [fileType]: null }));
     }
   };
-
   const updateFileRecord = async (fileType, url, path, customerId) => {
     try {
       // Map fileType to correct column names
@@ -290,7 +199,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       console.error("Error updating file record:", error);
     }
   };
-
   const handleFileRemove = async (fileType, customerId) => {
     try {
       // First check if we have a file to remove
@@ -349,84 +257,6 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
       alert(`Error removing file: ${error.message}`);
     }
   };
-
-  // Fetch countries and partners on component mount or when partnerType changes
-  useEffect(() => {
-    fetchCustomers();
-    fetchCountries();
-  }, [partnerType]);
-
-  // Fetch states when country changes
-  useEffect(() => {
-    if (formData.country) {
-      fetchStates(formData.country);
-    }
-  }, [formData.country]);
-
-  // Handle search functionality
-  useEffect(() => {
-    const filtered = customers.filter(customer =>
-      customer.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.city && customer.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.vendor_no && customer.vendor_no.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setFilteredCustomers(filtered);
-  }, [searchTerm, customers]);
-
-  const fetchCountries = async () => {
-    try {
-      const response = await fetch("https://restcountries.com/v3.1/all?fields=name");
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
-      const data = await response.json();
-      if (!Array.isArray(data)) throw new Error('Invalid response format');
-      const sortedCountries = data
-        .map(country => country.name?.common)
-        .filter(Boolean)
-        .sort();
-      setCountries(sortedCountries);
-    } catch (error) {
-      console.error("Error fetching countries, using fallback list:", error);
-      // Fallback list of common countries
-      setCountries([
-        "Afghanistan", "Argentina", "Australia", "Bangladesh", "Belgium", "Brazil",
-        "Canada", "China", "Denmark", "Egypt", "Finland", "France", "Germany",
-        "Greece", "Hong Kong", "India", "Indonesia", "Iran", "Iraq", "Ireland",
-        "Israel", "Italy", "Japan", "Kenya", "Kuwait", "Malaysia", "Mexico",
-        "Nepal", "Netherlands", "New Zealand", "Nigeria", "Norway", "Oman",
-        "Pakistan", "Philippines", "Poland", "Portugal", "Qatar", "Russia",
-        "Saudi Arabia", "Singapore", "South Africa", "South Korea", "Spain",
-        "Sri Lanka", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
-        "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
-      ]);
-    }
-  };
-
-  const fetchStates = async (country) => {
-    try {
-      const sampleStates = [
-        "State 1", "State 2", "State 3", "State 4", "State 5"
-      ];
-      setStates(sampleStates);
-    } catch (error) {
-      console.error("Error fetching states:", error);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value
-    }));
-
-    // Auto-generate vendor/customer number when city changes
-    if (name === "city" && value && value.trim().length >= 3 && !editingCustomer) {
-      generatePartnerCode(value);
-    }
-  };
-
   const generatePartnerCode = async (cityName) => {
     try {
       const cleanCity = cityName.trim().replace(/[^a-zA-Z]/g, '');
@@ -467,34 +297,15 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     }
   };
 
-  const handleAddNew = () => {
-    window.dispatchEvent(new CustomEvent('open_global_customer_form', {
-      detail: { partnerType, editingCustomer: null }
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
     }));
-  };
 
-  const handleEdit = (customer) => {
-    window.dispatchEvent(new CustomEvent('open_global_customer_form', {
-      detail: { partnerType, editingCustomer: customer }
-    }));
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm(`Are you sure you want to delete this ${partnerType}?`)) {
-      try {
-        const { error } = await supabase
-          .from('vendors')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-
-        // Refresh the customer list
-        fetchCustomers();
-      } catch (error) {
-        console.error("Error deleting vendor:", error);
-        setError(error.message);
-      }
+    if (name === "city" && value && value.trim().length >= 3 && !editingCustomer) {
+      generatePartnerCode(value);
     }
   };
 
@@ -620,18 +431,17 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         msmeCertificate: null
       });
 
-      setShowModal(false);
-      setEditingCustomer(null);
+
+
 
       // Refresh the list
-      fetchCustomers();
+      window.dispatchEvent(new Event('refresh_customer_list')); onClose(id);
     } catch (error) {
       console.error(`Error saving ${partnerType}:`, error);
       setError(error.message);
     }
   };
 
-  // File upload component
   const FileUploadField = ({ label, fileType, required = false }) => (
     <div className="form-group">
       <label>{label} {required && '*'}</label>
@@ -682,386 +492,63 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
             <div
               className="progress-bar"
               style={{ width: `${uploadProgress[fileType]}%` }}
-            >
-              {uploadProgress[fileType]}%
-            </div>
+            ></div>
+            <span className="progress-text">{uploadProgress[fileType]}%</span>
           </div>
         )}
       </div>
     </div>
   );
 
-  if (loading) return <div className="loading">Loading {partnerType}s...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (isMinimized) {
+                    return (
+                      <div className="minimized-job-bar" onClick={() => onRestore(id)}>
+                        <div className="minimized-job-content">
+                          <span className="minimized-job-title">
+                            {editingCustomer ? `Editing ${displayType}` : `Creating ${displayType}`} - {formData.vendorName || 'Draft'}
+                          </span>
+                          <div className="minimized-actions">
+                            <button type="button" className="window-btn" title="Restore"><Maximize2 size={14} /></button>
+                            <button
+                              type="button"
+                              className="window-btn close-btn"
+                              onClick={(e) => { e.stopPropagation(); onClose(id); }}
+                              title="Close"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
-  return (
-    <div className="customer-management">
-      <div className="page-header">
-        <h1>{displayType} Management</h1>
-        <button className="btn btn-primary" onClick={handleAddNew}>
-          Add New {displayType}
-        </button>
-      </div>
-
-      <div className="search-bar-sticky">
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder={`Search ${partnerType}s by number, name, city, email, or contact person...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="customers-table-container">
-        <table className="customers-table">
-          <thead>
-            <tr>
-              <th>{displayType} Number</th>
-              <th>{displayType} Name</th>
-              <th>Contact Person</th>
-              <th>Email</th>
-              <th>Mobile</th>
-              <th>City</th>
-              <th>Country</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer, index) => (
-                <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer', animationDelay: `${index * 0.03}s` }} className="row-animate">
-                  <td>{customer.vendor_no || 'N/A'}</td>
-                  <td>{customer.vendorName}</td>
-                  <td>{customer.contactPerson}</td>
-                  <td>{customer.email}</td>
-                  <td>{customer.mobile}</td>
-                  <td>{customer.city}</td>
-                  <td>{customer.country}</td>
-                  <td className="actions-cell">
-                    <button
-                      className="btn btn-sm btn-outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(customer);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(customer.id);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (<tr>
-              <td colSpan="8" className="no-data">
-                No {partnerType}s found. {searchTerm ? "Try a different search." : `Add a new ${partnerType} to get started.`}
-              </td>
-            </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {/* View Details Modal */}
-      {viewModal && viewingCustomer && (
-        <div className="modal-overlay">
-          <div className="modal large-modal">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>{displayType} Details: {viewingCustomer.vendorName}</h2>
-              <button 
-                onClick={() => setViewModal(false)} 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', color: '#ef4444' }}
-                title="Close"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="vendor-details">
-              <div className="details-section">
-                <h3>Basic Information</h3>
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>{displayType} Number:</label>
-                    <span>{viewingCustomer.vendor_no || 'N/A'}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>{displayType} Name:</label>
-                    <span>{viewingCustomer.vendorName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Country:</label>
-                    <span>{viewingCustomer.country}</span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <label>Address Line 1:</label>
-                  <span>{viewingCustomer.address1}</span>
-                </div>
-
-                <div className="detail-item">
-                  <label>Address Line 2:</label>
-                  <span>{viewingCustomer.address2}</span>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>City:</label>
-                    <span>{viewingCustomer.city}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>State:</label>
-                    <span>{viewingCustomer.state}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Postal Code:</label>
-                    <span>{viewingCustomer.postalCode}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="details-section">
-                <h3>Contact Information</h3>
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Contact Person:</label>
-                    <span>{viewingCustomer.contactPerson}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Telephone:</label>
-                    <span>{viewingCustomer.telephone}</span>
-                  </div>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Mobile Number:</label>
-                    <span>{viewingCustomer.mobile}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Email Address:</label>
-                    <span>{viewingCustomer.email}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="details-section">
-                <h3>Bank Information</h3>
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Bank Account Number:</label>
-                    <span>{viewingCustomer.bankAccountNumber}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Beneficiary Account Name:</label>
-                    <span>{viewingCustomer.beneficiaryAccountName}</span>
-                  </div>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Bank Name:</label>
-                    <span>{viewingCustomer.bankName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Bank Branch Name:</label>
-                    <span>{viewingCustomer.bankBranchName}</span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <label>Bank Address:</label>
-                  <span>{viewingCustomer.bankAddress}</span>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Bank Branch State:</label>
-                    <span>{viewingCustomer.bankBranchState}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Bank MICR Code:</label>
-                    <span>{viewingCustomer.bankMicrCode}</span>
-                  </div>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Bank RTGS/IFSC Code:</label>
-                    <span>{viewingCustomer.bankRtgsIfscCode}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Account Type:</label>
-                    <span>{viewingCustomer.accountType}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>Currency:</label>
-                    <span>{viewingCustomer.currency}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="details-section">
-                <h3>Tax Information</h3>
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>PAN Number:</label>
-                    <span>{viewingCustomer.panNumber}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>TAN Number:</label>
-                    <span>{viewingCustomer.tanNumber}</span>
-                  </div>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>GST Number:</label>
-                    <span>{viewingCustomer.gstNumber}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>GSTIN Division:</label>
-                    <span>{viewingCustomer.gstinDivision}</span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <label>HSN Code:</label>
-                  <span>{viewingCustomer.hsnCode}</span>
-                </div>
-
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>Vendor Type:</label>
-                    <span>{viewingCustomer.vendorType}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>GST Not Applicable Reason:</label>
-                    <span>{viewingCustomer.gstNotApplicableReason}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="details-section">
-                <h3>MSME Information</h3>
-                <div className="details-row">
-                  <div className="detail-item">
-                    <label>MSME Vendor:</label>
-                    <span>{viewingCustomer.msmeVendor}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label>MSME Certification Date:</label>
-                    <span>{viewingCustomer.msmeCertificationDate}</span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <label>MSME Registration Number:</label>
-                  <span>{viewingCustomer.msmeRegNo}</span>
-                </div>
-              </div>
-
-              <div className="details-section">
-                <h3>Documents</h3>
-                <div className="document-list">
-                  {files.excelFile && (
-                    <div className="document-item">
-                      <span>Excel File</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.excelFile.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                  {files.pdfFile && (
-                    <div className="document-item">
-                      <span>PDF File</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.pdfFile.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                  {files.panScan && (
-                    <div className="document-item">
-                      <span>PAN Scan</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.panScan.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                  {files.cancelledCheque && (
-                    <div className="document-item">
-                      <span>Cancelled Cheque</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.cancelledCheque.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                  {files.gstRegistration && (
-                    <div className="document-item">
-                      <span>GST Registration</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.gstRegistration.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                  {files.msmeCertificate && (
-                    <div className="document-item">
-                      <span>MSME Certificate</span>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => window.open(files.msmeCertificate.url, '_blank')}
-                      >
-                        View
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button
-                type="button"
-                onClick={() => { setViewModal(false); setViewingCustomer(null); }}
-                className="btn btn-secondary"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal large-modal">
-            <h2>{editingCustomer ? `Edit ${displayType}` : `Add New ${displayType}`}</h2>
-            <form onSubmit={handleSave} className="vendor-form">
+                  return (
+<div className="modal-overlay">
+                      <div className="modal large-modal" style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                          <h2 style={{ margin: 0 }}>{editingCustomer ? `Edit ${displayType}` : `Add New ${displayType}`}</h2>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => onMinimize(id)}
+                              title="Minimize"
+                              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
+                            >
+                              <Minus size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onClose(id)}
+                              title="Close"
+                              style={{ background: '#e74c3c', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+<form onSubmit={handleSave} className="vendor-form">
               <div className="form-section">
                 <h3>Basic Information</h3>
                 <div className="form-row">
@@ -1516,7 +1003,7 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
               <div className="modal-actions">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setEditingCustomer(null); }}
+                  onClick={() => onClose(id)}
                   className="btn btn-secondary"
                 >
                   Cancel
@@ -1530,15 +1017,94 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-
-      
-
-    </div >
+                        </div>
+                      </div>
+                    </div>
   );
 };
 
-export default CustomerPage;
+const GlobalCustomerForm = () => {
+  const [forms, setForms] = useState([]);
+
+  useEffect(() => {
+    const handleOpenGlobalForm = (event) => {
+      const {partnerType = 'customer', editingCustomer = null} = event.detail || { };
+      
+      setForms(prev => {
+        if (editingCustomer) {
+          const existingForm = prev.find(f => f.editingCustomer?.id === editingCustomer.id);
+                        if (existingForm) {
+            return prev.map(f => f.id === existingForm.id ? {...f, isMinimized: false } : {...f, isMinimized: true });
+          }
+        }
+
+                        const newForm = {
+                          id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                        partnerType,
+                        editingCustomer,
+                        isMinimized: false
+        };
+
+        return [...prev.map(f => ({...f, isMinimized: true })), newForm];
+      });
+    };
+
+                        window.addEventListener('open_global_customer_form', handleOpenGlobalForm);
+    return () => window.removeEventListener('open_global_customer_form', handleOpenGlobalForm);
+  }, []);
+
+  const handleClose = useCallback((id) => {
+                          setForms(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  const handleMinimize = useCallback((id) => {
+                          setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true } : f));
+  }, []);
+
+  const handleRestore = useCallback((id) => {
+                          setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: false } : { ...f, isMinimized: true }));
+  }, []);
+
+                        return (
+                        <>
+                          {forms.map(form => !form.isMinimized && (
+                            <CustomerFormWindow
+                              key={form.id}
+                              formConfig={form}
+                              onClose={handleClose}
+                              onMinimize={handleMinimize}
+                              onRestore={handleRestore}
+                            />
+                          ))}
+
+                          {document.getElementById('minimized-taskbar-root') ? createPortal(
+                            <>
+                              {forms.map(form => form.isMinimized && (
+                                <CustomerFormWindow
+                                  key={form.id}
+                                  formConfig={form}
+                                  onClose={handleClose}
+                                  onMinimize={handleMinimize}
+                                  onRestore={handleRestore}
+                                />
+                              ))}
+                            </>,
+                            document.getElementById('minimized-taskbar-root')
+                          ) : (
+                            <div className="minimized-taskbar-container">
+                              {forms.map(form => form.isMinimized && (
+                                <CustomerFormWindow
+                                  key={form.id}
+                                  formConfig={form}
+                                  onClose={handleClose}
+                                  onMinimize={handleMinimize}
+                                  onRestore={handleRestore}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                        );
+};
+
+                        export default GlobalCustomerForm;

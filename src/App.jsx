@@ -95,6 +95,7 @@ import MarkAttendance from './components/MarkAttendance'
 import AdminDashboard from './components/AdminDashboard'
 import AttendanceStats from './components/AttendanceStats'
 import GlobalJobForm from './components/GlobalJobForm'
+import GlobalCustomerForm from './components/GlobalCustomerForm'
 import GlobalEnquiryForm from './components/JobEnquiryForm'
 import JobEnquiryPage from './components/JobEnquiryPage'
 
@@ -133,7 +134,7 @@ function App() {
         const enqRaw = sessionStorage.getItem('enquiry_forms_v1');
         const jobs = jobsRaw ? JSON.parse(jobsRaw) : [];
         const enqs = enqRaw ? JSON.parse(enqRaw) : [];
-        
+
         if (jobs.length > 0 || enqs.length > 0) {
           e.preventDefault();
           e.returnValue = 'You have unsaved forms open. Are you sure you want to leave?';
@@ -143,7 +144,7 @@ function App() {
         // Ignored
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
@@ -179,7 +180,7 @@ function App() {
     const warmupServer = async () => {
       // Don't attempt to connect to localhost when running in production (Vercel)
       const serverUrl = import.meta.env.VITE_WEBSOCKET_URL || '';
-      
+
       if (!serverUrl || serverUrl.includes('localhost')) {
         if (import.meta.env.PROD) {
           console.log('ℹ️ Messaging server URL not configured for production; skipping warmup.');
@@ -222,7 +223,7 @@ function App() {
 
     const handleNewNotification = (data) => {
       console.log('🔔 New real-time notification:', data)
-      
+
       // Play sound
       if (notificationAudio.current) {
         notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e))
@@ -291,7 +292,7 @@ function App() {
         console.log('✅ Settings fetched:', data.theme, data.accent_color);
         if (data.theme) applyColorMode(data.theme);
         if (data.accent_color) applyAccent(data.accent_color);
-        
+
         // Update local storage for immediate load on next visit
         localStorage.setItem('sf_color_mode', data.theme);
         localStorage.setItem('sf_accent_color', data.accent_color);
@@ -412,7 +413,7 @@ function App() {
 
                 const currentPath = window.location.pathname;
                 if (['/login', '/forgot-password', '/register', '/'].includes(currentPath) &&
-                    shouldRedirect('/dashboard')) {
+                  shouldRedirect('/dashboard')) {
                   navigate('/dashboard', { replace: true });
                 }
               }
@@ -428,10 +429,10 @@ function App() {
 
               const signOutPath = window.location.pathname;
               if (!signOutPath.includes('/login') &&
-                  !signOutPath.includes('/forgot-password') &&
-                  !signOutPath.includes('/reset-password') &&
-                  !signOutPath.startsWith('/track') &&
-                  shouldRedirect('/login')) {
+                !signOutPath.includes('/forgot-password') &&
+                !signOutPath.includes('/reset-password') &&
+                !signOutPath.startsWith('/track') &&
+                shouldRedirect('/login')) {
                 navigate('/login', { replace: true });
               }
               break;
@@ -467,10 +468,10 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       console.log('🔌 Setting up real-time notification listener for user:', user.id);
-      
+
       const handleIncomingAlert = (data) => {
         console.log('🔔 New incoming alert:', data);
-        
+
         // Play notification sound
         if (notificationAudio.current) {
           notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
@@ -479,7 +480,7 @@ function App() {
         // Add to toast queue
         const id = Date.now();
         setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
-        
+
         // Auto-remove after 6 seconds
         setTimeout(() => {
           setInAppNotifications(prev => prev.filter(n => n.id !== id));
@@ -487,7 +488,7 @@ function App() {
       };
 
       socket.on('new_notification', handleIncomingAlert);
-      
+
       return () => {
         socket.off('new_notification', handleIncomingAlert);
       };
@@ -510,17 +511,17 @@ function App() {
             .select('id')
             .ilike('email', user.email)
             .maybeSingle();
-            
+
           if (!emp) return;
           employeeId = emp.id;
-          
+
           let empStart = null;
           const { data: empConf } = await supabase
             .from('employee_office_config')
             .select('start_time')
             .eq('employee_id', employeeId)
             .maybeSingle();
-            
+
           if (empConf?.start_time) {
             empStart = empConf.start_time;
           } else {
@@ -545,7 +546,7 @@ function App() {
           .eq('employee_id', employeeId)
           .eq('date', todayStr)
           .maybeSingle();
-          
+
         if (attData) {
           // Already marked today
           setShowAttendanceAlert(false);
@@ -557,7 +558,7 @@ function App() {
         const [hStart, mStart, sStart] = officeStart.split(':').map(Number);
         const startTarget = new Date();
         startTarget.setHours(hStart, mStart, sStart || 0, 0);
-        
+
         const endTarget = new Date();
         endTarget.setHours(12, 0, 0, 0);
 
@@ -793,10 +794,10 @@ function App() {
       const currentUserId = user?.id;
       const { count: messagesCount, error: messagesError } = currentUserId
         ? await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
-            .is('deleted_at', null)
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
+          .is('deleted_at', null)
         : { count: 0, error: null };
 
       // If you want to count only shipments with certain status as invoices
@@ -1121,131 +1122,132 @@ function App() {
         </div>
       )}
       <Routes>
-      {/* ── Auth routes — full screen, no sidebar ── */}
-      <Route
-        path="/login"
-        element={
-          isAuthenticated
-            ? <Navigate to="/dashboard" replace />
-            : <Login onLogin={handleLogin} />
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          isAuthenticated
-            ? <Navigate to="/dashboard" replace />
-            : <ForgotPassword onResetPassword={handleForgotPassword} />
-        }
-      />
-      <Route
-        path="/reset-password"
-        element={<ResetPassword onUpdatePassword={handleResetPassword} />}
-      />
-      <Route
-        path="/register"
-        element={
-          isAuthenticated
-            ? <Navigate to="/dashboard" replace />
-            : <Register onLogin={handleLogin} />
-        }
-      />
-      <Route
-        path="/track/:id"
-        element={<TrackShipment />}
-      />
-      <Route
-        path="/"
-        element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
-      />
+        {/* ── Auth routes — full screen, no sidebar ── */}
+        <Route
+          path="/login"
+          element={
+            isAuthenticated
+              ? <Navigate to="/dashboard" replace />
+              : <Login onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            isAuthenticated
+              ? <Navigate to="/dashboard" replace />
+              : <ForgotPassword onResetPassword={handleForgotPassword} />
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPassword onUpdatePassword={handleResetPassword} />}
+        />
+        <Route
+          path="/register"
+          element={
+            isAuthenticated
+              ? <Navigate to="/dashboard" replace />
+              : <Register onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/track/:id"
+          element={<TrackShipment />}
+        />
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+        />
 
-      {/* ── Authenticated routes — with sidebar ── */}
-      <Route
-        path="/*"
-        element={
-          <div className="dashboard-container">
-            {isAuthenticated && (
-              <Sidebar
-                mobileMenuOpen={mobileMenuOpen}
-                toggleMobileMenu={toggleMobileMenu}
-                onLogout={handleLogout}
-                user={user}
-              />
-            )}
-            <main className="main-content">
-              {error && (
-                <div className="error-banner">
-                  <span>{error}</span>
-                  <button onClick={() => setError(null)}>×</button>
-                </div>
+        {/* ── Authenticated routes — with sidebar ── */}
+        <Route
+          path="/*"
+          element={
+            <div className="dashboard-container">
+              {isAuthenticated && (
+                <Sidebar
+                  mobileMenuOpen={mobileMenuOpen}
+                  toggleMobileMenu={toggleMobileMenu}
+                  onLogout={handleLogout}
+                  user={user}
+                />
               )}
-
-              {showAttendanceAlert && (
-                <div style={{
-                  position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-                  backgroundColor: '#ef4444', color: 'white', padding: '1rem 2rem',
-                  borderRadius: '12px', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
-                  zIndex: 9999, display: 'flex', alignItems: 'center', gap: '12px',
-                  fontWeight: '600'
-                }}>
-                  <AlertTriangle size={24} className="animate-pulse" />
-                  <span>{attendanceAlertMessage}</span>
-                  <button 
-                    onClick={() => {
-                      setShowAttendanceAlert(false);
-                      navigate('/attendance');
-                    }}
-                    style={{
-                      marginLeft: '1rem', padding: '0.5rem 1rem', background: 'white',
-                      color: '#ef4444', border: 'none', borderRadius: '6px',
-                      cursor: 'pointer', fontWeight: 'bold'
-                    }}
-                  >
-                    Mark Now
-                  </button>
-                  <button 
-                    onClick={() => setShowAttendanceAlert(false)}
-                    style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '0.5rem' }}
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              )}
-
-              <Routes>
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/vendors" element={<ProtectedRoute><CustomerPage partnerType="vendor" /></ProtectedRoute>} />
-                <Route path="/customers" element={<ProtectedRoute><CustomerPage partnerType="customer" /></ProtectedRoute>} />
-                <Route path="/new-shipment" element={<ProtectedRoute><NewShipments /></ProtectedRoute>} />
-                <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
-                <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-                <Route path="/tracking" element={<ProtectedRoute><ShipmentTracking /></ProtectedRoute>} />
-                <Route path="/payments" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
-                <Route path="/dsr" element={<ProtectedRoute><DSRPage /></ProtectedRoute>} />
-                <Route path="/job-enquiry" element={<ProtectedRoute><JobEnquiryPage /></ProtectedRoute>} />
-                <Route path="/job-orders" element={<ProtectedRoute><ActiveJob /></ProtectedRoute>} />
-                <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-                <Route path="/job-allocation" element={<ProtectedRoute><JobAllocation user={user} /></ProtectedRoute>} />
-                <Route path="/messages" element={<ProtectedRoute><MessagesMain user={user} key={user?.id} /></ProtectedRoute>} />
-                <Route path="/attendance" element={<ProtectedRoute><MarkAttendance onBack={() => navigate('/dashboard')} /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute><AdminDashboard onBack={() => navigate('/dashboard')} /></ProtectedRoute>} />
-                <Route path="/admin/stats" element={<ProtectedRoute><AttendanceStats onBack={() => navigate('/admin')} /></ProtectedRoute>} />
-                <Route path="*" element={
-                  <div className="page-container">
-                    <h1>404 - Page Not Found</h1>
-                    <p>The page you&apos;re looking for doesn&apos;t exist.</p>
-                    <button onClick={() => navigate('/dashboard')}>Go to Dashboard</button>
+              <main className="main-content">
+                {error && (
+                  <div className="error-banner">
+                    <span>{error}</span>
+                    <button onClick={() => setError(null)}>×</button>
                   </div>
-                } />
-              </Routes>
-            </main>
-            {isAuthenticated && <GlobalJobForm />}
-            {isAuthenticated && <GlobalEnquiryForm />}
-          </div>
-        }
-      />
-    </Routes>
+                )}
+
+                {showAttendanceAlert && (
+                  <div style={{
+                    position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: '#ef4444', color: 'white', padding: '1rem 2rem',
+                    borderRadius: '12px', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', gap: '12px',
+                    fontWeight: '600'
+                  }}>
+                    <AlertTriangle size={24} className="animate-pulse" />
+                    <span>{attendanceAlertMessage}</span>
+                    <button
+                      onClick={() => {
+                        setShowAttendanceAlert(false);
+                        navigate('/attendance');
+                      }}
+                      style={{
+                        marginLeft: '1rem', padding: '0.5rem 1rem', background: 'white',
+                        color: '#ef4444', border: 'none', borderRadius: '6px',
+                        cursor: 'pointer', fontWeight: 'bold'
+                      }}
+                    >
+                      Mark Now
+                    </button>
+                    <button
+                      onClick={() => setShowAttendanceAlert(false)}
+                      style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', marginLeft: '0.5rem' }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                )}
+
+                <Routes>
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/vendors" element={<ProtectedRoute><CustomerPage partnerType="vendor" /></ProtectedRoute>} />
+                  <Route path="/customers" element={<ProtectedRoute><CustomerPage partnerType="customer" /></ProtectedRoute>} />
+                  <Route path="/new-shipment" element={<ProtectedRoute><NewShipments /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
+                  <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+                  <Route path="/tracking" element={<ProtectedRoute><ShipmentTracking /></ProtectedRoute>} />
+                  <Route path="/payments" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
+                  <Route path="/dsr" element={<ProtectedRoute><DSRPage /></ProtectedRoute>} />
+                  <Route path="/job-enquiry" element={<ProtectedRoute><JobEnquiryPage /></ProtectedRoute>} />
+                  <Route path="/job-orders" element={<ProtectedRoute><ActiveJob /></ProtectedRoute>} />
+                  <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
+                  <Route path="/job-allocation" element={<ProtectedRoute><JobAllocation user={user} /></ProtectedRoute>} />
+                  <Route path="/messages" element={<ProtectedRoute><MessagesMain user={user} key={user?.id} /></ProtectedRoute>} />
+                  <Route path="/attendance" element={<ProtectedRoute><MarkAttendance onBack={() => navigate('/dashboard')} /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute><AdminDashboard onBack={() => navigate('/dashboard')} /></ProtectedRoute>} />
+                  <Route path="/admin/stats" element={<ProtectedRoute><AttendanceStats onBack={() => navigate('/admin')} /></ProtectedRoute>} />
+                  <Route path="*" element={
+                    <div className="page-container">
+                      <h1>404 - Page Not Found</h1>
+                      <p>The page you&apos;re looking for doesn&apos;t exist.</p>
+                      <button onClick={() => navigate('/dashboard')}>Go to Dashboard</button>
+                    </div>
+                  } />
+                </Routes>
+              </main>
+              {isAuthenticated && <GlobalJobForm />}
+              {isAuthenticated && <GlobalCustomerForm />}
+              {isAuthenticated && <GlobalEnquiryForm />}
+            </div>
+          }
+        />
+      </Routes>
     </>
   );
 }
