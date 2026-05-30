@@ -591,12 +591,12 @@ function App() {
       fetchDashboardData();
 
       // --- REAL-TIME DASHBOARD SYNC ---
-      // Listen to ANY changes in shipments or jobs to keep the dashboard counts/lists fresh
+      // Listen to ANY changes in job enquiries or jobs to keep the dashboard counts/lists fresh
       console.log('📡 Setting up global dashboard sync...');
       const dashChannel = supabase
         .channel('dashboard-global-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, (payload) => {
-          console.log('🔄 Shipment change detected, refreshing dashboard...', payload.eventType);
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'job_enquiries' }, (payload) => {
+          console.log('🔄 Job Enquiry change detected, refreshing dashboard...', payload.eventType);
           fetchDashboardData();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
@@ -780,9 +780,9 @@ function App() {
   const fetchStatsData = async () => {
     setIsStatsLoading(true);
     try {
-      // Total shipments count
-      const { count: totalShipments, error: shipmentsError } = await supabase
-        .from('shipments')
+      // Job Enquiries count
+      const { count: totalEnquiries, error: enquiriesError } = await supabase
+        .from('job_enquiries')
         .select('*', { count: 'exact', head: true });
 
       // Jobs count
@@ -809,15 +809,15 @@ function App() {
       // OR simpler: Just use the same as total shipments
       // const invoicesCount = totalShipments;
 
-      if (shipmentsError || jobsError || invoicesError || messagesError) {
-        console.error('Error fetching stats:', { shipmentsError, jobsError, invoicesError, messagesError });
+      if (enquiriesError || jobsError || invoicesError || messagesError) {
+        console.error('Error fetching stats:', { enquiriesError, jobsError, invoicesError, messagesError });
         const cached = localStorage.getItem('cache_dashboard_stats');
         if (cached) {
           setStatsData(JSON.parse(cached));
         } else {
           // Fallback to default values
           setStatsData([
-            { label: 'Total Shipments', value: '0', icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
+            { label: 'Job Enquiries', value: '0', icon: 'blue', id: 'total-enquiries', path: '/job-enquiry' },
             { label: 'Jobs', value: '0', icon: 'teal', id: 'Jobs', path: '/job-orders' },
             { label: 'Invoices', value: '0', icon: 'yellow', id: 'Invoices', path: '/invoices' },
             { label: 'Messages', value: '0', icon: 'red', id: 'Messages', path: '/messages' }
@@ -829,9 +829,9 @@ function App() {
       const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
 
       const newStats = [
-        { label: 'Total Shipments', value: formatNumber(totalShipments), icon: 'blue', id: 'total-shipments', path: '/new-shipment' },
+        { label: 'Job Enquiries', value: formatNumber(totalEnquiries), icon: 'blue', id: 'total-enquiries', path: '/job-enquiry' },
         { label: 'Jobs', value: formatNumber(jobsCount), icon: 'teal', id: 'Jobs', path: '/job-orders' },
-        { label: 'Invoices', value: formatNumber(invoicesCount || totalShipments), icon: 'yellow', id: 'Invoices', path: '/invoices' },
+        { label: 'Invoices', value: formatNumber(invoicesCount || 0), icon: 'yellow', id: 'Invoices', path: '/invoices' },
         { label: 'Messages', value: formatNumber(messagesCount), icon: 'red', id: 'Messages', path: '/messages' }
       ];
       localStorage.setItem('cache_dashboard_stats', JSON.stringify(newStats));
@@ -883,19 +883,19 @@ function App() {
     }
   };
 
-  // Fetch shipments data from Supabase
+  // Fetch job enquiries data from Supabase for dashboard
   const fetchShipmentsData = async () => {
     setIsShipmentsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('shipments')
+        .from('job_enquiries')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) {
-        console.error('Error fetching shipments:', error);
-        const cached = localStorage.getItem('cache_dashboard_shipments');
+        console.error('Error fetching job enquiries:', error);
+        const cached = localStorage.getItem('cache_dashboard_enquiries');
         if (cached) {
           setDashboardShipmentsData(JSON.parse(cached));
         } else {
@@ -904,20 +904,20 @@ function App() {
         return;
       }
 
-      console.log('Shipments data from Supabase:', data);
+      console.log('Job Enquiries data from Supabase:', data);
 
-      const formattedData = data.map(shipment => ({
-        id: shipment.id || shipment.shipment_id || shipment.tracking_number || 'N/A',
-        destination: shipment.destination || shipment.to_address || shipment.delivery_address || 'Unknown Destination',
-        status: shipment.status || 'Unknown',
-        date: shipment.created_at ? new Date(shipment.created_at).toLocaleDateString() : 'Unknown date'
+      const formattedData = data.map(enquiry => ({
+        id: enquiry.enquiry_no || enquiry.id || 'N/A',
+        destination: enquiry.customer_name || 'Unknown Customer',
+        status: enquiry.status || 'Unknown',
+        date: enquiry.enquiry_date ? new Date(enquiry.enquiry_date).toLocaleDateString() : 'Unknown date'
       }));
 
-      localStorage.setItem('cache_dashboard_shipments', JSON.stringify(formattedData));
+      localStorage.setItem('cache_dashboard_enquiries', JSON.stringify(formattedData));
       setDashboardShipmentsData(formattedData);
     } catch (error) {
       console.error('Error in fetchShipmentsData:', error);
-      setError('Failed to load shipments data.');
+      setError('Failed to load job enquiries data.');
     } finally {
       setIsShipmentsLoading(false);
     }
@@ -971,12 +971,12 @@ function App() {
   const DashboardShipmentsSummary = ({ shipments, onViewAll, isLoading }) => (
     <div className="card card-shipments">
       <div className="card-header">
-        <h2>Recent Shipments</h2>
+        <h2>Recent Job Enquiries</h2>
         <button className="view-all-btn" onClick={onViewAll}>View All</button>
       </div>
       <div className="summary-content">
         {isLoading ? (
-          <div className="loading-message">Loading shipments...</div>
+          <div className="loading-message">Loading job enquiries...</div>
         ) : shipments && shipments.length > 0 ? (
           shipments.slice(0, 3).map(shipment => (
             <div key={shipment.id} className="summary-item">
@@ -993,7 +993,7 @@ function App() {
             </div>
           ))
         ) : (
-          <div className="no-data-message">No shipments found</div>
+          <div className="no-data-message">No job enquiries found</div>
         )}
       </div>
     </div>
@@ -1042,7 +1042,7 @@ function App() {
           />
           <DashboardShipmentsSummary
             shipments={dashboardShipmentsData}
-            onViewAll={() => navigate('/new-shipment')}
+            onViewAll={() => navigate('/job-enquiry')}
             isLoading={isShipmentsLoading}
           />
         </div>
