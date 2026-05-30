@@ -120,10 +120,6 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
       </div>
 
       <div className="header-actions">
-        <button className="primary-button" onClick={createNewShipment} id="new-shipment-btn">
-          <Plus size={16} />
-          New Shipment
-        </button>
         <button
           className="primary-button"
           onClick={creatActiveJob}
@@ -141,26 +137,6 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
         >
           <FileText size={16} />
           New Enquiry
-        </button>
-
-        <button
-          className="primary-button"
-          onClick={() => navigate('/vendors?add=true')}
-          id="header-add-vendor-btn"
-          style={{ background: 'var(--brand-secondary)', boxShadow: 'var(--shadow-md)' }}
-        >
-          <UserPlus size={16} />
-          Add Vendor
-        </button>
-
-        <button
-          className="primary-button"
-          onClick={() => navigate('/customers?add=true')}
-          id="header-add-customer-btn"
-          style={{ background: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)' }}
-        >
-          <Users size={16} />
-          Add Customer
         </button>
 
         {/* Notification Bell */}
