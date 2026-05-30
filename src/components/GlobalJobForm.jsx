@@ -1210,7 +1210,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           <h2>Air Freight Details - {tradeDirection}</h2>
           <div className="form-grid-two-column">
             {[
-              { label: 'Job No.', name: 'jobNo', type: 'number' },
+              { label: 'Job No.', name: 'jobNo', type: 'text' },
               { label: 'Shipper', name: 'shipper', type: 'text' },
               { label: 'Consignee', name: 'consignee', type: 'text' },
               { label: 'Notify Party', name: 'notify_party', type: 'text' },
@@ -1301,7 +1301,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               }
             </div>
             {[
-              { label: 'Job No.', name: 'jobNo', type: 'number' },
+              { label: 'Job No.', name: 'jobNo', type: 'text' },
               { label: 'Vehicle Type', name: 'vehicle_type', type: 'text' },
               { label: 'LRN No', name: 'lrn_no', type: 'text' },
               { label: 'From', name: 'from', type: 'text' },
@@ -1366,7 +1366,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           <h2>Port Details - {tradeDirection}</h2>
           <div className="form-grid-two-column">
             {[
-              { label: 'Job No.', name: 'jobNo', type: 'number', condition: true },
+              { label: 'Job No.', name: 'jobNo', type: 'text', condition: true },
               { label: 'Exporter', name: 'exporter', type: 'text', condition: tradeDirection === 'EXPORT' },
               { label: 'Importer', name: 'importer', type: 'text', condition: tradeDirection === 'IMPORT' },
               { label: 'Invoice No', name: 'invoiceNo', type: 'text', condition: true },
@@ -2179,7 +2179,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     </button>
                   )}
                   {activeStep === STEPS.length && (
-                    <button className="confirm-button" onClick={handleSave} disabled={loading || isOffline} style={{ padding: '8px 24px', fontWeight: 'bold' }}>
+                    <button className="confirm-button" onClick={handleCreateJob} disabled={loading || isOffline} style={{ padding: '8px 24px', fontWeight: 'bold' }}>
                       {isOffline ? 'Offline - Reconnect to Save' : (loading ? 'Saving...' : (editingJob ? 'Save Changes' : 'Confirm & Save Job'))}
                     </button>
                   )}
