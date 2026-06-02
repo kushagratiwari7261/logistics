@@ -1002,10 +1002,12 @@
 /* ---------- Mobile Responsiveness ---------- */
 @media (max-width: 768px) {
   .enquiry-modal-content {
-    width: 100vw;
+    width: 100%;
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     max-height: 100vh;
+    max-height: 100dvh;
   }
   
   .enquiry-header {
@@ -1021,9 +1023,10 @@
   }
   
   .enquiry-footer {
-    padding: 12px 16px;
-    flex-wrap: wrap;
+    padding: 16px;
+    flex-wrap: nowrap;
     justify-content: center;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
   }
   
   .enquiry-progress-steps {
@@ -1045,8 +1048,8 @@
   }
   
   .enquiry-btn {
-    padding: 8px 16px;
-    font-size: 0.85rem;
+    padding: 10px 16px;
+    font-size: 0.9rem;
     flex: 1;
     justify-content: center;
   }
@@ -1058,5 +1061,39 @@
   
   .enquiry-type-card, .enquiry-direction-card {
     max-width: 100%;
+  }
+
+  /* Page-level mobile fixes */
+  .enquiry-page-container {
+    padding: 12px;
+  }
+
+  .enquiry-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .enquiry-page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .enquiry-new-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .enquiry-search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .enquiry-search-input {
+    max-width: 100%;
+  }
+
+  .enquiry-table-wrapper {
+    overflow-x: auto;
   }
 }
