@@ -434,8 +434,8 @@
 }
 
 .enquiry-btn-secondary:hover {
-  background: var(--bg-surface-hover, #f1f5f9);
-  border-color: #94a3b8;
+  background: rgba(128, 128, 128, 0.15);
+  border-color: var(--text-secondary, #94a3b8);
 }
 
 .enquiry-btn-primary {
@@ -987,7 +987,7 @@
   background: transparent !important;
   border: none;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: #64748b; /* Explicit gray instead of CSS var to prevent white in dark mode */
   border-radius: 4px;
   padding: 4px;
   display: flex;
@@ -998,7 +998,7 @@
 
 .enquiry-modal-close:hover {
   background: rgba(128, 128, 128, 0.15) !important;
-  color: var(--text-primary);
+  color: #1e293b; /* Explicit dark gray */
 }
 
 /* ---------- Mobile Responsiveness ---------- */
