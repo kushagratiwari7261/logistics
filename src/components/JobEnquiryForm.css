@@ -477,12 +477,14 @@
   border-radius: 12px;
   padding: 24px;
   border-left: 4px solid var(--brand-primary, #1e40af);
+  overflow-x: auto;
 }
 
 .enquiry-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
+  min-width: 600px; /* Forces horizontal scroll on smaller screens */
 }
 
 .enquiry-summary-row {
@@ -1041,10 +1043,6 @@
 
   .enquiry-step-connector {
     width: 30px;
-  }
-  
-  .enquiry-summary-grid {
-    grid-template-columns: 1fr;
   }
   
   .enquiry-btn {
