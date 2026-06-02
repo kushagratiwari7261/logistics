@@ -5,15 +5,23 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function addAdmin() {
-  const { data, error } = await supabase
-    .from('admins')
-    .upsert({ email: 'kushagratiwari252@gmail.com', is_super_admin: true }, { onConflict: 'email' })
-    .select();
+  const emails = [
+    'kushagratiwari252@gmail.com',
+    'vikas.singh@seal.co.in',
+    'sushil.jaisingh@seal.co.in'
+  ];
 
-  if (error) {
-    console.error('Error adding admin:', error);
-  } else {
-    console.log('Successfully added admin:', data);
+  for (const email of emails) {
+    const { data, error } = await supabase
+      .from('admins')
+      .upsert({ email: email.toLowerCase(), is_super_admin: true }, { onConflict: 'email' })
+      .select();
+
+    if (error) {
+      console.error(`Error adding admin ${email}:`, error);
+    } else {
+      console.log(`Successfully added admin: ${email}`);
+    }
   }
 }
 

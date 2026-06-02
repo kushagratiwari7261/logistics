@@ -165,10 +165,36 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         if (updateErr) throw updateErr;
       } else {
         enquiryData.created_by = userEmail;
-        const { error: insertErr } = await supabase
-          .from('job_enquiries')
-          .insert([enquiryData]);
+        
+        let insertErr = null;
+        let retries = 3;
+        let currentEnquiryNo = enquiryData.enquiry_no;
+
+        while (retries > 0) {
+          const { error } = await supabase
+            .from('job_enquiries')
+            .insert([{ ...enquiryData, enquiry_no: currentEnquiryNo }]);
+            
+          if (error) {
+            if (error.code === '23505' || (error.message && error.message.includes('job_enquiries_enquiry_o_key'))) {
+              console.warn(`Enquiry number ${currentEnquiryNo} taken, generating a new one...`);
+              currentEnquiryNo = await fetchNextEnquiryNumber();
+              setFormData(prev => ({ ...prev, enquiry_no: currentEnquiryNo }));
+              retries--;
+              insertErr = error;
+            } else {
+              insertErr = error;
+              break;
+            }
+          } else {
+            insertErr = null;
+            break;
+          }
+        }
+
         if (insertErr) throw insertErr;
+
+        enquiryData.enquiry_no = currentEnquiryNo;
 
         // Broadcast notification to all users
         supabase.rpc('notify_all_users', {
