@@ -159,6 +159,18 @@ const JobAllocation = ({ user }) => {
         if (error) throw error
         // Update the optimistic item with real data
         setTasksSent(prev => prev.map(t => t.id === tempId ? { ...data, receiver: optimisticTask.receiver } : t))
+        
+        // Notify the receiver
+        if (newTicket.receiver_id !== user.id) {
+          const senderProfile = profiles.find(p => p.id === user.id)
+          const senderName = senderProfile?.full_name || 'Someone'
+          await supabase.from('notifications').insert([{
+            user_id: newTicket.receiver_id,
+            title: 'New Task Assigned',
+            message: `${senderName} assigned you: ${newTicket.title}`,
+            type: 'assignment'
+          }])
+        }
       }
       setNewTicket({ receiver_id: '', title: '', description: '', priority: 'Medium', deadline_at: '' })
       setEditingTask(null)

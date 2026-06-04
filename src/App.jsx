@@ -487,10 +487,30 @@ function App() {
         }, 6000);
       };
 
+      // Listen to backend socket (if available)
       socket.on('new_notification', handleIncomingAlert);
+
+      // Listen to Supabase notifications table directly for cross-device floating popups
+      const notifChannel = supabase
+        .channel(`global-app-notifications-${user.id}`)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, (payload) => {
+          // Trigger the floating toast
+          handleIncomingAlert({
+             title: payload.new.title || 'Notification',
+             message: payload.new.message || '',
+             type: payload.new.type || 'info'
+          });
+        })
+        .subscribe();
 
       return () => {
         socket.off('new_notification', handleIncomingAlert);
+        supabase.removeChannel(notifChannel);
       };
     }
   }, [isAuthenticated, user?.id]);
