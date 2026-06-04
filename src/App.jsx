@@ -63,7 +63,7 @@ window.addEventListener('blur', () => {
 
 // =============
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import StatCard from './components/StatCard'
@@ -98,9 +98,11 @@ import GlobalJobForm from './components/GlobalJobForm'
 import GlobalCustomerForm from './components/GlobalCustomerForm'
 import GlobalEnquiryForm from './components/JobEnquiryForm'
 import JobEnquiryPage from './components/JobEnquiryPage'
+import GlobalNotificationBell from './components/GlobalNotificationBell'
 
 
 function App() {
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -505,6 +507,8 @@ function App() {
              message: payload.new.message || '',
              type: payload.new.type || 'info'
           });
+          // Notify the Header bell icon (if it's mounted)
+          window.dispatchEvent(new CustomEvent('new_app_notification', { detail: payload.new }));
         })
         .subscribe();
 
@@ -1264,10 +1268,31 @@ function App() {
               {isAuthenticated && <GlobalJobForm />}
               {isAuthenticated && <GlobalCustomerForm />}
               {isAuthenticated && <GlobalEnquiryForm />}
+              {isAuthenticated && location.pathname !== '/dashboard' && <GlobalNotificationBell user={user} />}
             </div>
           }
         />
       </Routes>
+      
+      {/* Global Floating Notifications (WhatsApp-style toast at top-right) */}
+      {inAppNotifications.length > 0 && (
+        <div className="gnb-toast-container">
+          {inAppNotifications.map(notification => (
+            <div key={notification.id} className="gnb-toast">
+              <div className="gnb-toast-icon">
+                <CheckCircle2 size={18} color="#10b981" />
+              </div>
+              <div className="gnb-toast-body">
+                <h4>{notification.title}</h4>
+                <p>{notification.message}</p>
+              </div>
+              <button className="gnb-toast-close" onClick={() => setInAppNotifications(prev => prev.filter(n => n.id !== notification.id))}>
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
