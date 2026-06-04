@@ -615,6 +615,12 @@ function App() {
       console.log('User authenticated, fetching dashboard data...');
       fetchDashboardData();
 
+      // Listen for local form saves to update dashboard instantly
+      const handleLocalRefresh = () => fetchDashboardData();
+      window.addEventListener('job_data_updated', handleLocalRefresh);
+      window.addEventListener('shipment_data_updated', handleLocalRefresh);
+      window.addEventListener('refresh_customer_list', handleLocalRefresh);
+
       // --- REAL-TIME DASHBOARD SYNC ---
       // Listen to ANY changes in job enquiries or jobs to keep the dashboard counts/lists fresh
       console.log('📡 Setting up global dashboard sync...');
@@ -632,6 +638,9 @@ function App() {
 
       return () => {
         supabase.removeChannel(dashChannel);
+        window.removeEventListener('job_data_updated', handleLocalRefresh);
+        window.removeEventListener('shipment_data_updated', handleLocalRefresh);
+        window.removeEventListener('refresh_customer_list', handleLocalRefresh);
       };
     }
   }, [isAuthenticated]);

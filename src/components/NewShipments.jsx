@@ -404,6 +404,13 @@ const NewShipments = () => {
     fetchJobs();
     fetchShipments();
     
+    const handleLocalRefresh = () => {
+      fetchJobs();
+      fetchShipments();
+    };
+    window.addEventListener('shipment_data_updated', handleLocalRefresh);
+    window.addEventListener('job_data_updated', handleLocalRefresh);
+
     const channel = supabase
       .channel('public:shipments')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, payload => {
@@ -446,6 +453,8 @@ const NewShipments = () => {
       
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('shipment_data_updated', handleLocalRefresh);
+      window.removeEventListener('job_data_updated', handleLocalRefresh);
     };
   }, []);
 

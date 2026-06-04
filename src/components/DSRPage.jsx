@@ -129,6 +129,11 @@ const DSRHondaReport = () => {
   useEffect(() => {
     fetchData();
     
+    // Listen for local form saves to update list instantly
+    const handleLocalRefresh = () => fetchData();
+    window.addEventListener('shipment_data_updated', handleLocalRefresh);
+    window.addEventListener('job_data_updated', handleLocalRefresh);
+
     // Subscribe to realtime shipments updates for DSR
     const channel = supabase
       .channel('public:shipments:dsr')
@@ -139,6 +144,8 @@ const DSRHondaReport = () => {
       
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('shipment_data_updated', handleLocalRefresh);
+      window.removeEventListener('job_data_updated', handleLocalRefresh);
     };
   }, [fetchData, retryCount]);
 

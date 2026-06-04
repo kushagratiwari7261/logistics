@@ -320,6 +320,18 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
     try {
       let customerId;
+      let userEmail = 'Unknown';
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          userEmail = user.email;
+        }
+      } catch (err) {
+        console.warn('Could not fetch user for audit trail', err);
+      }
+
+      // Add created_by to the payload
+      processedData.created_by = userEmail;
 
       if (editingCustomer) {
         // Update existing partner

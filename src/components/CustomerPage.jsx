@@ -159,6 +159,13 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
     }
   }, [editingCustomer]);
 
+  // Listen for global form saves to refresh list
+  useEffect(() => {
+    const handleRefresh = () => fetchCustomers();
+    window.addEventListener('refresh_customer_list', handleRefresh);
+    return () => window.removeEventListener('refresh_customer_list', handleRefresh);
+  }, [partnerType]);
+
   // Handle auto-opening modal via URL parameter (for Header quick-actions)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

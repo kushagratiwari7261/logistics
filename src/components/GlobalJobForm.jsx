@@ -668,6 +668,15 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
   const handleCreateJob = useCallback(async () => {
     try {
+      if (!jobType) {
+        setError('Please select a Job Type (e.g., Air Freight, Sea Freight) before saving.');
+        return;
+      }
+      if (!tradeDirection) {
+        setError('Please select a Trade Direction (e.g., Import, Export, Local) before saving.');
+        return;
+      }
+      
       setLoading(true);
 
       let userEmail = 'Unknown';
@@ -862,75 +871,64 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         updated_at: new Date().toISOString()
       };
 
+      // Helper function to dynamically strip missing columns and retry
+      const saveWithRetry = async (payload, isUpdate = false, retries = 15) => {
+        let currentPayload = { ...payload };
+        let currentError = null;
+
+        for (let i = 0; i < retries; i++) {
+          let response;
+          if (isUpdate) {
+            response = await supabase
+              .from('jobs')
+              .update(currentPayload)
+              .eq('id', editingJob.id)
+              .select('*');
+          } else {
+            response = await supabase
+              .from('jobs')
+              .insert([currentPayload])
+              .select('*');
+          }
+
+          if (response.error) {
+            currentError = response.error;
+            // Handle missing column error (PGRST204)
+            if (currentError.code === 'PGRST204') {
+              const match = currentError.message?.match(/'([^']+)' column/);
+              if (match && match[1]) {
+                const missingColumn = match[1];
+                console.warn(`Column '${missingColumn}' not found in database. Retrying without it...`);
+                delete currentPayload[missingColumn];
+                continue; // Retry with the modified payload
+              }
+            }
+            // If it's another error, or we couldn't parse the column name, stop retrying
+            throw currentError;
+          } else {
+            return response.data; // Success
+          }
+        }
+        throw new Error("Failed to save job after multiple retries due to schema mismatch.");
+      };
+
       let result;
       if (editingJob) {
-        // Update existing job
         jobData.updated_by = userEmail;
-        let { data: updatedJob, error: updateError } = await supabase
-          .from('jobs')
-          .update(jobData)
-          .eq('id', editingJob.id)
-          .select('*');
-
-        // If pod_documents column doesn't exist, retry without it
-        if (updateError && updateError.code === 'PGRST204' && updateError.message?.includes('pod_documents')) {
-          console.warn('pod_documents column not found, saving without it. Please add the column to your Supabase jobs table.');
-          const { pod_documents, ...jobDataWithoutPod } = jobData;
-          const retryResult = await supabase
-            .from('jobs')
-            .update(jobDataWithoutPod)
-            .eq('id', editingJob.id)
-            .select('*');
-          if (retryResult.error) {
-            console.error('Supabase update error details:', JSON.stringify(retryResult.error));
-            throw retryResult.error;
-          }
-          updatedJob = retryResult.data;
-          updateError = null;
-        }
-
-        if (updateError) {
-          console.error('Supabase update error details:', JSON.stringify(updateError));
-          throw updateError;
-        }
-        result = updatedJob;
+        jobData.updated_at = new Date().toISOString();
+        result = await saveWithRetry(jobData, true);
       } else {
-        // Create new job
         jobData.created_by = userEmail;
-
-        let { data: newJob, error: insertError } = await supabase
-          .from('jobs')
-          .insert([jobData])
-          .select('*');
-
-        // If pod_documents column doesn't exist, retry without it
-        if (insertError && insertError.code === 'PGRST204' && insertError.message?.includes('pod_documents')) {
-          console.warn('pod_documents column not found, saving without it. Please add the column to your Supabase jobs table.');
-          const { pod_documents, ...jobDataWithoutPod } = jobData;
-          const retryResult = await supabase
-            .from('jobs')
-            .insert([jobDataWithoutPod])
-            .select('*');
-          if (retryResult.error) {
-            console.error('Supabase insert error details:', JSON.stringify(retryResult.error));
-            throw retryResult.error;
-          }
-          newJob = retryResult.data;
-          insertError = null;
-        }
-
-        if (insertError) {
-          console.error('Supabase insert error details:', JSON.stringify(insertError));
-          throw insertError;
-        }
-        result = newJob;
+        result = await saveWithRetry(jobData, false);
 
         // Broadcast notification to all users
         supabase.rpc('notify_all_users', {
           p_title: 'New Job Order',
           p_message: `Job Order ${jobData.job_no} created by ${userEmail}.`,
           p_type: 'info'
-        }).catch(err => console.error('Notification error', err));
+        }).then(({ error }) => {
+          if (error) console.error('Notification error', error);
+        });
       }
 
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============

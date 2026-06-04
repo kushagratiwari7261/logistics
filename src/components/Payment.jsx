@@ -79,7 +79,28 @@ const PaymentPage = () => {
         }
     }, []);
 
-    useEffect(() => { fetchShipments(); }, [fetchShipments]);
+    useEffect(() => {
+        fetchShipments();
+
+        // Listen for local form saves to update list instantly
+        const handleLocalRefresh = () => fetchShipments();
+        window.addEventListener('shipment_data_updated', handleLocalRefresh);
+        window.addEventListener('job_data_updated', handleLocalRefresh);
+
+        // Subscribe to realtime shipments updates for Payments
+        const channel = supabase
+          .channel('public:shipments:payment')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+             fetchShipments();
+          })
+          .subscribe();
+          
+        return () => {
+          supabase.removeChannel(channel);
+          window.removeEventListener('shipment_data_updated', handleLocalRefresh);
+          window.removeEventListener('job_data_updated', handleLocalRefresh);
+        };
+    }, [fetchShipments]);
 
     /* ─── Open payment ─── */
     const openRazorpay = async (shipment, amount) => {
