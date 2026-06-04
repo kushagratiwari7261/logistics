@@ -842,7 +842,6 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         vehicle_number: formData.vehicle_number || null,
         driver_name: formData.driver_name || null,
         driver_mobile_no: formData.driver_mobile_no || null,
-        order_no: formData.order_no || null,
         order_date: formData.order_date ? new Date(formData.order_date).toISOString() : null,
         amount: cleanNumericValue(formData.amount),
         advance: cleanNumericValue(formData.advance),

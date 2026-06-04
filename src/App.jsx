@@ -95,6 +95,7 @@ import MarkAttendance from './components/MarkAttendance'
 import AdminDashboard from './components/AdminDashboard'
 import AttendanceStats from './components/AttendanceStats'
 import GlobalJobForm from './components/GlobalJobForm'
+import GlobalShipmentForm from './components/GlobalShipmentForm'
 import GlobalCustomerForm from './components/GlobalCustomerForm'
 import GlobalEnquiryForm from './components/JobEnquiryForm'
 import JobEnquiryPage from './components/JobEnquiryPage'
@@ -1266,6 +1267,7 @@ function App() {
                 </Routes>
               </main>
               {isAuthenticated && <GlobalJobForm />}
+              {isAuthenticated && <GlobalShipmentForm />}
               {isAuthenticated && <GlobalCustomerForm />}
               {isAuthenticated && <GlobalEnquiryForm />}
               {isAuthenticated && location.pathname !== '/dashboard' && <GlobalNotificationBell user={user} />}
