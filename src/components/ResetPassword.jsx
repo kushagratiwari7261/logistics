@@ -189,11 +189,7 @@ const ResetPassword = ({ onUpdatePassword }) => {
         <div className="container">
           <div className="logo-header">
             <div className="logo-icon">
-              <img 
-                src={sealLogo}
-                alt="Seal Freight Logo" 
-                style={{width: '200px', height: 'auto', marginRight: '13px'}} 
-              />
+              
             </div>
           </div>
         </div>
@@ -321,7 +317,7 @@ const ResetPassword = ({ onUpdatePassword }) => {
       <footer className="footer">
         <div className="container">
           <div className="footer-content">
-            <p>&copy; 2025 Seal Freight. All rights reserved.</p>
+            <p>&copy; 2025 SUNEX International. All rights reserved.</p>
             <div className="footer-links">
               <a href="#">Privacy Policy</a>
               <a href="#">Terms of Service</a>

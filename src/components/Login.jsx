@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import sealLogo from '../seal.png';
-import loadingImage from './image.png';
+import loadingImage from '';
 import './Login.css';
 
 import { supabase } from '../lib/supabaseClient';
@@ -130,8 +130,7 @@ const Login = ({ onLogin }) => {
 
         {/* Logo above card */}
         <div className="login-top-logo">
-          <img src={sealLogo} alt="Seal Freight" className="login-logo-img" />
-          <span className="login-logo-brand">Seal Freight</span>
+          <span className="login-logo-brand">SUNEX International</span>
         </div>
 
         {/* Login card */}
@@ -144,7 +143,7 @@ const Login = ({ onLogin }) => {
               </svg>
             </div>
             <h2>Welcome Back</h2>
-            <p className="login-card-subtitle">Sign in to your Seal Freight account</p>
+            <p className="login-card-subtitle">Sign in to your SUNEX International account</p>
           </div>
 
           {message && (
@@ -273,7 +272,7 @@ const Login = ({ onLogin }) => {
           </div>
         </div>
 
-        <p className="login-copyright">© 2025 Seal Freight. All rights reserved.</p>
+        <p className="login-copyright">© 2025 SUNEX International. All rights reserved.</p>
       </div>
     </div>
   );

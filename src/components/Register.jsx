@@ -101,15 +101,15 @@ const Register = () => {
       <div className="register-center-wrap">
         {/* Logo above card */}
         <div className="register-top-logo">
-          <img src={sealLogo} alt="Seal Freight" className="register-logo-img" />
-          <span className="register-logo-brand">Seal Freight</span>
+          
+          <span className="register-logo-brand">SUNEX International</span>
         </div>
 
         {/* Register card */}
         <div className="register-card">
           <div className="register-card-header">
             <h2>Create Account</h2>
-            <p className="register-card-subtitle">Join the Seal Freight platform today</p>
+            <p className="register-card-subtitle">Join the SUNEX International platform today</p>
           </div>
 
           {message && (
@@ -241,7 +241,7 @@ const Register = () => {
           </div>
         </div>
 
-        <p className="register-copyright">© 2025 Seal Freight. All rights reserved.</p>
+        <p className="register-copyright">© 2025 SUNEX International. All rights reserved.</p>
       </div>
     </div>
   );

@@ -175,7 +175,7 @@ async function processTaskNotification(record, type, options = {}) {
 app.get("/", (req, res) => {
   res.send(`
     <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-      <h1 style="color: #4f46e5;">Seal Freight Gateway</h1>
+      <h1 style="color: #4f46e5;">SUNEX International Gateway</h1>
       <p>The logistics messaging and notification server is online.</p>
       <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
         Status: <span style="color: #10b981; font-weight: bold;">● Active</span>
@@ -258,7 +258,7 @@ app.get("/api/test-notification", async (req, res) => {
 const SEAL_LOGO = "https://logistics.prudata-tech.workers.dev/supabase/storage/v1/object/public/assets/seal.png";
 
 /**
- * Universal email sender with Seal Freight branding
+ * Universal email sender with SUNEX International branding
  */
 async function sendSealEmail({ to, subject, title, body, actionLink, actionText, type = 'info' }) {
   if (!resend || !to) return;
@@ -273,17 +273,17 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
 
   try {
     await resend.emails.send({
-      from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+      from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
       to: Array.isArray(to) ? to : [to],
-      subject: `Seal Freight: ${subject}`,
+      subject: `SUNEX International: ${subject}`,
       html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <div style="background-color: ${themeColor}; padding: 30px; text-align: center;">
-                  <img src="${SEAL_LOGO}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                  <img src="${SEAL_LOGO}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                  <div style="padding: 40px;">
-                   <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${title || 'Seal Freight Update'}</h1>
+                   <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${title || 'SUNEX International Update'}</h1>
                    <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">${body}</p>
                   
                   ${actionLink ? `
@@ -295,7 +295,7 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
                   ` : ''}
                 </div>
                 <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 Seal Freight Logistics. This is an automated notification.</p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 SUNEX International Logistics. This is an automated notification.</p>
                 </div>
               </div>
             </div>
@@ -331,9 +331,9 @@ app.get("/api/cron/greetings", async (req, res) => {
     if (!users || users.length === 0) return res.json({ msg: "No users found" });
 
     const getSubject = () => {
-      if (type === 'morning') return "Daily Update: Seal Freight System";
-      if (type === 'afternoon') return "Mid-Day Status: Seal Freight Logistics";
-      return "System Status: Seal Freight Logistics";
+      if (type === 'morning') return "Daily Update: SUNEX International System";
+      if (type === 'afternoon') return "Mid-Day Status: SUNEX International Logistics";
+      return "System Status: SUNEX International Logistics";
     };
 
     const getGreetingAndBody = () => {
@@ -359,14 +359,14 @@ app.get("/api/cron/greetings", async (req, res) => {
     // 2. Send emails with premium template
     const results = await Promise.allSettled(users.filter(u => u.email).map(user =>
       resend.emails.send({
-        from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+        from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
         to: user.email,
         subject: subject,
         html: `
           <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
               <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
-                <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                <img src="${logoUrl}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
               </div>
                <div style="padding: 40px;">
                  <h1 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827;">${greeting},</h1>
@@ -376,7 +376,7 @@ app.get("/api/cron/greetings", async (req, res) => {
                 </div>
               </div>
               <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
-                <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 Seal Freight Logistics Platform. All rights reserved.</p>
+                <p style="margin: 0; font-size: 12px; color: #9ca3af;">&copy; 2024 SUNEX International Logistics Platform. All rights reserved.</p>
               </div>
             </div>
           </div>
@@ -411,14 +411,14 @@ app.get("/api/cron/payments", async (req, res) => {
     for (const payment of failedPayments) {
       if (payment.email) {
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+          from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
           to: payment.email,
-          subject: "Seal Freight: Important Update Regarding Your Payment",
+          subject: "SUNEX International: Important Update Regarding Your Payment",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #fff5f5; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #feb2b2;">
                 <div style="background-color: #c53030; padding: 30px; text-align: center;">
-                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                  <img src="${logoUrl}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                 <div style="padding: 40px;">
                   <h1 style="margin: 0 0 20px; font-size: 22px; font-weight: 700; color: #2d3748;">Payment Failed</h1>
@@ -508,14 +508,14 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const whatsappLink = `https://wa.me/?text=${whatsappMsg}`;
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+          from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
           to: allRecipients,
-          subject: "Seal Freight: Shipment Status Update",
+          subject: "SUNEX International: Shipment Status Update",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
-                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                  <img src="${logoUrl}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                 <div style="padding: 40px; text-align: center;">
                   <div style="display: inline-block; padding: 8px 16px; background-color: #e0e7ff; color: #4338ca; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 20px;">
@@ -537,7 +537,7 @@ app.post("/api/webhooks/shipments", async (req, res) => {
                   </div>
                 </div>
                 <div style="padding: 20px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f3f4f6;">
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">This is an automated notification from Seal Freight. Team update regarding Shipment #${shipmentId}.</p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">This is an automated notification from SUNEX International. Team update regarding Shipment #${shipmentId}.</p>
                 </div>
               </div>
             </div>
@@ -550,14 +550,14 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const vendor = payload.record.client || payload.record.vendor_name || 'N/A';
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+          from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
           to: allRecipients,
-          subject: "Seal Freight: Important Update Regarding A Payment",
+          subject: "SUNEX International: Important Update Regarding A Payment",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #fff5f5; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #feb2b2;">
                 <div style="background-color: #c53030; padding: 30px; text-align: center;">
-                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                  <img src="${logoUrl}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                 <div style="padding: 40px;">
                   <h1 style="margin: 0 0 20px; font-size: 22px; font-weight: 700; color: #2d3748;">Payment Failed</h1>
@@ -581,14 +581,14 @@ app.post("/api/webhooks/shipments", async (req, res) => {
         const recipients = clientEmail ? [clientEmail, ...allRecipients] : allRecipients;
 
         await resend.emails.send({
-          from: 'Seal Freight Logistics <alerts@mail.prudata.info>',
+          from: 'SUNEX International Logistics <alerts@mail.prudata.info>',
           to: [...new Set(recipients)],
-          subject: "Seal Freight: Payment Received Confirmation",
+          subject: "SUNEX International: Payment Received Confirmation",
           html: `
             <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f0fdf4; padding: 40px 0;">
               <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #bbf7d0;">
                 <div style="background-color: #15803d; padding: 30px; text-align: center;">
-                  <img src="${logoUrl}" alt="Seal Freight" style="height: 50px; filter: brightness(0) invert(1);">
+                  <img src="${logoUrl}" alt="SUNEX International" style="height: 50px; filter: brightness(0) invert(1);">
                 </div>
                 <div style="padding: 40px;">
                   <h1 style="margin: 0 0 20px; font-size: 22px; font-weight: 700; color: #166534;">Payment Successful</h1>

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
 
-// Import the logo directly
-import logo from './seal.png';
+
 
 // ============ FIX: SIMPLIFIED FONT REGISTRATION ============
 // Remove external font loading which requires internet
@@ -221,16 +220,7 @@ const PDFGenerator = ({ shipmentData = {} }) => {
     return (
       <Document>
         <Page size="A4" style={styles.page}>
-          {/* Logo with null guard to prevent crash */}
-          {logo ? (
-            <Image 
-              style={styles.logo} 
-              src={logo}
-              cache={false}
-            />
-          ) : (
-            <View style={styles.logo} />
-          )}
+          <View style={styles.logo} />
           
           {/* Header */}
           <Text style={styles.header}>MULTIMODAL TRANSPORT DOCUMENT</Text>
@@ -239,7 +229,7 @@ const PDFGenerator = ({ shipmentData = {} }) => {
             <Text style={styles.smallText}>T-2, IIIrd Floor, H Block Market, LSC Plot No. 7, Manish Complex</Text>
             <Text style={styles.smallText}>Sarita Vihar, New Delhi-110076 INDIA</Text>
             <Text style={styles.smallText}>Mob: +91 8468811866, Tel+ 91 022 27566678, 79</Text>
-            <Text style={styles.smallText}>Email: info@seal.co.in, Website: www.sealfreight.com</Text>
+            <Text style={styles.smallText}>Email: info@seal.co.in, Website: www.sunexinternational.com</Text>
             <Text style={styles.smallText}>MTO Registration No.: MTO/DGS/566/JAN/2028</Text>
             <Text style={styles.smallText}>CIN U63013DL1990PTC042315</Text>
           </View>
@@ -448,7 +438,7 @@ const PDFGenerator = ({ shipmentData = {} }) => {
 
           {/* Signature */}
           <View style={styles.signatureSection}>
-            <Text>For Seal Freight Forwarders Pvt. Ltd.</Text>
+            <Text>For SUNEX International Forwarders Pvt. Ltd.</Text>
             <Text style={{ marginTop: 20 }}>(Authorised Signatory)</Text>
           </View>
         </Page>
