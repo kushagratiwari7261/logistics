@@ -152,6 +152,29 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const [generatePDF, setGeneratePDF] = useState(false);
   const [pdfShipmentData, setPdfShipmentData] = useState(null);
   
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+
+  const fetchClientSuggestions = useCallback(async (searchTerm) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setClientSuggestions([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('vendorName, partner_type')
+        .ilike('vendorName', `%${searchTerm}%`)
+        .limit(10);
+      if (!error && data) {
+        const uniqueNames = Array.from(new Set(data.map(d => d.vendorName)));
+        setClientSuggestions(uniqueNames);
+      }
+    } catch (err) {
+      console.error('Error fetching client suggestions:', err);
+    }
+  }, []);
+  
   const tableContainerRef = useRef(null);
   
   const [formData, setFormData] = useState(formConfig.initialState?.formData || INITIAL_FORM_DATA);
@@ -1262,22 +1285,49 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                           onChange={handleInputChange}
                         />
                       </div>
-                      <div className="form-group with-button">
+                      <div className="form-group with-button" style={{ position: 'relative' }}>
                         <label>Client</label>
                         <div className="input-with-button">
                           <input 
                             type="text" 
                             name="client"
-                            value={formData.client}
-                            onChange={handleInputChange}
+                            value={formData.client || ''}
+                            onChange={(e) => {
+                              handleInputChange(e);
+                              fetchClientSuggestions(e.target.value);
+                              setShowClientSuggestions(true);
+                            }}
+                            onFocus={() => {
+                              if (formData.client) {
+                                fetchClientSuggestions(formData.client);
+                                setShowClientSuggestions(true);
+                              }
+                            }}
+                            onBlur={() => setTimeout(() => setShowClientSuggestions(false), 200)}
+                            autoComplete="off"
                           />
                           <button 
                             className="add-button"
-                            onClick={() => setShowOrgModal(true)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowOrgModal(true);
+                            }}
                           >
                             +
                           </button>
                         </div>
+                        {showClientSuggestions && clientSuggestions.length > 0 && (
+                          <ul className="suggestions-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+                            {clientSuggestions.map((sug, i) => (
+                              <li key={i} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }} onMouseDown={() => {
+                                setFormData(prev => ({ ...prev, client: sug }));
+                                setShowClientSuggestions(false);
+                              }}>
+                                {sug}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <div className="form-group">
                         <label>Client Email (for payment link)</label>
