@@ -782,31 +782,50 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         );
         
         let result;
+        
+        const saveWithRetry = async (payload, isUpdate = false, retries = 40) => {
+          let currentPayload = { ...payload };
+          let currentError = null;
+
+          for (let i = 0; i < retries; i++) {
+            let response;
+            if (isUpdate) {
+              response = await supabase
+                .from('shipments')
+                .update(currentPayload)
+                .eq('id', editingShipment.id)
+                .select();
+            } else {
+              response = await supabase
+                .from('shipments')
+                .insert([currentPayload])
+                .select();
+            }
+
+            if (response.error) {
+              currentError = response.error;
+              // Handle missing column error (PGRST204)
+              if (currentError.code === 'PGRST204') {
+                const match = currentError.message?.match(/'([^']+)' column/);
+                if (match && match[1]) {
+                  const missingColumn = match[1];
+                  console.warn(`Column '${missingColumn}' not found in database. Retrying without it...`);
+                  delete currentPayload[missingColumn];
+                  continue; // Retry with the modified payload
+                }
+              }
+              // If it's another error, or we couldn't parse the column name, stop retrying
+              throw currentError;
+            } else {
+              return response.data; // Success
+            }
+          }
+          throw new Error("Failed to save shipment after multiple retries due to schema mismatch.");
+        };
+
         if (editingShipment) {
           cleanShipmentData.updated_by = userEmail;
-          
-          let { data: updatedShipment, error } = await supabase
-            .from('shipments')
-            .update(cleanShipmentData)
-            .eq('id', editingShipment.id)
-            .select();
-            
-          if (error && error.code === 'PGRST204' && error.message?.includes('pod_documents')) {
-            console.warn('pod_documents column not found, saving without it.');
-            const { pod_documents, ...shipmentDataWithoutPod } = cleanShipmentData;
-            const retryResult = await supabase
-              .from('shipments')
-              .update(shipmentDataWithoutPod)
-              .eq('id', editingShipment.id)
-              .select();
-            if (retryResult.error) throw retryResult.error;
-            updatedShipment = retryResult.data;
-            error = null;
-          }
-
-          
-          if (error) throw error;
-          result = updatedShipment;
+          result = await saveWithRetry(cleanShipmentData, true);
         } else {
           const { count, error: countErr } = await supabase
             .from('shipments')
@@ -817,27 +836,10 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           const nextNum = (count || 0) + 1;
           const shipmentNo = `MTD-${String(nextNum).padStart(6, '0')}`;
           
+          cleanShipmentData.shipment_no = shipmentNo;
+          cleanShipmentData.created_by = userEmail;
           
-          let { data: newShipment, error } = await supabase
-            .from('shipments')
-            .insert([{ ...cleanShipmentData, shipment_no: shipmentNo, created_by: userEmail }])
-            .select();
-            
-          if (error && error.code === 'PGRST204' && error.message?.includes('pod_documents')) {
-            console.warn('pod_documents column not found, saving without it.');
-            const { pod_documents, ...shipmentDataWithoutPod } = cleanShipmentData;
-            const retryResult = await supabase
-              .from('shipments')
-              .insert([{ ...shipmentDataWithoutPod, shipment_no: shipmentNo, created_by: userEmail }])
-              .select();
-            if (retryResult.error) throw retryResult.error;
-            newShipment = retryResult.data;
-            error = null;
-          }
-
-          
-          if (error) throw error;
-          result = newShipment;
+          result = await saveWithRetry(cleanShipmentData, false);
         }
         
         const preparedPDFData = preparePDFData(cleanShipmentData, result, !!editingShipment);
@@ -1144,8 +1146,8 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
       {!formConfig.isMinimized && (
 
         <div className="modal-overlay">
-          <div className="modal-content job-modal">
-            <div className="new-shipment-card">
+          <div className="modal-content job-modal full-screen-modal">
+            <div className="new-shipment-card full-height-card">
               
               <div className="new-shipment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1192,7 +1194,7 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                 </div>
               </div>
 
-              <div className="step-content">
+              <div className="step-content content-scrollable">
                 {activeStep === 1 && (
                   <div className="shipment-type-selection">
                     <h2>What type of Shipment would you like to {editingShipment ? 'edit' : 'create'}?</h2>
