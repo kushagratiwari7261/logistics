@@ -1089,6 +1089,28 @@ const NewShipments = () => {
 
   return (
     <div className="new-shipment-container">
+      {showDeleteModal && (
+        <div className="modal-overlay" style={{ zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ background: 'white', padding: '24px', borderRadius: '8px', maxWidth: '400px', width: '100%' }}>
+            <h3 style={{ marginTop: 0, color: '#d9534f' }}>Confirm Deletion</h3>
+            <p>Are you sure you want to delete shipment <strong>{shipmentToDelete?.shipment_no || shipmentToDelete?.shipmentNo}</strong>? This action cannot be undone.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ccc', background: '#f8f9fa', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteShipment}
+                style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#d9534f', color: 'white', cursor: 'pointer' }}
+              >
+                {loading ? 'Deleting...' : 'Delete Shipment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {generatePDF && pdfShipmentData && (
         <div style={{ 
           textAlign: 'center', 
