@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import sealLogo from '../seal.png';
-import loadingImage from '';
+import loadingImage from './image.png';
 import './Login.css';
 
 import { supabase } from '../lib/supabaseClient';
