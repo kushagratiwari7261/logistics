@@ -102,14 +102,14 @@ const Register = () => {
         {/* Logo above card */}
         <div className="register-top-logo">
           
-          <span className="register-logo-brand">SUNEX International</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '40px', marginRight: '15px' }} /><span className="register-logo-brand">Seal Logistics</span></div>
         </div>
 
         {/* Register card */}
         <div className="register-card">
           <div className="register-card-header">
             <h2>Create Account</h2>
-            <p className="register-card-subtitle">Join the SUNEX International platform today</p>
+            <p className="register-card-subtitle">Join the Seal Logistics platform today</p>
           </div>
 
           {message && (
@@ -241,7 +241,7 @@ const Register = () => {
           </div>
         </div>
 
-        <p className="register-copyright">© 2025 SUNEX International. All rights reserved.</p>
+        <p className="register-copyright">© 2025 Seal Logistics. All rights reserved.</p>
       </div>
     </div>
   );

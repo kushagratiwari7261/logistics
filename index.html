@@ -7,13 +7,13 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="SUNEX International — Modern logistics and freight forwarding management platform." />
+  <meta name="description" content="Seal Logistics — Modern logistics and freight forwarding management platform." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SUNEX International" />
   <link rel="apple-touch-icon" href="/seal.png" />
-  
-  <title>SUNEX International | Logistics Platform</title>
+
+  <title>Seal Logistics | Logistics Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -52,10 +52,12 @@
 <body>
   <div id="root"></div>
   <div id="minimized-taskbar-root" class="minimized-taskbar-container"></div>
-  
-  <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; background: var(--brand-primary, #6366f1); color: white; padding: 12px 20px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); align-items: center; gap: 15px;">
+
+  <div id="pwa-install-banner"
+    style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; background: var(--brand-primary, #6366f1); color: white; padding: 12px 20px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); align-items: center; gap: 15px;">
     <span>Install App for better experience</span>
-    <button id="pwa-install-btn" style="background: white; color: var(--brand-primary, #6366f1); border: none; padding: 8px 16px; border-radius: 4px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Install</button>
+    <button id="pwa-install-btn"
+      style="background: white; color: var(--brand-primary, #6366f1); border: none; padding: 8px 16px; border-radius: 4px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Install</button>
   </div>
 
   <script type="module" src="./src/main.jsx"></script>
@@ -69,7 +71,7 @@
       e.preventDefault();
       deferredPrompt = e;
       installBanner.style.display = 'flex';
-      
+
       // Auto-hide after 5 seconds
       setTimeout(() => {
         installBanner.style.display = 'none';

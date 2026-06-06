@@ -317,7 +317,7 @@ const ResetPassword = ({ onUpdatePassword }) => {
       <footer className="footer">
         <div className="container">
           <div className="footer-content">
-            <p>&copy; 2025 SUNEX International. All rights reserved.</p>
+            <p>&copy; 2025 Seal Logistics. All rights reserved.</p>
             <div className="footer-links">
               <a href="#">Privacy Policy</a>
               <a href="#">Terms of Service</a>

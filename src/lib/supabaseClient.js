@@ -9,7 +9,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 // The Cloudflare Worker will route all requests to the real Supabase backend.
 export const supabase = createClient(proxyUrl, supabaseAnonKey, {
   global: {
-    headers: { 'x-client-info': 'sunex-international' },
+    headers: { 'x-client-info': 'seal-logistics' },
   },
   realtime: {
     params: {

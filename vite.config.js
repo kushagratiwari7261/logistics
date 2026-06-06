@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'SUNEX International',
+        name: 'Seal Logistics',
         short_name: 'Seal',
         start_url: '/',
         display: 'standalone',

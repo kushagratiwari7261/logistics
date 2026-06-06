@@ -1091,7 +1091,7 @@ function App() {
       return (
         <div className="loading-container">
           <div className="loading-logo-wrapper">
-            <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5', marginBottom: '20px' }}>SUNEX International</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '40px', marginRight: '15px' }} /><span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5', marginBottom: '20px' }}>Seal Logistics</span></div>
             <div className="loading-spinner" />
             <span className="loading-text">Loading…</span>
           </div>
@@ -1133,7 +1133,7 @@ function App() {
     return (
       <div className="loading-container">
         <div className="loading-logo-wrapper">
-          <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5', marginBottom: '20px' }}>SUNEX International</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '40px', marginRight: '15px' }} /><span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5', marginBottom: '20px' }}>Seal Logistics</span></div>
           <div className="loading-spinner" />
           <span className="loading-text">Loading Application…</span>
         </div>

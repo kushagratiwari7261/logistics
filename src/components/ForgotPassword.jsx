@@ -53,7 +53,7 @@ const ForgotPassword = ({ onResetPassword }) => {
         {/* Logo */}
         <div className="login-top-logo">
           
-          <span className="login-logo-brand">SUNEX International</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '40px', marginRight: '15px' }} /><span className="login-logo-brand">Seal Logistics</span></div>
         </div>
 
         {/* Card */}
@@ -161,7 +161,7 @@ const ForgotPassword = ({ onResetPassword }) => {
           </div>
         </div>
 
-        <p className="login-copyright">© 2025 SUNEX International. All rights reserved.</p>
+        <p className="login-copyright">© 2025 Seal Logistics. All rights reserved.</p>
       </div>
     </div>
   );

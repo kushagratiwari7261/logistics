@@ -130,7 +130,7 @@ const Login = ({ onLogin }) => {
 
         {/* Logo above card */}
         <div className="login-top-logo">
-          <span className="login-logo-brand">SUNEX International</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '40px', marginRight: '15px' }} /><span className="login-logo-brand">Seal Logistics</span></div>
         </div>
 
         {/* Login card */}
@@ -143,7 +143,7 @@ const Login = ({ onLogin }) => {
               </svg>
             </div>
             <h2>Welcome Back</h2>
-            <p className="login-card-subtitle">Sign in to your SUNEX International account</p>
+            <p className="login-card-subtitle">Sign in to your Seal Logistics account</p>
           </div>
 
           {message && (
@@ -272,7 +272,7 @@ const Login = ({ onLogin }) => {
           </div>
         </div>
 
-        <p className="login-copyright">© 2025 SUNEX International. All rights reserved.</p>
+        <p className="login-copyright">© 2025 Seal Logistics. All rights reserved.</p>
       </div>
     </div>
   );

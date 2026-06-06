@@ -203,7 +203,7 @@ export default function TrackShipment() {
 
                 {/* Footer / Branding */}
                 <div style={{ textAlign: 'center', marginTop: '20px', color: '#64748b', fontSize: '13px' }}>
-                    <p>Tracked via SUNEX International Logistics</p>
+                    <p>Tracked via Seal Logistics</p>
                 </div>
             </div>
         </div>

@@ -22,6 +22,8 @@ import {
   Search
 } from 'lucide-react'
 import { useState } from 'react'
+import sealLogo from '../seal.png'
+
 
 const menuSections = [
   {
@@ -245,7 +247,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
           <span className="hamburger-line" />
         </button>
         <div className="mobile-logo">
-          <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>SUNEX International</span>
+          <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>Seal Logistics</span></div>
         </div>
       </div>
 
@@ -256,7 +258,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
       >
         <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
           <div className="sidebar-logo-section">
-            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>SUNEX International</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>Seal Logistics</span></div>
             <div className="sidebar-brand-tag">Logistics Platform</div>
           </div>
           <div className="sidebar-navigation">
@@ -287,7 +289,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
       <aside className="sidebar">
         <div className="sidebar-logo-section">
           <div className="logo-glow">
-            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>SUNEX International</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>Seal Logistics</span></div>
           </div>
           <div className="sidebar-brand-tag">Logistics Platform</div>
         </div>
