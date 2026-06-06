@@ -1945,8 +1945,8 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button onClick={() => onMinimize(formConfig.id)} title="Minimize" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingJob })} title="Minimize" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
                     <Minus size={16} />
                   </button>
                   <button onClick={handleCancel} title="Close" style={{ background: '#e74c3c', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}>
@@ -2392,8 +2392,8 @@ const GlobalJobForm = () => {
     setForms(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  const handleMinimize = useCallback((id) => {
-    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true } : f));
+  const handleMinimize = useCallback((id, currentState) => {
+    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true, initialState: currentState || f.initialState } : f));
   }, []);
 
   const handleRestore = useCallback((id) => {

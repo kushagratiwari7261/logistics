@@ -28,6 +28,9 @@ const INITIAL_ENQUIRY_DATA = {
   quote_rate: '',
   sell_freight: '',
   shipping_line: '',
+  ex_works: '',
+  gr_wt: '',
+  dimension: '',
   remarks: '',
 };
 
@@ -45,6 +48,22 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const [error, setError] = useState(null);
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [vendorSuggestions, setVendorSuggestions] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchVendors = async () => {
+      try {
+        const { data, error } = await supabase.from('vendors').select('vendorName');
+        if (!error && data && isMounted) {
+          const uniqueNames = Array.from(new Set(data.map(d => d.vendorName).filter(Boolean)));
+          setVendorSuggestions(uniqueNames);
+        }
+      } catch(err) { console.error('Error fetching vendors', err); }
+    };
+    fetchVendors();
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -147,10 +166,13 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         container_size: formData.container_size || null,
         cargo: formData.cargo || null,
         shipment_terms: formData.shipment_terms || null,
-        buy_freight: cleanNum(formData.buy_freight),
+        buy_freight: formData.buy_freight || null,
         quote_rate: cleanNum(formData.quote_rate),
-        sell_freight: cleanNum(formData.sell_freight),
+        sell_freight: formData.sell_freight || null,
         shipping_line: formData.shipping_line || null,
+        ex_works: formData.ex_works || null,
+        gr_wt: formData.gr_wt || null,
+        dimension: formData.dimension || null,
         remarks: formData.remarks || null,
         status: editingEnquiry?.status || 'pending',
         updated_at: new Date().toISOString(),
@@ -217,20 +239,39 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
   // ─── Render Step 3: Enquiry Fields ───
   const renderEnquiryFields = () => {
-    const fields = [
-      { label: 'Enquiry No.', name: 'enquiry_no', type: 'text', readOnly: true },
-      { label: 'Date', name: 'enquiry_date', type: 'date' },
-      { label: 'Customer Name', name: 'customer_name', type: 'text' },
-      { label: 'POL', name: 'pol', type: 'text' },
-      { label: 'POD', name: 'pod', type: 'text' },
-      { label: 'Container Size', name: 'container_size', type: 'text' },
-      { label: 'Cargo', name: 'cargo', type: 'text' },
-      { label: 'Shipment Terms', name: 'shipment_terms', type: 'text' },
-      { label: 'Buy Freight', name: 'buy_freight', type: 'number' },
-      { label: 'Quote Rate', name: 'quote_rate', type: 'number' },
-      { label: 'Sell Freight', name: 'sell_freight', type: 'number' },
-      { label: 'Shipping Line', name: 'shipping_line', type: 'text' },
-    ];
+    const isAirFreight = jobType === 'AIR FREIGHT';
+    let fields = [];
+    
+    if (isAirFreight) {
+      fields = [
+        { label: 'Enquiry No.', name: 'enquiry_no', type: 'text', readOnly: true },
+        { label: 'Date', name: 'enquiry_date', type: 'date' },
+        { label: 'Customer Name', name: 'customer_name', type: 'text', list: 'vendor-list' },
+        { label: 'AOL', name: 'pol', type: 'text' },
+        { label: 'AOD', name: 'pod', type: 'text' },
+        { label: 'EX WORKS', name: 'ex_works', type: 'text' },
+        { label: 'GR WT', name: 'gr_wt', type: 'text' },
+        { label: 'DIMENSION', name: 'dimension', type: 'text' },
+        { label: 'AIR LINE', name: 'shipping_line', type: 'text' },
+        { label: 'BUY FREIGHT', name: 'buy_freight', type: 'text' },
+        { label: 'SALE FREIGHT', name: 'sell_freight', type: 'text' },
+      ];
+    } else {
+      fields = [
+        { label: 'Enquiry No.', name: 'enquiry_no', type: 'text', readOnly: true },
+        { label: 'Date', name: 'enquiry_date', type: 'date' },
+        { label: 'Customer Name', name: 'customer_name', type: 'text', list: 'vendor-list' },
+        { label: 'POL', name: 'pol', type: 'text' },
+        { label: 'POD', name: 'pod', type: 'text' },
+        { label: 'Container Size', name: 'container_size', type: 'text' },
+        { label: 'Cargo', name: 'cargo', type: 'text' },
+        { label: 'Shipment Terms', name: 'shipment_terms', type: 'text' },
+        { label: 'Buy Freight', name: 'buy_freight', type: 'text' },
+        { label: 'Quote Rate', name: 'quote_rate', type: 'number' },
+        { label: 'Sell Freight', name: 'sell_freight', type: 'text' },
+        { label: 'Shipping Line', name: 'shipping_line', type: 'text' },
+      ];
+    }
 
     return (
       <div>
@@ -251,6 +292,7 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                 value={formData[field.name] || ''}
                 onChange={handleInputChange}
                 readOnly={field.readOnly}
+                list={field.list}
                 className={validationErrors[field.name] ? 'error' : ''}
                 style={field.readOnly ? { background: 'var(--bg-inset, #f1f5f9)', cursor: 'default' } : {}}
               />
@@ -260,6 +302,9 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
             </div>
           ))}
           {/* Remarks — full width */}
+          <datalist id="vendor-list">
+            {vendorSuggestions.map((v, i) => <option key={i} value={v} />)}
+          </datalist>
           <div className="enquiry-form-group" style={{ gridColumn: '1 / -1' }}>
             <label>Remarks</label>
             <textarea
@@ -276,24 +321,47 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
   // ─── Render Step 4: Summary Review ───
   const renderSummary = () => {
-    const summaryItems = [
-      { label: 'Enquiry No', value: formData.enquiry_no },
-      { label: 'Date', value: formData.enquiry_date },
-      { label: 'Customer Name', value: formData.customer_name },
-      { label: 'Job Type', value: jobType },
-      { label: 'Trade Direction', value: tradeDirection },
-      { label: 'POL', value: formData.pol },
-      { label: 'POD', value: formData.pod },
-      { label: 'Container Size', value: formData.container_size },
-      { label: 'Cargo', value: formData.cargo },
-      { label: 'Shipment Terms', value: formData.shipment_terms },
-      { label: 'Buy Freight', value: formData.buy_freight },
-      { label: 'Quote Rate', value: formData.quote_rate },
-      { label: 'Sell Freight', value: formData.sell_freight },
-      { label: 'Shipping Line', value: formData.shipping_line },
-      { label: 'Remarks', value: formData.remarks },
-      { label: 'Author', value: editingEnquiry?.created_by || currentUserEmail },
-    ];
+    const isAirFreight = jobType === 'AIR FREIGHT';
+    let summaryItems = [];
+
+    if (isAirFreight) {
+      summaryItems = [
+        { label: 'Enquiry No', value: formData.enquiry_no },
+        { label: 'Date', value: formData.enquiry_date },
+        { label: 'Customer Name', value: formData.customer_name },
+        { label: 'Job Type', value: jobType },
+        { label: 'Trade Direction', value: tradeDirection },
+        { label: 'AOL', value: formData.pol },
+        { label: 'AOD', value: formData.pod },
+        { label: 'EX WORKS', value: formData.ex_works },
+        { label: 'GR WT', value: formData.gr_wt },
+        { label: 'DIMENSION', value: formData.dimension },
+        { label: 'AIR LINE', value: formData.shipping_line },
+        { label: 'BUY FREIGHT', value: formData.buy_freight },
+        { label: 'SALE FREIGHT', value: formData.sell_freight },
+        { label: 'Remarks', value: formData.remarks },
+        { label: 'Author', value: editingEnquiry?.created_by || currentUserEmail },
+      ];
+    } else {
+      summaryItems = [
+        { label: 'Enquiry No', value: formData.enquiry_no },
+        { label: 'Date', value: formData.enquiry_date },
+        { label: 'Customer Name', value: formData.customer_name },
+        { label: 'Job Type', value: jobType },
+        { label: 'Trade Direction', value: tradeDirection },
+        { label: 'POL', value: formData.pol },
+        { label: 'POD', value: formData.pod },
+        { label: 'Container Size', value: formData.container_size },
+        { label: 'Cargo', value: formData.cargo },
+        { label: 'Shipment Terms', value: formData.shipment_terms },
+        { label: 'Buy Freight', value: formData.buy_freight },
+        { label: 'Quote Rate', value: formData.quote_rate },
+        { label: 'Sell Freight', value: formData.sell_freight },
+        { label: 'Shipping Line', value: formData.shipping_line },
+        { label: 'Remarks', value: formData.remarks },
+        { label: 'Author', value: editingEnquiry?.created_by || currentUserEmail },
+      ];
+    }
 
     return (
       <div>
@@ -364,7 +432,7 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               <h1>{editingEnquiry ? 'Edit Enquiry' : 'New Enquiry'}</h1>
             </div>
             <div className="enquiry-header-right">
-              <button className="enquiry-window-btn" onClick={() => onMinimize(formConfig.id)} title="Minimize">
+              <button className="enquiry-window-btn" onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingEnquiry })} title="Minimize">
                 <Minus size={16} />
               </button>
               <button className="enquiry-window-btn close-btn" onClick={handleCancel} title="Close">
@@ -491,6 +559,9 @@ const GlobalEnquiryForm = () => {
               quote_rate: enquiryToEdit.quote_rate ?? '',
               sell_freight: enquiryToEdit.sell_freight ?? '',
               shipping_line: enquiryToEdit.shipping_line || '',
+              ex_works: enquiryToEdit.ex_works || '',
+              gr_wt: enquiryToEdit.gr_wt || '',
+              dimension: enquiryToEdit.dimension || '',
               remarks: enquiryToEdit.remarks || '',
             },
             activeStep: 3,
@@ -516,8 +587,8 @@ const GlobalEnquiryForm = () => {
     setForms(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  const handleMinimize = useCallback((id) => {
-    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true } : f));
+  const handleMinimize = useCallback((id, currentState) => {
+    setForms(prev => prev.map(f => f.id === id ? { ...f, isMinimized: true, initialState: currentState || f.initialState } : f));
   }, []);
 
   const handleRestore = useCallback((id) => {
