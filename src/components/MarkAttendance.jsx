@@ -11,7 +11,8 @@ export default function MarkAttendance({ onBack }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState(null);
   const [gpsData, setGpsData] = useState(null);
-  const [geofenceStatus, setGeofenceStatus] = useState(null); // 'checking', 'success', 'blocked'
+  const [geofenceStatus, setGeofenceStatus] = useState(null); // 'checking', 'success', 'blocked', 'checkout_ready'
+  const [todayRecord, setTodayRecord] = useState(null); // stores today's attendance record for UI display
   const [geofenceError, setGeofenceError] = useState('');
   const [officeStartTime, setOfficeStartTime] = useState(null);
   const [timeUntilStart, setTimeUntilStart] = useState(-1);
@@ -136,7 +137,7 @@ export default function MarkAttendance({ onBack }) {
                   .select('id, out_time')
                   .eq('employee_id', data.id)
                   .eq('date', todayStr)
-                  .order('created_at', { ascending: false })
+                  .order('id', { ascending: false })
                   .limit(1);
                 const shiftCheck = shiftCheckArr?.[0] || null;
                 // Only close the shift if they already checked out or never checked in
@@ -174,7 +175,7 @@ export default function MarkAttendance({ onBack }) {
             .select('id, marked_at, out_time')
             .eq('employee_id', data.id)
             .eq('date', todayStr)
-            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
             .limit(1);
 
           if (attErr) {
@@ -185,10 +186,12 @@ export default function MarkAttendance({ onBack }) {
           console.log('[Attendance] Today record:', attData);
 
           if (attData) {
+            setTodayRecord(attData);
             if (attData.out_time) {
-              const timeStr = new Date(attData.out_time).toLocaleTimeString();
+              const inStr = attData.marked_at ? new Date(attData.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+              const outStr = new Date(attData.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               setVerifyResult('success');
-              setVerifyMessage(`You have already completed your shift today at ${timeStr}.`);
+              setVerifyMessage(`Your shift is complete for today.${inStr ? ` In: ${inStr}` : ''} | Out: ${outStr}`);
               setGeofenceStatus('success');
               setProfileLoading(false);
               return;
@@ -524,7 +527,11 @@ export default function MarkAttendance({ onBack }) {
 
         if (response.ok && result.success) {
           setVerifyResult('success');
-          setVerifyMessage(result.message || 'Attendance logged successfully.');
+          if (result.message?.includes('Thank you for your day')) {
+            setVerifyMessage('Thank you for your day. Your shift is complete.');
+          } else {
+            setVerifyMessage(`✅ In Time Done — Status: ${result.status || 'Present'}`);
+          }
           stopCamera();
         } else if (response.status === 401) {
           // Auth-specific failure — try one more time with a force-refreshed token
@@ -539,7 +546,11 @@ export default function MarkAttendance({ onBack }) {
             const retryResult = await retryResponse.json();
             if (retryResponse.ok && retryResult.success) {
               setVerifyResult('success');
-              setVerifyMessage(retryResult.message || 'Attendance logged successfully.');
+              if (retryResult.message?.includes('Thank you for your day')) {
+                setVerifyMessage('Thank you for your day. Your shift is complete.');
+              } else {
+                setVerifyMessage(`✅ In Time Done — Status: ${retryResult.status || 'Present'}`);
+              }
               stopCamera();
             } else {
               setVerifyResult('failed');
@@ -1086,8 +1097,13 @@ export default function MarkAttendance({ onBack }) {
               <div className="icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', margin: '0 auto 1.5rem auto' }}>
                 <CheckCircle className="w-8 h-8" />
               </div>
-              <h2 className="card-title">Already Checked In</h2>
-              <p className="card-description">You have already marked your in-time for today. Are you ready to log your out time?</p>
+              <h2 className="card-title">✅ In Time Done</h2>
+              {todayRecord?.marked_at && (
+                <p className="card-description" style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10B981', margin: '0.5rem 0' }}>
+                  Checked in at {new Date(todayRecord.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+              <p className="card-description" style={{ marginTop: '0.5rem' }}>Do you want to mark your out time?</p>
             </div>
             <button
               onClick={() => {

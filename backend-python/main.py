@@ -389,7 +389,7 @@ def face_match(
         .select("id, out_time, status, marked_at")\
         .eq("employee_id", emp_id)\
         .eq("date", today_str)\
-        .order("created_at", desc=True)\
+        .order("id", desc=True)\
         .execute()
 
     if existing_att.data:
