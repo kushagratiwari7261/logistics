@@ -3,7 +3,10 @@ import json
 import os
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# India Standard Time (IST) timezone
+IST = timezone(timedelta(hours=5, minutes=30))
 from typing import List, Optional
 import numpy as np
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, status, Request
@@ -197,7 +200,7 @@ async def health_check():
         "status": "healthy",
         "service": "Smart Attendance System Backend",
         "supabase_connected": supabase is not None,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(IST).isoformat()
     }
 
 @app.post("/api/geofence-check")
@@ -371,7 +374,7 @@ def face_match(
 
         try:
             shift_start = datetime.strptime(start_time_str, "%H:%M:%S").time()
-            now = datetime.now()
+            now = datetime.now(IST)
             current_time = now.time()
 
             shift_mins = shift_start.hour * 60 + shift_start.minute
@@ -384,7 +387,7 @@ def face_match(
             pass  # Fallback to Present if timing configuration values fail parsing
 
     # 7. Insert or Update record in Supabase (Handle Out Time)
-    today_str = datetime.now().date().isoformat()
+    today_str = datetime.now(IST).date().isoformat()
     existing_att = supabase.table("attendance")\
         .select("id, out_time, status, marked_at")\
         .eq("employee_id", emp_id)\
@@ -408,7 +411,7 @@ def face_match(
                 "already_marked": True,
                 "message": "You have already completed your shift today.",
                 "status": record.get("status", "Present"),
-                "marked_at": datetime.now().isoformat()
+                "marked_at": datetime.now(IST).isoformat()
             }
         else:
             # THIS IS AN OUT TIME SCAN
@@ -432,7 +435,7 @@ def face_match(
 
                     expected_out_mins = in_time_mins + shift_duration_mins
 
-                    now = datetime.now()
+                    now = datetime.now(IST)
                     current_time = now.time()
                     current_mins = current_time.hour * 60 + current_time.minute
 
@@ -447,7 +450,7 @@ def face_match(
                 except Exception as e:
                     logger.error(f"Error calculating dynamic end_time diff: {e}")
 
-            update_data = {"out_time": datetime.now().isoformat()}
+            update_data = {"out_time": datetime.now(IST).isoformat()}
             if status_str_update:
                 update_data["status"] = status_str_update
 
@@ -476,7 +479,7 @@ def face_match(
         "face_matched": True,
         "direction_used": direction_used,
         "status": status_str,
-        "marked_at": datetime.now().isoformat(),
+        "marked_at": datetime.now(IST).isoformat(),
         "date": today_str
     }
 
@@ -617,7 +620,7 @@ def update_office_config(
         "start_time": start_time,
         "end_time": end_time,
         "grace_period_minutes": grace_period_minutes,
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now(IST).isoformat()
     }
 
     if employee_id != "global":

@@ -196,11 +196,32 @@ export default function MarkAttendance({ onBack }) {
               setProfileLoading(false);
               return;
             } else {
-              // They are checking out - show checkout prompt
-              console.log('[Attendance] User is scanning for OUT time.');
-              setGeofenceStatus('checkout_ready');
-              setProfileLoading(false);
-              return;
+              // They are checking out
+              let isCloseToEnd = false;
+              if (empEnd) {
+                const now = new Date();
+                const [endH, endM, endS] = empEnd.split(':').map(Number);
+                const targetEnd = new Date();
+                targetEnd.setHours(endH, endM, endS || 0, 0);
+                
+                // If it's past targetEnd, or within 60 minutes before targetEnd
+                const diffMins = (targetEnd.getTime() - now.getTime()) / (1000 * 60);
+                if (diffMins <= 60) {
+                  isCloseToEnd = true;
+                }
+              }
+
+              if (isCloseToEnd) {
+                console.log('[Attendance] Time is close to end, directly going to face scan for out time.');
+                setGeofenceStatus('success'); // bypass prompt
+                setProfileLoading(false);
+                return;
+              } else {
+                console.log('[Attendance] User is scanning for OUT time early.');
+                setGeofenceStatus('checkout_ready');
+                setProfileLoading(false);
+                return;
+              }
             }
           }
         }
@@ -1097,13 +1118,13 @@ export default function MarkAttendance({ onBack }) {
               <div className="icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', margin: '0 auto 1.5rem auto' }}>
                 <CheckCircle className="w-8 h-8" />
               </div>
-              <h2 className="card-title">✅ In Time Done</h2>
+              <h2 className="card-title">✅ Attendance Already Marked</h2>
               {todayRecord?.marked_at && (
                 <p className="card-description" style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10B981', margin: '0.5rem 0' }}>
                   Checked in at {new Date(todayRecord.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
-              <p className="card-description" style={{ marginTop: '0.5rem' }}>Do you want to mark your out time?</p>
+              <p className="card-description" style={{ marginTop: '0.5rem' }}>Do you want to do out so soon?</p>
             </div>
             <button
               onClick={() => {
