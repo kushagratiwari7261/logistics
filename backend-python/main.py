@@ -381,22 +381,60 @@ def face_match(
         except Exception:
             pass  # Fallback to Present if timing configuration values fail parsing
 
-    # 7. Insert record in Supabase (Prevent Double-logging)
+    # 7. Insert or Update record in Supabase (Handle Out Time)
     today_str = datetime.now().date().isoformat()
     existing_att = supabase.table("attendance")\
-        .select("id")\
+        .select("id, out_time, status")\
         .eq("employee_id", emp_id)\
         .eq("date", today_str)\
         .execute()
 
     if existing_att.data:
-        return {
-            "success": True,
-            "already_marked": True,
-            "message": "Attendance already marked for today.",
-            "status": "Present",
-            "marked_at": datetime.now().isoformat()
-        }
+        record = existing_att.data[0]
+        if record.get("out_time"):
+            return {
+                "success": True,
+                "already_marked": True,
+                "message": "You have already completed your shift today.",
+                "status": record.get("status", "Present"),
+                "marked_at": datetime.now().isoformat()
+            }
+        else:
+            # THIS IS AN OUT TIME SCAN
+            status_str_update = None
+            if office_timing and office_timing.get("end_time"):
+                end_time_str = office_timing["end_time"]
+                try:
+                    shift_end = datetime.strptime(end_time_str, "%H:%M:%S").time()
+                    now = datetime.now()
+                    current_time = now.time()
+
+                    shift_end_mins = shift_end.hour * 60 + shift_end.minute
+                    current_mins = current_time.hour * 60 + current_time.minute
+
+                    # If leaving more than 1 hour (60 minutes) early, mark as Half Day
+                    if (shift_end_mins - current_mins) > 60:
+                        status_str_update = "Half Day"
+                except Exception as e:
+                    logger.error(f"Error calculating end_time diff: {e}")
+
+            update_data = {"out_time": datetime.now().isoformat()}
+            if status_str_update:
+                update_data["status"] = status_str_update
+
+            upd_res = supabase.table("attendance").update(update_data).eq("id", record["id"]).execute()
+            if not upd_res.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database write failure: Could not record out time."
+                )
+
+            return {
+                "success": True,
+                "message": "Thank you for your day",
+                "status": status_str_update or record.get("status", "Present"),
+                "marked_at": update_data["out_time"]
+            }
 
     attendance_data = {
         "employee_id": emp_id,

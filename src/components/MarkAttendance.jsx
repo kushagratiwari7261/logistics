@@ -147,24 +147,28 @@ export default function MarkAttendance({ onBack }) {
           }
         }
 
-        // Prevent double face scanning by checking if already marked today
+        // Prevent triple scanning by checking if out_time is already marked today
         if (data && data.id) {
           const todayStr = new Date().toLocaleDateString('en-CA');
           const { data: attData } = await supabase
             .from('attendance')
-            .select('id, marked_at')
+            .select('id, marked_at, out_time')
             .eq('employee_id', data.id)
             .eq('date', todayStr)
             .maybeSingle();
 
           if (attData) {
-            const timeStr = new Date(attData.marked_at).toLocaleTimeString();
-            setVerifyResult('success');
-            setVerifyMessage(`You have already marked your attendance for today at ${timeStr}.`);
-            // Bypass geofence check loading completely since they already did it earlier
-            setGeofenceStatus('success');
-            setProfileLoading(false);
-            return;
+            if (attData.out_time) {
+              const timeStr = new Date(attData.out_time).toLocaleTimeString();
+              setVerifyResult('success');
+              setVerifyMessage(`You have already completed your shift today at ${timeStr}.`);
+              setGeofenceStatus('success');
+              setProfileLoading(false);
+              return;
+            } else {
+              // They are checking out
+              console.log('[Attendance] User is scanning for OUT time.');
+            }
           }
         }
       }
