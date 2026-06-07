@@ -386,7 +386,7 @@ def face_match(
     # 7. Insert or Update record in Supabase (Handle Out Time)
     today_str = datetime.now().date().isoformat()
     existing_att = supabase.table("attendance")\
-        .select("id, out_time, status")\
+        .select("id, out_time, status, marked_at")\
         .eq("employee_id", emp_id)\
         .eq("date", today_str)\
         .execute()

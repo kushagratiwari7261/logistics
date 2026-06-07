@@ -1487,6 +1487,10 @@ export default function AdminDashboard({ onBack }) {
                               }
                             }, (err) => {
                               alert("GPS location access denied or unavailable.");
+                            }, {
+                              enableHighAccuracy: true,
+                              maximumAge: 0,
+                              timeout: 10000
                             });
                           } else {
                             alert("Geolocation is not supported by your browser.");
