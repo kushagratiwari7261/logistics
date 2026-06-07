@@ -13,6 +13,7 @@ export default function MarkAttendance({ onBack }) {
   const [gpsData, setGpsData] = useState(null);
   const [geofenceStatus, setGeofenceStatus] = useState(null); // 'checking', 'success', 'blocked', 'checkout_ready'
   const [todayRecord, setTodayRecord] = useState(null); // stores today's attendance record for UI display
+  const [isEarlyCheckout, setIsEarlyCheckout] = useState(false);
   const [geofenceError, setGeofenceError] = useState('');
   const [officeStartTime, setOfficeStartTime] = useState(null);
   const [timeUntilStart, setTimeUntilStart] = useState(-1);
@@ -212,12 +213,14 @@ export default function MarkAttendance({ onBack }) {
               }
 
               if (isCloseToEnd) {
-                console.log('[Attendance] Time is close to end, directly going to face scan for out time.');
-                setGeofenceStatus('success'); // bypass prompt
+                console.log('[Attendance] Time is close to end, showing standard checkout prompt.');
+                setIsEarlyCheckout(false);
+                setGeofenceStatus('checkout_ready');
                 setProfileLoading(false);
                 return;
               } else {
                 console.log('[Attendance] User is scanning for OUT time early.');
+                setIsEarlyCheckout(true);
                 setGeofenceStatus('checkout_ready');
                 setProfileLoading(false);
                 return;
@@ -1124,7 +1127,9 @@ export default function MarkAttendance({ onBack }) {
                   Checked in at {new Date(todayRecord.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
-              <p className="card-description" style={{ marginTop: '0.5rem' }}>Do you want to do out so soon?</p>
+              <p className="card-description" style={{ marginTop: '0.5rem' }}>
+                {isEarlyCheckout ? 'Do you want to do out so soon?' : 'Ready to mark your out time?'}
+              </p>
             </div>
             <button
               onClick={() => {
