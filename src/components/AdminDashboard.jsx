@@ -1089,6 +1089,7 @@ export default function AdminDashboard({ onBack }) {
                         <th>Employee</th>
                         <th>Role</th>
                         <th>Method</th>
+                        <th>Time (In/Out)</th>
                         <th>Status</th>
                         <th>Geofence</th>
                         <th style={{textAlign: "right"}}>Action</th>
@@ -1121,6 +1122,16 @@ export default function AdminDashboard({ onBack }) {
                                 }`}>
                                   {record.face_matched ? 'Face Biometric' : (record.direction_used === 'ADMIN_OVERRIDE' ? 'Manual' : record.direction_used)}
                                 </span>
+                              )}
+                            </td>
+                            <td className="admin-font-mono" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>
+                              {!record ? '-' : (
+                                <>
+                                  <div style={{ color: '#10B981' }}>In: {new Date(record.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                  {record.out_time && (
+                                    <div style={{ color: '#F59E0B' }}>Out: {new Date(record.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                  )}
+                                </>
                               )}
                             </td>
                             <td >

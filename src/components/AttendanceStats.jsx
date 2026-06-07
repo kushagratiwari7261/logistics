@@ -564,11 +564,17 @@ export default function AttendanceStats({ onBack }) {
               <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingRight: '0.5rem' }} className="custom-scrollbar">
                 {presentTodayList.length > 0 ? (
                   presentTodayList.map((log) => (
-                    <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', backgroundColor: 'var(--bg-base)', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-primary)' }}>{log.name || 'Unknown'}</span>
-                      <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '1rem', backgroundColor: log.status === 'Late' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: log.status === 'Late' ? '#F59E0B' : '#10B981', fontWeight: 'bold' }}>
-                        {log.status || 'Present'}
-                      </span>
+                    <div key={log.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem', backgroundColor: 'var(--bg-base)', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-primary)' }}>{log.name || 'Unknown'}</span>
+                        <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '1rem', backgroundColor: log.status === 'Late' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: log.status === 'Late' ? '#F59E0B' : '#10B981', fontWeight: 'bold' }}>
+                          {log.status || 'Present'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                        <span>In: {new Date(log.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {log.out_time && <span>Out: {new Date(log.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                      </div>
                     </div>
                   ))
                 ) : (

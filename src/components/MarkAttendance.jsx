@@ -168,6 +168,11 @@ export default function MarkAttendance({ onBack }) {
             } else {
               // They are checking out
               console.log('[Attendance] User is scanning for OUT time.');
+              setVerifyResult('success');
+              setVerifyMessage('You are already checked in. Ready to log your out time?');
+              setGeofenceStatus('checkout_ready');
+              setProfileLoading(false);
+              return;
             }
           }
         }
@@ -293,6 +298,10 @@ export default function MarkAttendance({ onBack }) {
 
   // Load MediaPipe scripts dynamically
   useEffect(() => {
+    if (geofenceStatus === 'checkout_ready') {
+      return;
+    }
+
     if (geofenceStatus !== 'success' || verifyResult === 'success') return;
 
     const loadScript = (src) => {
@@ -1040,6 +1049,31 @@ export default function MarkAttendance({ onBack }) {
                 <Camera className="w-4 h-4" /> Skip Liveness — Verify Face Only
               </button>
             </div>
+          </div>
+        )}
+
+        {/* --- STEP 2.8: Checkout Prompt --- */}
+        {geofenceStatus === 'checkout_ready' && (
+          <div className="attendance-card">
+            <div className="status-header">
+              <div className="status-icon success">
+                <Check className="w-8 h-8" />
+              </div>
+              <h2 className="card-title mt-4">Already Checked In</h2>
+              <p className="card-description">You have already marked your in-time for today. Are you ready to log your out time?</p>
+            </div>
+            <button
+              onClick={() => {
+                setGeofenceStatus('success');
+                setVerifyResult(null);
+                setVerifyMessage('');
+                startCamera();
+              }}
+              className="btn-primary"
+              style={{ marginTop: '1.5rem', width: '100%' }}
+            >
+              Mark Out Time
+            </button>
           </div>
         )}
 

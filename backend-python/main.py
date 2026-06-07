@@ -36,6 +36,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
         "https://logistics.prudata-tech.workers.dev",
         "https://logistics-production.up.railway.app",
         "https://kushagra-logistics.vercel.app",
@@ -402,21 +404,39 @@ def face_match(
         else:
             # THIS IS AN OUT TIME SCAN
             status_str_update = None
-            if office_timing and office_timing.get("end_time"):
+            if office_timing and office_timing.get("start_time") and office_timing.get("end_time"):
+                start_time_str = office_timing["start_time"]
                 end_time_str = office_timing["end_time"]
                 try:
+                    shift_start = datetime.strptime(start_time_str, "%H:%M:%S").time()
                     shift_end = datetime.strptime(end_time_str, "%H:%M:%S").time()
+
+                    shift_start_mins = shift_start.hour * 60 + shift_start.minute
+                    shift_end_mins = shift_end.hour * 60 + shift_end.minute
+                    
+                    shift_duration_mins = shift_end_mins - shift_start_mins
+                    if shift_duration_mins < 0:
+                        shift_duration_mins += 24 * 60
+
+                    in_time = datetime.fromisoformat(record["marked_at"].replace("Z", "+00:00")).time()
+                    in_time_mins = in_time.hour * 60 + in_time.minute
+
+                    expected_out_mins = in_time_mins + shift_duration_mins
+
                     now = datetime.now()
                     current_time = now.time()
-
-                    shift_end_mins = shift_end.hour * 60 + shift_end.minute
                     current_mins = current_time.hour * 60 + current_time.minute
 
-                    # If leaving more than 1 hour (60 minutes) early, mark as Half Day
-                    if (shift_end_mins - current_mins) > 60:
+                    if expected_out_mins >= 24 * 60:
+                        expected_out_mins -= 24 * 60
+                        if current_mins > 12 * 60:
+                            current_mins -= 24 * 60
+
+                    # If leaving more than 1 hour (60 minutes) early based on IN TIME
+                    if (expected_out_mins - current_mins) > 60:
                         status_str_update = "Half Day"
                 except Exception as e:
-                    logger.error(f"Error calculating end_time diff: {e}")
+                    logger.error(f"Error calculating dynamic end_time diff: {e}")
 
             update_data = {"out_time": datetime.now().isoformat()}
             if status_str_update:
