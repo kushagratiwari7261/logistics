@@ -444,9 +444,11 @@ def face_match(
                         if current_mins > 12 * 60:
                             current_mins -= 24 * 60
 
-                    # If leaving more than 1 hour (60 minutes) early based on IN TIME
-                    if (expected_out_mins - current_mins) > 60:
+                    # If leaving more than 1.5 hours (90 minutes) early based on IN TIME
+                    if (expected_out_mins - current_mins) > 90:
                         status_str_update = "Half Day"
+                    else:
+                        status_str_update = "Present"  # Full day
                 except Exception as e:
                     logger.error(f"Error calculating dynamic end_time diff: {e}")
 
