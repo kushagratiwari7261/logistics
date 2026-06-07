@@ -125,8 +125,25 @@ export default function MarkAttendance({ onBack }) {
             const [endH, endM, endS] = empEnd.split(':').map(Number);
             const targetEnd = new Date();
             targetEnd.setHours(endH, endM, endS || 0, 0);
+            // Only close shift if PAST end time AND user has already completed checkout
+            // (or never checked in today). If they checked in but didn't check out, let them.
             if (now.getTime() > targetEnd.getTime()) {
-              setShiftClosed(true);
+              // Check if user needs to check out before closing
+              if (data && data.id) {
+                const todayStr = new Date().toLocaleDateString('en-CA');
+                const { data: shiftCheck } = await supabase
+                  .from('attendance')
+                  .select('id, out_time')
+                  .eq('employee_id', data.id)
+                  .eq('date', todayStr)
+                  .maybeSingle();
+                // Only close the shift if they already checked out or never checked in
+                if (!shiftCheck || shiftCheck.out_time) {
+                  setShiftClosed(true);
+                }
+              } else {
+                setShiftClosed(true);
+              }
             }
           }
 
@@ -166,10 +183,8 @@ export default function MarkAttendance({ onBack }) {
               setProfileLoading(false);
               return;
             } else {
-              // They are checking out
+              // They are checking out - show checkout prompt
               console.log('[Attendance] User is scanning for OUT time.');
-              setVerifyResult('success');
-              setVerifyMessage('You are already checked in. Ready to log your out time?');
               setGeofenceStatus('checkout_ready');
               setProfileLoading(false);
               return;
@@ -288,6 +303,8 @@ export default function MarkAttendance({ onBack }) {
   // Start geofence capture automatically for Office Staff
   useEffect(() => {
     if (userProfile) {
+      // Don't override checkout_ready or already-passed geofence
+      if (geofenceStatus === 'checkout_ready' || geofenceStatus === 'success') return;
       if (userProfile.role === 'office') {
         handleGPSCheck();
       } else {
@@ -1053,13 +1070,13 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 2.8: Checkout Prompt --- */}
-        {geofenceStatus === 'checkout_ready' && (
+        {!profileLoading && geofenceStatus === 'checkout_ready' && (
           <div className="attendance-card">
-            <div className="status-header">
-              <div className="status-icon success">
-                <Check className="w-8 h-8" />
+            <div style={{ textAlign: 'center' }}>
+              <div className="icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', margin: '0 auto 1.5rem auto' }}>
+                <CheckCircle className="w-8 h-8" />
               </div>
-              <h2 className="card-title mt-4">Already Checked In</h2>
+              <h2 className="card-title">Already Checked In</h2>
               <p className="card-description">You have already marked your in-time for today. Are you ready to log your out time?</p>
             </div>
             <button
@@ -1067,6 +1084,13 @@ export default function MarkAttendance({ onBack }) {
                 setGeofenceStatus('success');
                 setVerifyResult(null);
                 setVerifyMessage('');
+                setFaceLock('searching');
+                faceLockRef.current = 'searching';
+                setLivenessProgress(0);
+                setIsVerifying(false);
+                isVerifyingRef.current = false;
+                setMeshLoadError(false);
+                setCameraActive(false);
                 startCamera();
               }}
               className="btn-primary"
