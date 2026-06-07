@@ -389,10 +389,19 @@ def face_match(
         .select("id, out_time, status, marked_at")\
         .eq("employee_id", emp_id)\
         .eq("date", today_str)\
+        .order("created_at", desc=True)\
         .execute()
 
     if existing_att.data:
+        # Take the latest record and clean up any duplicates
         record = existing_att.data[0]
+        if len(existing_att.data) > 1:
+            logger.warning(f"Found {len(existing_att.data)} duplicate attendance records for {emp_id} on {today_str}. Cleaning up.")
+            for dup in existing_att.data[1:]:
+                try:
+                    supabase.table("attendance").delete().eq("id", dup["id"]).execute()
+                except Exception as e:
+                    logger.error(f"Failed to delete duplicate record {dup['id']}: {e}")
         if record.get("out_time"):
             return {
                 "success": True,

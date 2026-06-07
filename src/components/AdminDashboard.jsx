@@ -876,7 +876,7 @@ export default function AdminDashboard({ onBack }) {
         return (
           <div className="admin-live-badge late">
             <span className="badge-text">Late</span>
-            <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            {record.marked_at && <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
           </div>
         );
       }
@@ -884,14 +884,22 @@ export default function AdminDashboard({ onBack }) {
         return (
           <div className="admin-live-badge excused">
             <span className="badge-text">Excused</span>
-            <span className="badge-reason" title={record.override_reason}>{record.override_reason.slice(0, 10)}...</span>
+            {record.override_reason && <span className="badge-reason" title={record.override_reason}>{record.override_reason.slice(0, 10)}...</span>}
+          </div>
+        );
+      }
+      if (record.status === 'Half Day') {
+        return (
+          <div className="admin-live-badge late">
+            <span className="badge-text">Half Day</span>
+            {record.marked_at && <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
           </div>
         );
       }
       return (
         <div className="admin-live-badge present">
           <span className="badge-text">Present</span>
-          <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          {record.marked_at && <span className="badge-time">{new Date(record.marked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
         </div>
       );
     }
@@ -1127,10 +1135,13 @@ export default function AdminDashboard({ onBack }) {
                             <td className="admin-font-mono" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>
                               {!record ? '-' : (
                                 <>
-                                  <div style={{ color: '#10B981' }}>In: {new Date(record.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                  {record.marked_at && (
+                                    <div style={{ color: '#10B981' }}>In: {new Date(record.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                  )}
                                   {record.out_time && (
                                     <div style={{ color: '#F59E0B' }}>Out: {new Date(record.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                   )}
+                                  {!record.marked_at && !record.out_time && '-'}
                                 </>
                               )}
                             </td>

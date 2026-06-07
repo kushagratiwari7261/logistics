@@ -572,7 +572,7 @@ export default function AttendanceStats({ onBack }) {
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                        <span>In: {new Date(log.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {log.marked_at && <span>In: {new Date(log.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
                         {log.out_time && <span>Out: {new Date(log.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
                       </div>
                     </div>

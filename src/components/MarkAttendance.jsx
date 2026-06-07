@@ -131,12 +131,14 @@ export default function MarkAttendance({ onBack }) {
               // Check if user needs to check out before closing
               if (data && data.id) {
                 const todayStr = new Date().toLocaleDateString('en-CA');
-                const { data: shiftCheck } = await supabase
+                const { data: shiftCheckArr } = await supabase
                   .from('attendance')
                   .select('id, out_time')
                   .eq('employee_id', data.id)
                   .eq('date', todayStr)
-                  .maybeSingle();
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                const shiftCheck = shiftCheckArr?.[0] || null;
                 // Only close the shift if they already checked out or never checked in
                 if (!shiftCheck || shiftCheck.out_time) {
                   setShiftClosed(true);
@@ -167,12 +169,20 @@ export default function MarkAttendance({ onBack }) {
         // Prevent triple scanning by checking if out_time is already marked today
         if (data && data.id) {
           const todayStr = new Date().toLocaleDateString('en-CA');
-          const { data: attData } = await supabase
+          const { data: attArr, error: attErr } = await supabase
             .from('attendance')
             .select('id, marked_at, out_time')
             .eq('employee_id', data.id)
             .eq('date', todayStr)
-            .maybeSingle();
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (attErr) {
+            console.error('[Attendance] Error checking today record:', attErr);
+          }
+
+          const attData = attArr?.[0] || null;
+          console.log('[Attendance] Today record:', attData);
 
           if (attData) {
             if (attData.out_time) {
@@ -1223,12 +1233,16 @@ export default function MarkAttendance({ onBack }) {
         )}
 
         {/* --- STEP 4: Absolute Success Screen --- */}
-        {!profileLoading && !isSunday && !shiftClosed && userProfile && verifyResult === 'success' && (
+        {!profileLoading && !isSunday && userProfile && verifyResult === 'success' && (
           <div className="attendance-card success-screen-card">
             <div className="success-screen-icon-wrapper">
               <CheckCircle className="success-screen-icon" />
             </div>
-            <h2 className="success-screen-title">Attendance Confirmed</h2>
+            <h2 className="success-screen-title">
+              {verifyMessage?.includes('Thank you') ? 'Shift Complete' : 
+               verifyMessage?.includes('completed') ? 'Shift Complete' :
+               'Attendance Confirmed'}
+            </h2>
             <p className="success-screen-desc">
               {verifyMessage || 'Your face matched and coordinates verified successfully. Go ahead and start your workday!'}
             </p>
