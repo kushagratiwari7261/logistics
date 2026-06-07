@@ -98,10 +98,11 @@ export default function MarkAttendance({ onBack }) {
 
         console.log('[Attendance] Employee lookup result:', data, empErr);
         setUserProfile(data);
+        
+        let empStart = null;
+        let empEnd = null;
 
         if (data && data.id) {
-          let empStart = null;
-          let empEnd = null;
           const { data: empConf } = await supabase
             .from('employee_office_config')
             .select('start_time, end_time')
@@ -299,7 +300,7 @@ export default function MarkAttendance({ onBack }) {
 
           if (!office) {
             console.warn('[Geofence] No office config found, allowing attendance.');
-            setGeofenceStatus('success');
+            setGeofenceStatus(prev => prev === 'checkout_ready' ? 'checkout_ready' : 'success');
             return;
           }
 
@@ -312,7 +313,7 @@ export default function MarkAttendance({ onBack }) {
           console.log('[Geofence] Distance:', distance.toFixed(1), 'm | Radius:', radius, 'm | Pass:', distance <= radius);
 
           if (distance <= radius) {
-            setGeofenceStatus('success');
+            setGeofenceStatus(prev => prev === 'checkout_ready' ? 'checkout_ready' : 'success');
           } else {
             setGeofenceStatus('blocked');
             setGeofenceError(
@@ -341,14 +342,14 @@ export default function MarkAttendance({ onBack }) {
   useEffect(() => {
     if (userProfile) {
       // Don't override checkout_ready or already-passed geofence
-      if (geofenceStatus === 'checkout_ready' || geofenceStatus === 'success') return;
+      if (geofenceStatus === 'checkout_ready' || geofenceStatus === 'success' || geofenceStatus === 'checking' || geofenceStatus === 'blocked') return;
       if (userProfile.role === 'office') {
         handleGPSCheck();
       } else {
-        setGeofenceStatus('success');
+        setGeofenceStatus(prev => prev === 'checkout_ready' ? 'checkout_ready' : 'success');
       }
     }
-  }, [userProfile, handleGPSCheck]);
+  }, [userProfile, handleGPSCheck, geofenceStatus]);
 
   // Load MediaPipe scripts dynamically
   useEffect(() => {
