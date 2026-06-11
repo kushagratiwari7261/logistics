@@ -21,7 +21,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         skipWaiting: true,
         clientsClaim: true,
-        maximumFileSizeToCacheInBytes: 3000000, // Increase limit to 3MB to handle larger JS bundles
+        maximumFileSizeToCacheInBytes: 10000000, // Increase limit to 10MB to handle large JS bundles like FortuneSheet
         // SPA navigation fallback — ensures routes like /attendance are served by index.html
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
@@ -85,8 +85,8 @@ export default defineConfig({
         manualChunks: {
           // Separate PDF generation library
           pdf: ['@react-pdf/renderer'],
-          // Separate other large libraries
           vendor: ['react', 'react-dom', 'react-router-dom'],
+          fortune: ['@fortune-sheet/react', 'xlsx'],
           // Supabase and other utilities
           supabase: ['@supabase/supabase-js'],
           // Date utilities
