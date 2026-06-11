@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     }
 
     const emailPayload = {
-      from: 'Seal Logistics <alerts@mail.prudata.info>',
+      from: process.env.RESEND_FROM_EMAIL || 'Seal Logistics <alerts@mail.prudata.info>',
       to: to.split(',').map(e => e.trim()),
       subject: subject,
       html: `<div style="font-family: sans-serif;">
