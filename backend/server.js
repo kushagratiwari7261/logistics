@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import cron from 'node-cron';
+import multer from 'multer';
 
 // Prevent missing dotenv crash in production
 try {
@@ -34,22 +35,37 @@ const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://logistics-alpha-steel.vercel.app"
+];
+
 // Flexible CORS setup
 app.use(
   cors({
-    origin: "*",
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- Setup Server and Socket.IO (Moved to top for reliability) ---
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
   },
@@ -309,6 +325,65 @@ async function sendSealEmail({ to, subject, title, body, actionLink, actionText,
 }
 
 // --- NOTIFICATION ENDPOINTS ---
+
+/**
+ * Custom File Attachment Email Endpoint
+ */
+app.post("/api/send-email", upload.single('file'), async (req, res) => {
+  if (!resend) {
+    return res.status(500).json({ error: "Resend API key not configured" });
+  }
+
+  try {
+    const { to, cc, bcc, subject, body, fileName, fileBase64 } = req.body;
+    let fileBuffer;
+    let finalFileName = fileName;
+
+    // Support both FormData (multer) and JSON (Base64)
+    if (req.file) {
+      fileBuffer = req.file.buffer;
+      finalFileName = req.file.originalname;
+    } else if (fileBase64) {
+      fileBuffer = Buffer.from(fileBase64, 'base64');
+    }
+
+    if (!to || !subject) {
+      return res.status(400).json({ error: "Missing required fields: to, subject" });
+    }
+
+    const emailPayload = {
+      from: 'Seal Logistics <alerts@mail.prudata.info>',
+      to: to.split(',').map(e => e.trim()),
+      subject: subject,
+      html: `<div style="font-family: sans-serif;">
+              <p>${body ? body.replace(/\n/g, '<br/>') : 'Please find the attached file.'}</p>
+             </div>`
+    };
+
+    if (cc) emailPayload.cc = cc.split(',').map(e => e.trim());
+    if (bcc) emailPayload.bcc = bcc.split(',').map(e => e.trim());
+
+    if (fileBuffer) {
+      emailPayload.attachments = [
+        {
+          filename: finalFileName || 'attachment.xlsx',
+          content: fileBuffer,
+        }
+      ];
+    }
+
+    const result = await resend.emails.send(emailPayload);
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    res.json({ success: true, message: "Email sent successfully" });
+  } catch (err) {
+    console.error("Error sending email with attachment:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /**
  * Cron: Greeting Messages (Morning/Night)

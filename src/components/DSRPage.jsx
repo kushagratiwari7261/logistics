@@ -1,656 +1,834 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { UserPlus } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Workbook } from '@fortune-sheet/react';
+import '@fortune-sheet/react/dist/index.css';
+import { v4 as uuidv4 } from 'uuid';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { UserPlus, Clock, FileSpreadsheet } from 'lucide-react';
 
-const DSRHondaReport = () => {
-  const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [selectedRows, setSelectedRows] = useState(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+// default headers requested by user
+const defaultHeaders = [
+  "Billing Location", "GST Number", "From", "Qty", "To", "Eway bill DATE",
+  "Eway Bill No", "Invoice Date", "Invoice no.", "Taxable Amt", "GST", "Total Amt",
+  "Billing", "TOTAL VEHICLE BUYING", "Other Charges/Own Expenses", "Transporter name",
+  "LR.NO.", "LR. DATE", "Vehicle.no.", "vehicle type", "DISTANCE IN KM",
+  "Driver no.", "Reporting date", "Delivery date", "Delay Remark", "Det.",
+  "Author who created this dsr"
+];
+
+const generateDefaultSheet = (authorEmail = '') => {
+  const celldata = defaultHeaders.map((header, index) => ({
+    r: 0,
+    c: index,
+    v: {
+      v: header,
+      m: header,
+      bl: 1, // bold
+      bg: "#FFFF00", // Yellow background
+    }
+  }));
+
+  if (authorEmail) {
+    celldata.push({
+      r: 1,
+      c: 26, // Index of "Author who created this dsr"
+      v: {
+        v: authorEmail,
+        m: authorEmail
+      }
+    });
+  }
+
+  return [{
+    name: "Sheet1",
+    id: "sheet_01",
+    status: 1, // active sheet
+    celldata: celldata,
+    calcChain: [],
+    order: 1
+  }];
+};
+
+// Helper function to ensure first row is always yellow with bold
+const enforceYellowFirstRow = (celldata) => {
+  if (!Array.isArray(celldata)) return celldata;
+
+  return celldata.map(cell => {
+    if (cell.r === 0 && cell.v) {
+      return {
+        ...cell,
+        v: {
+          ...cell.v,
+          bg: "#FFFF00",
+          bl: 1
+        }
+      };
+    }
+    return cell;
+  });
+};
+
+export default function DSRPage() {
+  const [workbooks, setWorkbooks] = useState([]);
+  const [activeWorkbook, setActiveWorkbook] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [editingCell, setEditingCell] = useState(null);
-  const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
-  const [emailDialog, setEmailDialog] = useState(null); // { type: 'auto' | 'compose', data: excelData }
+  const [workbookData, setWorkbookData] = useState([]);
+  const [lastSavedTime, setLastSavedTime] = useState(null);
+  const [activeSheetIndex, setActiveSheetIndex] = useState(0);
+  const [emailDialog, setEmailDialog] = useState(false);
   const [emailConfig, setEmailConfig] = useState({
     to: '',
     cc: '',
     bcc: '',
-    subject: 'DSR Report',
-    body: 'Please find attached the DSR Report.',
-    recipients: []
+    subject: 'DSR Update from Seal Freight',
+    body: 'Please find the attached DSR update sheet.'
   });
   const [sendingEmail, setSendingEmail] = useState(false);
+  const workbookDataRef = useRef([]);
+  const workbookRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const activeWorkbookRef = useRef(null);
+  const autoSaveTimeoutRef = useRef(null);
 
-  // Function to format dates consistently
-  const formatDate = useCallback((dateValue) => {
-    if (!dateValue) return null;
+  // Sync ref when workbookData changes
+  useEffect(() => {
+    if (workbookData && workbookData.length > 0) {
+      workbookDataRef.current = JSON.parse(JSON.stringify(workbookData));
+    }
+  }, [workbookData]);
 
-    try {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) {
-        return dateValue;
+  useEffect(() => {
+    activeWorkbookRef.current = activeWorkbook;
+  }, [activeWorkbook]);
+
+  useEffect(() => {
+    fetchWorkbooks();
+
+    if (activeWorkbook) {
+      saveTimerRef.current = setInterval(() => {
+        console.log('Auto-saving (interval)...');
+        saveActiveWorkbook(true);
+      }, 300000); // 5 minutes
+    }
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearInterval(saveTimerRef.current);
       }
-
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-
-      return `${year}-${month}-${day}`;
-    } catch {
-      return dateValue;
-    }
-  }, []);
-
-  const extractDateFromTimestamp = useCallback((timestamp) => {
-    if (!timestamp) return null;
-
-    if (typeof timestamp === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
-      return timestamp;
-    }
-
-    if (typeof timestamp === 'string' && timestamp.includes('T')) {
-      return timestamp.split('T')[0];
-    }
-
-    if (typeof timestamp === 'string') {
-      const datePart = timestamp.split(' ')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-        return datePart;
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
-    }
+    };
+  }, [activeWorkbook]);
 
-    return formatDate(timestamp);
-  }, [formatDate]);
-
-  const fetchData = useCallback(async () => {
+  const fetchWorkbooks = async () => {
     try {
       setLoading(true);
-      setError(null);
+      const { data, error } = await supabase
+        .from('dsr_workbooks')
+        .select('id, name, created_at, updated_at, created_by')
+        .order('created_at', { ascending: false });
 
-      const { data: shipmentsData, error: shipmentsError } = await supabase
-        .from('shipments')
-        .select('*')
-        .order('job_no', { ascending: true });
-
-      if (shipmentsError) throw shipmentsError;
-      transformData(shipmentsData);
-
+      if (error) {
+        if (error.code === '42P01') {
+          console.warn("Table dsr_workbooks doesn't exist yet.");
+        } else {
+          throw error;
+        }
+      } else {
+        setWorkbooks(data || []);
+      }
     } catch (err) {
-      console.error('Error in fetchData:', err);
-      setError(err.message);
+      console.error('Error fetching workbooks:', err);
+    } finally {
       setLoading(false);
-
-      if (retryCount >= 2) {
-        const sampleData = [
-          {
-            SNO: 1,
-            INVNO: "10H-3130-01",
-            INVDT: "2021-09-07",
-            CONSIGNEE: "AMERICAN HONDA",
-            DESTINATION: "HOUSTON",
-            GOODS: "IC ENGINES PETROL",
-            GrossWeightKGS: 13760,
-            NETWEIGHT: 13200,
-            TERM: "CIF",
-            SBILLNO: 4438452,
-            SBILLDT: "2021-09-08",
-            STUFFINGDT: "2021-09-08",
-            HANDOVERDT: "2021-09-09",
-            SLINE: "CMA",
-            BKGNO: "CAD0558889",
-            CONTAINERNO: "TCNU5219260",
-            CONTYPE: "40'",
-            RAILOUTDT: "2021-09-11",
-            ARRIVAL: "2021-09-13",
-            VESSEL: "CMA CGM OTELLO",
-            VOY: "0MXA3W1MA",
-            ETD: "2021-09-18",
-            SOB: "2021-09-18",
-            ETA: "2021-12-05",
-            MBHBLNO: "CAD0558889",
-            DT: "2021-09-18",
-            REMARK: "SHIPMENT DELIVER TO CONSIGNEE ON 08TH DEC",
-            Job: 1001,
-            id: 1
-          },
-        ];
-        setData(sampleData);
-        setFilteredData(sampleData);
-        setError("Using sample data. Could not connect to database: " + err.message);
-      }
-    }
-  }, [retryCount]);
-
-  useEffect(() => {
-    fetchData();
-    
-    // Listen for local form saves to update list instantly
-    const handleLocalRefresh = () => fetchData();
-    window.addEventListener('shipment_data_updated', handleLocalRefresh);
-    window.addEventListener('job_data_updated', handleLocalRefresh);
-
-    // Subscribe to realtime shipments updates for DSR
-    const channel = supabase
-      .channel('public:shipments:dsr')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
-         fetchData();
-      })
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-      window.removeEventListener('shipment_data_updated', handleLocalRefresh);
-      window.removeEventListener('job_data_updated', handleLocalRefresh);
-    };
-  }, [fetchData, retryCount]);
-
-  const transformData = useCallback((rawData) => {
-    const transformedData = rawData.map((item, index) => ({
-      SNO: index + 1,
-      INVNO: item.invoice_no || item.invoiceNo || item.shipment_no || null,
-      INVDT: extractDateFromTimestamp(item.invoice_date || item.invoiceDate || item.shipment_date),
-      CONSIGNEE: item.consignee || null,
-      DESTINATION: item.destination || item.pod || item.pof || null,
-      GOODS: item.commodity || item.description || null,
-      GrossWeightKGS: item.gr_weight || item.grWeight || item.gross_weight || null,
-      NETWEIGHT: item.net_weight || item.netWeight || item.gross_weight || null,
-      TERM: item.incoterms || item.terms || null,
-      SBILLNO: item.trade_direction === 'IMPORT' ? (item.boe_no || item.boeNo) : (item.sb_no || item.sbNo || item.hbl_no || null),
-      SBILLDT: extractDateFromTimestamp(item.trade_direction === 'IMPORT' ? (item.boe_date || item.boeDate) : (item.sb_date || item.sbDate || item.shipment_date)),
-      STUFFINGDT: extractDateFromTimestamp(item.stuffing_date || item.stuffingDate),
-      HANDOVERDT: extractDateFromTimestamp(item.ho_date || item.hoDate),
-      SLINE: item.s_line || item.sLine || item.carrier || null,
-      BKGNO: item.job_no || null,
-      CONTAINERNO: item.container_no || item.containerNo || "N/A",
-      CONTYPE: item.no_of_cntr || item.noOfCntr ? `${item.no_of_cntr || item.noOfCntr} containers` : "N/A",
-      RAILOUTDT: extractDateFromTimestamp(item.rail_out_date || item.railOutDate),
-      ARRIVAL: extractDateFromTimestamp(item.eta),
-      VESSEL: item.vessel || item.vessel_name_summary || null,
-      VOY: item.voy || null,
-      ETD: extractDateFromTimestamp(item.etd),
-      SOB: extractDateFromTimestamp(item.sob),
-      ETA: extractDateFromTimestamp(item.eta),
-      MBHBLNO: item.mbl_no || item.mblNo || item.hbl_no || null,
-      DT: extractDateFromTimestamp(item.hbl_dt || item.hblDt || item.shipment_date),
-      REMARK: item.remarks || null,
-      AUTHOR: item.created_by ? item.created_by.split('@')[0] : (item.updated_by ? item.updated_by.split('@')[0] : null),
-      Job: item.job_no || null,
-      id: item.id,
-      originalData: item
-    }));
-
-    setData(transformedData);
-    setFilteredData(transformedData);
-    setLoading(false);
-  }, [extractDateFromTimestamp]);
-
-  useEffect(() => {
-    let result = data;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(item =>
-        Object.values(item).some(val =>
-          val && val.toString().toLowerCase().includes(term)
-        )
-      );
-    }
-    setFilteredData(result);
-  }, [searchTerm, data]);
-
-  const handleSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-
-    const sortedData = [...filteredData].sort((a, b) => {
-      if (a[key] === null || a[key] === undefined) return direction === 'ascending' ? -1 : 1;
-      if (b[key] === null || b[key] === undefined) return direction === 'ascending' ? 1 : -1;
-
-      if (typeof a[key] === 'number' && typeof b[key] === 'number') {
-        return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
-      }
-
-      if (typeof a[key] === 'string' && typeof b[key] === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(a[key]) && /^\d{4}-\d{2}-\d{2}$/.test(b[key])) {
-        return direction === 'ascending' ?
-          new Date(a[key]) - new Date(b[key]) :
-          new Date(b[key]) - new Date(a[key]);
-      }
-
-      const aValue = a[key].toString().toLowerCase();
-      const bValue = b[key].toString().toLowerCase();
-
-      if (aValue < bValue) return direction === 'ascending' ? -1 : 1;
-      if (aValue > bValue) return direction === 'ascending' ? 1 : -1;
-      return 0;
-    });
-
-    setFilteredData(sortedData);
-  };
-
-  const toggleRowSelection = (id) => {
-    const newSelectedRows = new Set(selectedRows);
-    if (newSelectedRows.has(id)) {
-      newSelectedRows.delete(id);
-    } else {
-      newSelectedRows.add(id);
-    }
-    setSelectedRows(newSelectedRows);
-  };
-
-  const toggleAllRows = () => {
-    if (selectedRows.size === filteredData.length) {
-      setSelectedRows(new Set());
-    } else {
-      setSelectedRows(new Set(filteredData.map(item => item.id)));
     }
   };
 
-  // Edit functionality
-  const startEditing = (id, field, value) => {
-    setEditingCell({ id, field });
-    setEditValue(value || '');
-  };
+  const createWorkbook = async () => {
+    const newId = uuidv4();
+    const newName = `DSR - ${new Date().toLocaleDateString()}`;
 
-  const cancelEditing = () => {
-    setEditingCell(null);
-    setEditValue('');
-  };
+    const { data: { user } } = await supabase.auth.getUser();
+    const createdBy = user ? user.email : 'Unknown';
+    const currentTime = new Date().toISOString();
 
-  const saveEdit = async () => {
-    if (!editingCell) return;
+    const initialData = generateDefaultSheet(createdBy);
 
     try {
       setSaving(true);
-      const { id, field } = editingCell;
+      const { error } = await supabase
+        .from('dsr_workbooks')
+        .insert({
+          id: newId,
+          name: newName,
+          workbook_data: initialData,
+          created_by: createdBy,
+          created_at: currentTime,
+          updated_at: currentTime
+        });
 
-      const rowData = data.find(item => item.id === id);
-      if (!rowData) return;
-
-      const fieldMapping = {
-        'INVNO': 'invoice_no',
-        'INVDT': 'invoice_date',
-        'CONSIGNEE': 'consignee',
-        'DESTINATION': 'destination',
-        'GOODS': 'commodity',
-        'GrossWeightKGS': 'gr_weight',
-        'NETWEIGHT': 'net_weight',
-        'TERM': 'incoterms',
-        'SBILLNO': 'sb_no',
-        'SBILLDT': 'sb_date',
-        'STUFFINGDT': 'stuffing_date',
-        'HANDOVERDT': 'ho_date',
-        'SLINE': 's_line',
-        'BKGNO': 'job_no',
-        'CONTAINERNO': 'container_no',
-        'CONTYPE': 'no_of_cntr',
-        'RAILOUTDT': 'rail_out_date',
-        'ARRIVAL': 'eta',
-        'VESSEL': 'vessel',
-        'VOY': 'voy',
-        'ETD': 'etd',
-        'SOB': 'sob',
-        'ETA': 'eta',
-        'MBHBLNO': 'mbl_no',
-        'DT': 'hbl_dt',
-        'REMARK': 'remarks',
-        'Job': 'job_no'
-      };
-
-      const dbField = fieldMapping[field];
-      if (!dbField) {
-        throw new Error(`Field mapping not found for ${field}`);
-      }
-
-      let updateValue = editValue;
-
-      if (['INVDT', 'SBILLDT', 'STUFFINGDT', 'HANDOVERDT', 'RAILOUTDT', 'ARRIVAL', 'ETD', 'SOB', 'ETA', 'DT'].includes(field)) {
-        if (editValue) {
-          updateValue = new Date(editValue).toISOString();
-        } else {
-          updateValue = null;
+      if (error) {
+        if (error.code === '42P01') {
+          alert("The dsr_workbooks table does not exist. Please run the SQL migration script in your Supabase dashboard.");
+          return;
         }
+        throw error;
       }
 
-      if (['GrossWeightKGS', 'NETWEIGHT'].includes(field)) {
-        updateValue = editValue ? parseFloat(editValue) : null;
-      }
-
-      const { error: updateError } = await supabase
-        .from('shipments')
-        .update({ [dbField]: updateValue })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-
-      const updatedData = data.map(item => {
-        if (item.id === id) {
-          return {
-            ...item,
-            [field]: editValue,
-            originalData: {
-              ...item.originalData,
-              [dbField]: updateValue
-            }
-          };
-        }
-        return item;
-      });
-
-      setData(updatedData);
-      setFilteredData(updatedData);
-      setEditingCell(null);
-      setEditValue('');
-
+      await fetchWorkbooks();
+      openWorkbook(newId, newName, initialData);
     } catch (err) {
-      console.error('Error saving edit:', err);
-      setError(`Failed to save changes: ${err.message}`);
+      console.error('Error creating workbook:', err);
+      alert('Failed to create workbook: ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      saveEdit();
-    } else if (e.key === 'Escape') {
-      cancelEditing();
+  const openWorkbook = async (id, name, data = null) => {
+    if (!data) {
+      try {
+        setLoading(true);
+        const { data: fetchResult, error } = await supabase
+          .from('dsr_workbooks')
+          .select('workbook_data, created_at, updated_at')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        data = fetchResult.workbook_data;
+
+        setActiveWorkbook({
+          id,
+          name,
+          created_at: fetchResult.created_at,
+          updated_at: fetchResult.updated_at
+        });
+      } catch (err) {
+        console.error('Error fetching workbook data:', err);
+        alert('Failed to fetch workbook data.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    const validatedData = validateAndFixWorkbookData(data);
+
+    console.log('Opening workbook with data:', validatedData);
+    setWorkbookData(validatedData);
+    setActiveSheetIndex(0);
+    setLoading(false);
+  };
+
+  // Validate and fix workbook data structure - ALWAYS enforce yellow first row
+  const validateAndFixWorkbookData = (data) => {
+    if (!Array.isArray(data)) {
+      console.warn('Workbook data is not an array, creating default sheet');
+      return generateDefaultSheet();
+    }
+
+    return data.map((sheet, index) => {
+      const validatedSheet = {
+        name: sheet.name || `Sheet${index + 1}`,
+        id: sheet.id || `sheet_${index + 1}`,
+        status: sheet.status || (index === 0 ? 1 : 0),
+        order: sheet.order || index + 1,
+        celldata: [],
+        calcChain: sheet.calcChain || []
+      };
+
+      // Handle different data formats
+      if (sheet.celldata && Array.isArray(sheet.celldata)) {
+        validatedSheet.celldata = sheet.celldata.map(cell => ({
+          r: cell.r,
+          c: cell.c,
+          v: {
+            ...(cell.v || { v: '', m: '' }),
+            // FORCE first row (r: 0) always has yellow background and bold (ONLY FOR FIRST SHEET)
+            ...(cell.r === 0 && index === 0 ? { bg: "#FFFF00", bl: 1 } : {})
+          }
+        }));
+      } else if (sheet.data && Array.isArray(sheet.data)) {
+        // Convert data format to celldata format
+        validatedSheet.celldata = [];
+        sheet.data.forEach((row, rIdx) => {
+          if (row && Array.isArray(row)) {
+            row.forEach((cell, cIdx) => {
+              if (cell) {
+                validatedSheet.celldata.push({
+                  r: rIdx,
+                  c: cIdx,
+                  v: {
+                    v: cell.v !== undefined ? cell.v : cell,
+                    m: cell.m !== undefined ? cell.m : cell,
+                    // FORCE first row (r: 0) always has yellow background and bold (ONLY FOR FIRST SHEET)
+                    ...(rIdx === 0 && index === 0 ? { bg: "#FFFF00", bl: 1 } : {})
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+
+      // Final safety check - enforce yellow on first row
+      validatedSheet.celldata = enforceYellowFirstRow(validatedSheet.celldata);
+
+      return validatedSheet;
+    });
+  };
+
+  const saveActiveWorkbook = async (silent = false, customDataToSave = null) => {
+    const currentActiveWb = activeWorkbookRef.current || activeWorkbook;
+    if (!currentActiveWb) return;
+
+    try {
+      setSaving(true);
+
+      let dataToSave = customDataToSave;
+      
+      if (!dataToSave) {
+        dataToSave = workbookDataRef.current;
+        if (workbookRef.current) {
+          try {
+            if (typeof workbookRef.current.getAllSheets === 'function') {
+              dataToSave = workbookRef.current.getAllSheets();
+            }
+          } catch (err) {
+            console.warn('Could not get sheets from FortuneSheet API:', err);
+          }
+        }
+      }
+
+      dataToSave = JSON.parse(JSON.stringify(dataToSave));
+
+      // Validate and enforce yellow first row before saving
+      dataToSave = validateAndFixWorkbookData(dataToSave);
+
+      // Add metadata to sheets
+      dataToSave = dataToSave.map((sheet, index) => ({
+        ...sheet,
+        order: sheet.order || index + 1,
+        name: sheet.name || `Sheet${index + 1}`,
+        lastModified: new Date().toISOString()
+      }));
+
+      const currentTime = new Date().toISOString();
+      const { error } = await supabase
+        .from('dsr_workbooks')
+        .update({
+          workbook_data: dataToSave,
+          name: currentActiveWb.name,
+          updated_at: currentTime
+        })
+        .eq('id', currentActiveWb.id);
+
+      if (error) throw error;
+
+      setLastSavedTime(new Date(currentTime));
+
+      setActiveWorkbook(prev => ({
+        ...prev,
+        updated_at: currentTime
+      }));
+
+      if (!silent) {
+        alert('Saved successfully!');
+      }
+    } catch (err) {
+      console.error('Error saving workbook:', err);
+      if (!silent) {
+        alert('Failed to save: ' + err.message);
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Excel generation function
-  const generateExcelData = (dataToExport) => {
-    return dataToExport.map(item => ({
-      'S/NO': item.SNO,
-      'Job No': item.Job,
-      'INV NO.': item.INVNO,
-      'INV DT': item.INVDT,
-      'CONSIGNEE': item.CONSIGNEE,
-      'DESTINATION': item.DESTINATION,
-      'GOODS': item.GOODS,
-      'Gross Weight KGS': item.GrossWeightKGS,
-      'NET WEIGHT (KGS)': item.NETWEIGHT,
-      'TERM': item.TERM,
-      'SBILL NO.': item.SBILLNO,
-      'SBILL DT': item.SBILLDT,
-      'STUFFING DT.': item.STUFFINGDT,
-      'HANDOVER DT.': item.HANDOVERDT,
-      'S/LINE': item.SLINE,
-      'BKG NO': item.BKGNO,
-      'CONTAINER NO.': item.CONTAINERNO,
-      'CON TYPE': item.CONTYPE,
-      'RAIL OUT DT.': item.RAILOUTDT,
-      'ARRIVAL @ MUNDRA/PIPAVAV': item.ARRIVAL,
-      'VESSEL': item.VESSEL,
-      'VOY': item.VOY,
-      'E.T.D': item.ETD,
-      'S.O.B': item.SOB,
-      'E.T.A': item.ETA,
-      'MB/HBL NO': item.MBHBLNO,
-      'DT.': item.DT,
-      'REMARK': item.REMARK
+  const addNewSheet = () => {
+    if (!activeWorkbook) return;
+
+    const newSheetIndex = workbookData.length + 1;
+
+    const newSheet = {
+      name: `Sheet${newSheetIndex}`,
+      id: `sheet_${uuidv4().substring(0, 8)}`,
+      status: 1, // Set new sheet to active
+      celldata: [], // Blank normal sheet without header row
+      calcChain: [],
+      order: newSheetIndex
+    };
+
+    const updatedData = workbookData.map(s => ({ ...s, status: 0 }));
+    const finalData = [...updatedData, newSheet];
+
+    setWorkbookData(finalData);
+    setActiveSheetIndex(finalData.length - 1);
+    
+    saveActiveWorkbook(true, finalData);
+  };
+
+  const switchSheet = (sheetIndex) => {
+    const updatedData = workbookData.map((sheet, index) => ({
+      ...sheet,
+      status: index === sheetIndex ? 1 : 0
     }));
+
+    setWorkbookData(updatedData);
+    setActiveSheetIndex(sheetIndex);
   };
 
-  // Export to Excel file
-  const exportToExcelFile = (excelData, filename) => {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    XLSX.utils.book_append_sheet(wb, ws, "DSR Report");
-    XLSX.writeFile(wb, filename);
+  const closeWorkbook = () => {
+    setActiveWorkbook(null);
+    setWorkbookData([]);
+    setActiveSheetIndex(0);
+    fetchWorkbooks();
   };
 
-  // Export selected with options
-  const exportSelectedWithOptions = () => {
-    if (selectedRows.size === 0) {
-      alert("Please select at least one row to export.");
+  const deleteWorkbook = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this DSR?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('dsr_workbooks')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchWorkbooks();
+    } catch (err) {
+      console.error('Error deleting workbook:', err);
+    }
+  };
+
+  const exportSheet = async (sheetIndex, returnBlob = false) => {
+    let sheets = workbookDataRef.current;
+    if (workbookRef.current && typeof workbookRef.current.getAllSheets === 'function') {
+      try {
+        sheets = workbookRef.current.getAllSheets();
+      } catch (err) {
+        console.warn('Could not get sheets for export:', err);
+      }
+    }
+    const sheet = sheets[sheetIndex] || sheets[0];
+
+    if (!sheet) return;
+
+    const dataArray = [];
+    if (sheet.data && Array.isArray(sheet.data) && sheet.data.length > 0) {
+      sheet.data.forEach((row, rIdx) => {
+        if (!row) return;
+        dataArray[rIdx] = [];
+        row.forEach((cell, cIdx) => {
+          dataArray[rIdx][cIdx] = cell ? (cell.m !== undefined ? cell.m : cell.v) : "";
+        });
+      });
+    } else if (sheet.celldata) {
+      const cellMap = {};
+      sheet.celldata.forEach(cell => {
+        if (!cellMap[cell.r]) cellMap[cell.r] = {};
+        cellMap[cell.r][cell.c] = cell.v ? (cell.v.m !== undefined ? cell.v.m : cell.v.v) : "";
+      });
+
+      const maxRow = Math.max(...Object.keys(cellMap).map(Number), 0);
+      let maxCol = 0;
+
+      Object.values(cellMap).forEach(row => {
+        const cols = Object.keys(row).map(Number);
+        if (cols.length > 0) {
+          maxCol = Math.max(maxCol, ...cols);
+        }
+      });
+
+      for (let r = 0; r <= maxRow; r++) {
+        dataArray[r] = [];
+        for (let c = 0; c <= maxCol; c++) {
+          dataArray[r][c] = (cellMap[r] && cellMap[r][c] !== undefined) ? cellMap[r][c] : null;
+        }
+      }
+    }
+
+    if (dataArray.length === 0) {
+      alert('No data to export');
       return;
     }
 
-    const selectedData = data.filter(item => selectedRows.has(item.id));
-    const excelData = generateExcelData(selectedData);
+    const workbook = new ExcelJS.Workbook();
+    const safeSheetName = (sheet.name || "Sheet1").substring(0, 31);
+    const worksheet = workbook.addWorksheet(safeSheetName);
 
-    setEmailDialog({
-      type: 'options',
-      data: excelData,
-      filename: `DSR_Report_Selected_${new Date().toISOString().split('T')[0]}.xlsx`,
-      recordCount: selectedRows.size
+    // Add data to worksheet
+    dataArray.forEach((rowData, rowIndex) => {
+      const row = worksheet.addRow(rowData);
+
+      // If it is the first row, apply yellow background and bold text
+      if (rowIndex === 0) {
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFFFF00' } // yellow
+          };
+          cell.font = {
+            bold: true,
+            color: { argb: 'FF000000' } // black
+          };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      } else {
+        // Normal data cells
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      }
     });
+
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+      let maxColumnLength = 0;
+      column.eachCell({ includeEmpty: true }, cell => {
+        maxColumnLength = Math.max(
+          maxColumnLength,
+          cell.value ? cell.value.toString().length : 0
+        );
+      });
+      column.width = Math.min(Math.max(maxColumnLength + 2, 10), 50); // min 10, max 50 width
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const fileName = `${activeWorkbook.name} - ${safeSheetName}.xlsx`;
+
+    if (returnBlob) {
+      return { blob, fileName };
+    }
+
+    saveAs(blob, fileName);
   };
 
-  // Export all with options
-  const exportAllWithOptions = () => {
-    const excelData = generateExcelData(filteredData);
-
-    setEmailDialog({
-      type: 'options',
-      data: excelData,
-      filename: `DSR_Report_Full_${new Date().toISOString().split('T')[0]}.xlsx`,
-      recordCount: filteredData.length
-    });
+  const openEmailDialog = (sheetIndex) => {
+    setEmailDialog(sheetIndex);
   };
 
-  // Send email via Gmail
-  const sendEmail = async (excelData, filename, emailType = 'compose') => {
+  const sendEmailViaAPI = async () => {
     try {
       setSendingEmail(true);
+      const { blob, fileName } = await exportSheet(emailDialog, true);
 
-      // Convert Excel data to blob
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      XLSX.utils.book_append_sheet(wb, ws, "DSR Report");
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        try {
+          const base64data = reader.result.split(',')[1];
 
-      if (emailType === 'auto') {
-        // Send email via your backend API
-        await sendEmailViaAPI(blob, filename);
-      } else {
-        // Open Gmail compose window
-        openGmailCompose(blob, filename);
-      }
+          const payload = {
+            to: emailConfig.to,
+            cc: emailConfig.cc,
+            bcc: emailConfig.bcc,
+            subject: emailConfig.subject,
+            body: emailConfig.body,
+            fileName: fileName,
+            fileBase64: base64data
+          };
 
-      setEmailDialog(null);
-      alert(emailType === 'auto' ? 'Email sent successfully!' : 'Gmail compose window opened!');
+          const baseUrl = window.location.hostname === 'localhost'
+            ? 'http://localhost:3001'
+            : ''; // Use relative path for Vercel production
+          const apiUrl = baseUrl + '/api/send-email';
 
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to send email via API');
+          }
+
+          alert('Email sent successfully!');
+          setEmailDialog(false);
+        } catch (err) {
+          console.error('Error sending email:', err);
+          alert(`Failed to send email: ${err.message}`);
+        } finally {
+          setSendingEmail(false);
+        }
+      };
     } catch (err) {
-      console.error('Error sending email:', err);
-      setError(`Failed to send email: ${err.message}`);
-    } finally {
+      console.error('Error exporting sheet:', err);
+      alert(`Failed to send email: ${err.message}`);
       setSendingEmail(false);
     }
   };
 
-  // Send email via backend API
-  const sendEmailViaAPI = async (fileBlob, filename) => {
-    const formData = new FormData();
-    formData.append('file', fileBlob, filename);
-    formData.append('to', emailConfig.to);
-    formData.append('cc', emailConfig.cc);
-    formData.append('bcc', emailConfig.bcc);
-    formData.append('subject', emailConfig.subject);
-    formData.append('body', emailConfig.body);
+  // Handle FortuneSheet changes - enforce yellow first row and auto-save
+  const handleSheetChange = (data) => {
+    if (data && Array.isArray(data)) {
+      const processedData = data.map(sheet => {
+        if (sheet.celldata && Array.isArray(sheet.celldata)) {
+          sheet.celldata = enforceYellowFirstRow(sheet.celldata);
+        }
+        return sheet;
+      });
 
-    // Replace with your actual email sending endpoint
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      body: formData,
-    });
+      workbookDataRef.current = processedData;
 
-    if (!response.ok) {
-      throw new Error('Failed to send email via API');
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        console.log('Auto-saving on cell edit...');
+        saveActiveWorkbook(true);
+      }, 5000);
     }
-
-    return response.json();
   };
 
-  // Open Gmail compose window
-  const openGmailCompose = (fileBlob, filename) => {
-    // Create a download link first
-    const url = URL.createObjectURL(fileBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  if (loading && !activeWorkbook) return <div style={styles.loading}>Loading DSR Data...</div>;
 
-    // Construct Gmail URL
-    const subject = encodeURIComponent(emailConfig.subject);
-    const body = encodeURIComponent(emailConfig.body + `\n\nFile: ${filename}`);
-    const to = encodeURIComponent(emailConfig.to);
-    const cc = encodeURIComponent(emailConfig.cc);
-    const bcc = encodeURIComponent(emailConfig.bcc);
+  const customFonts = [
+    { fontName: "Arial", value: "Arial" },
+    { fontName: "Helvetica", value: "Helvetica" },
+    { fontName: "Times New Roman", value: "Times New Roman" },
+    { fontName: "Courier New", value: "Courier New" },
+    { fontName: "Verdana", value: "Verdana" },
+    { fontName: "Georgia", value: "Georgia" },
+    { fontName: "Comic Sans MS", value: "Comic Sans MS" },
+    { fontName: "Trebuchet MS", value: "Trebuchet MS" },
+    { fontName: "Impact", value: "Impact" },
+    { fontName: "Inter", value: "Inter" },
+    { fontName: "Roboto", value: "Roboto" },
+    { fontName: "Outfit", value: "Outfit" },
+    { fontName: "Tahoma", value: "Tahoma" }
+  ];
 
-    let gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`;
+  if (activeWorkbook) {
+    return (
+      <div style={styles.workspace}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', backgroundColor: 'var(--bg-base)' }}>
+          <div style={{ ...styles.header, marginBottom: 0, borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
+            <div style={styles.controls}>
+              <button
+                onClick={closeWorkbook}
+                style={styles.backButton}
+              >
+                &larr; Back
+              </button>
+              <input
+                type="text"
+                value={activeWorkbook.name}
+                onChange={(e) => setActiveWorkbook({ ...activeWorkbook, name: e.target.value })}
+                style={{ ...styles.searchInput, border: 'none', background: 'transparent', fontSize: '18px', fontWeight: 'bold' }}
+                title="Click to rename"
+              />
 
-    if (cc) gmailUrl += `&cc=${cc}`;
-    if (bcc) gmailUrl += `&bcc=${bcc}`;
+              {/* Sheet Tabs */}
+              <div style={styles.sheetTabs}>
+                {workbookData.map((sheet, index) => (
+                  <button
+                    key={sheet.id}
+                    onClick={() => switchSheet(index)}
+                    style={{
+                      ...styles.sheetTab,
+                      backgroundColor: index === activeSheetIndex ? 'var(--brand-primary)' : 'var(--bg-surface-2)',
+                      color: index === activeSheetIndex ? '#fff' : 'var(--text-primary)'
+                    }}
+                  >
+                    <FileSpreadsheet size={16} />
+                    <span style={{ fontSize: '15px' }}>Sheet {index + 1}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={addNewSheet}
+                  style={styles.addSheetButton}
+                  title="Add new sheet"
+                >
+                  + Add Sheet
+                </button>
+              </div>
+            </div>
 
-    window.open(gmailUrl, '_blank');
-  };
+            <div style={styles.buttonGroup}>
+              {/* Metadata Display */}
+              <div style={styles.metadata}>
+                <div style={styles.metadataItem}>
+                  <Clock size={12} />
+                  Created: {new Date(activeWorkbook.created_at).toLocaleString()}
+                </div>
+                <div style={styles.metadataItem}>
+                  Updated: {new Date(activeWorkbook.updated_at).toLocaleString()}
+                </div>
+                {lastSavedTime && (
+                  <div style={styles.metadataItem}>
+                    Last saved: {lastSavedTime.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
 
-  // Quick email send with default settings
-  const quickSendEmail = (excelData, filename) => {
-    setEmailConfig(prev => ({
-      ...prev,
-      subject: `DSR Report - ${new Date().toLocaleDateString()}`,
-      body: `Please find attached the DSR Report containing ${excelData.length} records.\n\nBest regards,\nDSR Team`
-    }));
-    sendEmail(excelData, filename, 'auto');
-  };
-
-  const retryFetch = () => {
-    setRetryCount(prev => prev + 1);
-  };
-
-  // Render cell content
-  const renderCellContent = (row, field) => {
-    if (editingCell && editingCell.id === row.id && editingCell.field === field) {
-      return (
-        <div style={styles.editContainer}>
-          <input
-            type={field.includes('DT') ? 'date' : 'text'}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={handleKeyPress}
-            autoFocus
-            style={styles.editInput}
-          />
-          <div style={styles.editButtons}>
-            <button
-              onClick={saveEdit}
-              disabled={saving}
-              style={styles.saveButton}
-              title="Save (Enter)"
-            >
-              ✓
-            </button>
-            <button
-              onClick={cancelEditing}
-              style={styles.cancelButton}
-              title="Cancel (Esc)"
-            >
-              ✗
-            </button>
+              <button
+                onClick={() => exportSheet(activeSheetIndex)}
+                style={styles.exportAllButton}
+              >
+                Export Sheet
+              </button>
+              <button
+                onClick={() => openEmailDialog(activeSheetIndex)}
+                style={{ ...styles.exportButton, backgroundColor: '#10b981' }}
+              >
+                Send Sheet
+              </button>
+              <button
+                onClick={() => saveActiveWorkbook(false)}
+                disabled={saving}
+                style={{ ...styles.quickSendButton, backgroundColor: 'var(--brand-primary)' }}
+              >
+                {saving ? 'Saving...' : 'Save Workbook'}
+              </button>
+            </div>
           </div>
+
+          {/* FortuneSheet with key to force re-render on sheet switch */}
+          <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+              <Workbook
+                ref={workbookRef}
+                key={`${activeWorkbook.id}-${activeSheetIndex}`}
+                data={workbookData}
+                onChange={handleSheetChange}
+                settings={{ fontList: customFonts }}
+              />
+            </div>
+          </div>
+
+          {emailDialog !== false && (
+            <div style={styles.dialogOverlay}>
+              <div style={styles.dialog}>
+                <div style={styles.dialogHeader}>
+                  <h2 style={styles.dialogTitle}>Do you want to send or fix it again?</h2>
+                  <p style={styles.dialogSubtitle}>Please confirm the email details below before sending.</p>
+                </div>
+
+                <div style={styles.emailConfig}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>To:</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. client@example.com (comma separated)"
+                      value={emailConfig.to}
+                      onChange={(e) => setEmailConfig(prev => ({ ...prev, to: e.target.value }))}
+                      style={styles.emailInput}
+                    />
+                  </div>
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>CC:</label>
+                      <input
+                        type="text"
+                        placeholder="Optional"
+                        value={emailConfig.cc}
+                        onChange={(e) => setEmailConfig(prev => ({ ...prev, cc: e.target.value }))}
+                        style={styles.emailInput}
+                      />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.formLabel}>BCC:</label>
+                      <input
+                        type="text"
+                        placeholder="Optional"
+                        value={emailConfig.bcc}
+                        onChange={(e) => setEmailConfig(prev => ({ ...prev, bcc: e.target.value }))}
+                        style={styles.emailInput}
+                      />
+                    </div>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Subject:</label>
+                    <input
+                      type="text"
+                      placeholder="Email Subject"
+                      value={emailConfig.subject}
+                      onChange={(e) => setEmailConfig(prev => ({ ...prev, subject: e.target.value }))}
+                      style={styles.emailInput}
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Message:</label>
+                    <textarea
+                      placeholder="Body message..."
+                      rows={5}
+                      value={emailConfig.body}
+                      onChange={(e) => setEmailConfig(prev => ({ ...prev, body: e.target.value }))}
+                      style={styles.emailTextarea}
+                    />
+                  </div>
+                </div>
+                <div style={styles.dialogButtons}>
+                  <button
+                    onClick={() => setEmailDialog(false)}
+                    style={styles.cancelDialogButton}
+                  >
+                    Fix it again
+                  </button>
+                  <button
+                    onClick={sendEmailViaAPI}
+                    disabled={sendingEmail}
+                    style={styles.sendDialogButton}
+                  >
+                    {sendingEmail ? 'Sending...' : 'Send Email Now'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      );
-    }
-
-    return (
-      <div
-        onClick={() => startEditing(row.id, field, row[field])}
-        style={styles.editableCell}
-        title="Click to edit"
-      >
-        {row[field] || 'N/A'}
       </div>
     );
-  };
-
-  // Email Dialog Component
-  const EmailDialog = () => {
-    if (!emailDialog) return null;
-
-    return (
-
-
-      <div style={styles.dialogButtons}>
-
-
-        <button
-          onClick={() => sendEmail(emailDialog.data, emailDialog.filename, 'compose')}
-          disabled={sendingEmail}
-          style={styles.composeButton}
-        >
-          {sendingEmail ? 'Opening...' : 'Open Gmail Compose'}
-        </button>
-
-        <button
-          onClick={() => exportToExcelFile(emailDialog.data, emailDialog.filename)}
-          style={styles.downloadButton}
-        >
-          Download Excel File
-        </button>
-
-        <button
-          onClick={() => setEmailDialog(null)}
-          style={styles.cancelDialogButton}
-        >
-          Cancel
-        </button>
-      </div>
-
-    );
-  };
-
-  if (loading) return <div style={styles.loading}>Loading data...</div>;
+  }
 
   return (
     <div style={styles.container}>
       <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         /* ── DSRPage Responsive (@media screen) ── */
         @media screen and (max-width: 1024px) {
-          /* table scrolls horizontally */
+          [data-dsr-table-wrap] {
+            overflow-x: auto !important;
+          }
         }
         @media screen and (max-width: 768px) {
-          /* Header row: stack vertically */
           [data-dsr-header] {
             flex-direction: column !important;
             align-items: flex-start !important;
-            gap: 10px !important;
           }
-          /* Controls row: stack */
           [data-dsr-controls] {
             flex-direction: column !important;
             align-items: stretch !important;
-            gap: 8px !important;
           }
           [data-dsr-controls] input,
           [data-dsr-controls] select,
           [data-dsr-controls] button {
             width: 100% !important;
-            box-sizing: border-box !important;
           }
-          /* Table: horizontal scroll */
-          [data-dsr-table-wrap] {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-          }
-          /* Dialog */
-          [data-dsr-dialog] {
-            width: 95vw !important;
-            max-width: 95vw !important;
-            padding: 16px !important;
+          .metadata-container {
+            flex-direction: column !important;
+            gap: 4px !important;
           }
         }
         @media screen and (max-width: 480px) {
@@ -660,173 +838,107 @@ const DSRHondaReport = () => {
         }
       `}</style>
 
-      <div style={styles.header}>
-        <h1 style={styles.title}>DSR Report - Editable</h1>
-        <div style={styles.controls}>
-          <input
-            type="text"
-            placeholder="Search across all columns..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-          />
+      <div style={styles.header} data-dsr-header>
+        <h1 style={styles.title}>Daily Sales Reports (DSR)</h1>
+        <div style={styles.controls} data-dsr-controls>
           <div style={styles.buttonGroup}>
             <button
-              style={styles.exportButton}
-              onClick={exportSelectedWithOptions}
-              disabled={selectedRows.size === 0}
+              style={styles.exportAllButton}
+              onClick={createWorkbook}
+              disabled={saving}
             >
-              Export Selected ({selectedRows.size})
+              {saving ? 'Creating...' : '+ Create New DSR'}
             </button>
-            <button style={styles.exportAllButton} onClick={exportAllWithOptions}>
-              Export All
-            </button>
-            {error && (
-              <button style={styles.retryButton} onClick={retryFetch}>
-                Retry
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {
-        saving && (
-          <div style={styles.savingIndicator}>
-            Saving changes...
-          </div>
-        )
-      }
+      {saving && (
+        <div style={styles.savingIndicator}>
+          Creating new DSR workbook...
+        </div>
+      )}
 
-      {
-        error && (
-          <div style={styles.error}>
-            {error}
-            <button
-              onClick={() => setError(null)}
-              style={styles.dismissButton}
-            >
-              Dismiss
-            </button>
-          </div>
-        )
-      }
-
-      <EmailDialog />
-
-      <div style={styles.tableContainer}>
-        {filteredData.length === 0 && !loading ? (
+      <div style={styles.tableContainer} data-dsr-table-wrap>
+        {workbooks.length === 0 && !loading ? (
           <div style={styles.noData}>
-            No data found {searchTerm ? 'matching your search' : ''}
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                style={styles.clearSearchButton}
-              >
-                Clear Search
-              </button>
-            )}
+            No DSR Workbooks found. Create one to get started!
           </div>
         ) : (
-          <>
-            <div style={styles.resultsInfo}>
-              Showing {filteredData.length} of {data.length} records
-              {searchTerm && ` matching "${searchTerm}"`}
-              {selectedRows.size > 0 && ` | ${selectedRows.size} selected`}
-              {editingCell && ` | Editing: ${editingCell.field}`}
-            </div>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.headerRow}>
-                  <th style={styles.checkboxCell}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.size === filteredData.length && filteredData.length > 0}
-                      onChange={toggleAllRows}
-                      title="Select all rows"
-                    />
-                  </th>
-                  {[
-                    'SNO', 'Job', 'INVNO', 'INVDT', 'CONSIGNEE', 'DESTINATION',
-                    'GOODS', 'GrossWeightKGS', 'NETWEIGHT', 'TERM', 'SBILLNO',
-                    'SBILLDT', 'STUFFINGDT', 'HANDOVERDT', 'SLINE', 'BKGNO',
-                    'CONTAINERNO', 'CONTYPE', 'RAILOUTDT', 'ARRIVAL', 'VESSEL',
-                    'VOY', 'ETD', 'SOB', 'ETA', 'MBHBLNO', 'DT', 'REMARK', 'AUTHOR'
-                  ].map(column => (
-                    <th
-                      key={column}
-                      style={styles.cell}
-                      onClick={() => handleSort(column)}
-                      title={`Sort by ${column}`}
-                    >
-                      {column}
-                      {sortConfig.key === column && (
-                        <span>{sortConfig.direction === 'ascending' ? ' ▲' : ' ▼'}</span>
-                      )}
-                    </th>
-                  ))}
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.headerRow}>
+                <th style={{ ...styles.cell, width: '250px' }}>Name</th>
+                <th style={styles.cell}>Author</th>
+                <th style={styles.cell}>Created</th>
+                <th style={styles.cell}>Updated</th>
+                <th style={{ ...styles.cell, textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workbooks.map((wb, index) => (
+                <tr
+                  key={wb.id}
+                  style={index % 2 === 0 ? styles.evenRow : styles.oddRow}
+                >
+                  <td style={styles.cell}><strong>{wb.name}</strong></td>
+                  <td style={styles.cell}>
+                    {wb.created_by && (
+                      <div style={styles.authorBadge}>
+                        <UserPlus size={11} /> {wb.created_by}
+                      </div>
+                    )}
+                  </td>
+                  <td style={styles.cell}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span>{new Date(wb.created_at).toLocaleDateString()}</span>
+                      <span style={styles.timeStamp}>
+                        {new Date(wb.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={styles.cell}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span>{new Date(wb.updated_at).toLocaleDateString()}</span>
+                      <span style={styles.timeStamp}>
+                        {new Date(wb.updated_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ ...styles.cell, textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '10px' }}>
+                      <button
+                        onClick={() => openWorkbook(wb.id, wb.name)}
+                        style={styles.actionButton}
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={() => deleteWorkbook(wb.id)}
+                        style={styles.deleteButton}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    style={index % 2 === 0 ? styles.evenRow : styles.oddRow}
-                    className={selectedRows.has(row.id) ? styles.selectedRow : ''}
-                  >
-                    <td style={styles.checkboxCell}>
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(row.id)}
-                        onChange={() => toggleRowSelection(row.id)}
-                        title="Select this row"
-                      />
-                    </td>
-                    <td style={styles.cell}>{row.SNO}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'Job')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'INVNO')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'INVDT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'CONSIGNEE')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'DESTINATION')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'GOODS')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'GrossWeightKGS')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'NETWEIGHT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'TERM')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'SBILLNO')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'SBILLDT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'STUFFINGDT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'HANDOVERDT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'SLINE')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'BKGNO')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'CONTAINERNO')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'CONTYPE')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'RAILOUTDT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'ARRIVAL')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'VESSEL')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'VOY')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'ETD')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'SOB')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'ETA')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'MBHBLNO')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'DT')}</td>
-                    <td style={styles.cell}>{renderCellContent(row, 'REMARK')}</td>
-                    <td style={styles.cell}>
-                      {row.AUTHOR && <div style={{display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(43, 108, 176, 0.1)', color: '#2b6cb0', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', whiteSpace: 'nowrap'}}><UserPlus size={11} /> {row.AUTHOR}</div>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-    </div >
+    </div>
   );
-};
-
-const getCSSVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+}
 
 const styles = {
+  workspace: {
+    display: 'flex', 
+    flexDirection: 'column', 
+    height: '100vh', 
+    width: '100%', 
+    backgroundColor: 'var(--bg-base)'
+  },
   container: {
     fontFamily: "'Inter', Arial, sans-serif",
     padding: '20px',
@@ -876,122 +988,77 @@ const styles = {
     display: 'flex',
     gap: '10px',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   exportButton: {
-    padding: '8px 16px',
+    padding: '10px 14px',
     backgroundColor: 'var(--brand-primary)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   exportAllButton: {
-    padding: '8px 16px',
+    padding: '10px 14px',
     backgroundColor: 'var(--success)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '13px',
-  },
-  retryButton: {
-    padding: '8px 16px',
-    backgroundColor: 'var(--warning)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '13px',
-  },
-  // Email Dialog Styles
-  dialogOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  dialog: {
-    backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border-strong)',
-    color: 'var(--text-primary)',
-    padding: '30px',
-    borderRadius: '12px',
-    boxShadow: 'var(--shadow-xl)',
-    maxWidth: '500px',
-    width: '90%',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-  },
-  emailConfig: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    margin: '20px 0',
-  },
-  emailInput: {
-    padding: '8px 12px',
-    border: '1px solid var(--border-strong)',
-    borderRadius: '6px',
     fontSize: '14px',
-    backgroundColor: 'var(--bg-surface-2)',
-    color: 'var(--text-primary)',
-  },
-  emailTextarea: {
-    padding: '8px 12px',
-    border: '1px solid var(--border-strong)',
-    borderRadius: '6px',
-    fontSize: '14px',
-    resize: 'vertical',
-    backgroundColor: 'var(--bg-surface-2)',
-    color: 'var(--text-primary)',
-  },
-  dialogButtons: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
   },
   quickSendButton: {
-    padding: '10px',
-    backgroundColor: 'var(--success)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '600',
-  },
-  composeButton: {
-    padding: '10px',
+    padding: '10px 14px',
     backgroundColor: 'var(--brand-primary)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: '600',
+    fontSize: '14px',
   },
-  downloadButton: {
-    padding: '10px',
-    backgroundColor: 'var(--text-secondary)',
+  backButton: {
+    padding: '10px 20px',
+    backgroundColor: '#fee2e2',
+    color: '#ef4444',
+    border: '1px solid #fca5a5',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '700',
+    transition: 'all 0.2s',
+  },
+  cancelDialogButton: {
+    padding: '10px 20px',
+    backgroundColor: '#ffffff',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+  },
+  actionButton: {
+    padding: '4px 8px',
+    backgroundColor: 'var(--brand-primary)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '12px',
   },
-  cancelDialogButton: {
-    padding: '10px',
+  deleteButton: {
+    padding: '4px 8px',
     backgroundColor: 'var(--danger)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
+    fontSize: '12px',
   },
   tableContainer: {
     overflowX: 'auto',
@@ -999,19 +1066,12 @@ const styles = {
     borderRadius: '10px',
     marginTop: '20px',
     position: 'relative',
-  },
-  resultsInfo: {
-    padding: '10px 14px',
-    backgroundColor: 'var(--bg-surface-2)',
-    borderBottom: '1px solid var(--border)',
-    fontSize: '13px',
-    color: 'var(--text-secondary)',
+    backgroundColor: 'var(--bg-surface)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    fontSize: '12px',
-    minWidth: '2900px',
+    fontSize: '13px',
   },
   headerRow: {
     backgroundColor: 'var(--bg-inset)',
@@ -1020,77 +1080,17 @@ const styles = {
     top: 0,
     zIndex: 10,
   },
-  checkboxCell: {
-    padding: '8px',
-    border: '1px solid var(--border)',
-    textAlign: 'center',
-    width: '40px',
-    cursor: 'pointer',
-  },
   cell: {
-    padding: '6px 8px',
-    border: '1px solid var(--border)',
+    padding: '12px 16px',
+    borderBottom: '1px solid var(--border)',
     textAlign: 'left',
-    whiteSpace: 'nowrap',
-    maxWidth: '200px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    position: 'relative',
     color: 'var(--text-primary)',
-  },
-  editableCell: {
-    cursor: 'pointer',
-    padding: '4px',
-    minHeight: '20px',
-    border: '1px dashed transparent',
-    borderRadius: '3px',
-    color: 'var(--text-primary)',
-  },
-  editContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  editInput: {
-    flex: 1,
-    padding: '2px 6px',
-    border: '1px solid var(--brand-primary)',
-    borderRadius: '4px',
-    fontSize: '11px',
-    minWidth: '0',
-    backgroundColor: 'var(--bg-surface-2)',
-    color: 'var(--text-primary)',
-  },
-  editButtons: {
-    display: 'flex',
-    gap: '2px',
-  },
-  saveButton: {
-    padding: '2px 6px',
-    backgroundColor: 'var(--success)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '3px',
-    cursor: 'pointer',
-    fontSize: '11px',
-  },
-  cancelButton: {
-    padding: '2px 6px',
-    backgroundColor: 'var(--danger)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '3px',
-    cursor: 'pointer',
-    fontSize: '11px',
   },
   evenRow: {
     backgroundColor: 'var(--bg-surface)',
   },
   oddRow: {
     backgroundColor: 'var(--bg-surface-2)',
-  },
-  selectedRow: {
-    backgroundColor: 'color-mix(in srgb, var(--brand-primary) 15%, var(--bg-surface))',
   },
   loading: {
     textAlign: 'center',
@@ -1108,27 +1108,119 @@ const styles = {
     marginBottom: '10px',
     fontSize: '14px',
   },
-  error: {
-    textAlign: 'center',
-    padding: '16px 20px',
-    fontSize: '14px',
-    color: 'var(--danger)',
-    backgroundColor: 'var(--danger-bg)',
-    border: '1px solid var(--danger)',
-    borderRadius: '8px',
-    marginBottom: '20px',
+  savingToast: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    backgroundColor: '#10b981',
+    color: '#ffffff',
+    padding: '12px 24px',
+    borderRadius: '12px',
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)',
+    zIndex: 999999,
+    fontSize: '16px',
+    fontWeight: '700',
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '12px',
   },
-  dismissButton: {
-    padding: '5px 12px',
-    backgroundColor: 'var(--danger-bg)',
-    border: '1px solid var(--danger)',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: 'var(--danger)',
+  dialogOverlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    backdropFilter: 'blur(5px)',
+    WebkitBackdropFilter: 'blur(5px)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999999,
+  },
+  dialog: {
+    backgroundColor: '#ffffff',
+    padding: '32px',
+    borderRadius: '16px',
+    width: '90%',
+    maxWidth: '550px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    border: '1px solid #e5e7eb',
+    fontFamily: "'Inter', sans-serif",
+  },
+  dialogHeader: {
+    marginBottom: '24px',
+    borderBottom: '1px solid #f3f4f6',
+    paddingBottom: '16px',
+  },
+  dialogTitle: {
+    marginTop: 0,
+    marginBottom: '8px',
+    color: '#111827',
+    fontSize: '22px',
+    fontWeight: '700',
+  },
+  dialogSubtitle: {
+    margin: 0,
+    color: '#6b7280',
+    fontSize: '14px',
+  },
+  emailConfig: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    marginBottom: '24px',
+  },
+  formRow: {
+    display: 'flex',
+    gap: '16px',
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    flex: 1,
+  },
+  formLabel: {
     fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+  },
+  emailInput: {
+    padding: '12px 14px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    backgroundColor: '#f9fafb',
+    color: '#111827',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  emailTextarea: {
+    padding: '12px 14px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    fontSize: '14px',
+    backgroundColor: '#f9fafb',
+    color: '#111827',
+    resize: 'vertical',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  dialogButtons: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    borderTop: '1px solid #f3f4f6',
+    paddingTop: '20px',
+  },
+  sendDialogButton: {
+    padding: '10px 24px',
+    backgroundColor: '#10b981',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)',
   },
   noData: {
     textAlign: 'center',
@@ -1140,15 +1232,65 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
   },
-  clearSearchButton: {
-    padding: '6px 14px',
-    backgroundColor: 'var(--bg-surface-2)',
-    border: '1px solid var(--brand-primary)',
-    borderRadius: '6px',
+  authorBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    backgroundColor: 'rgba(43, 108, 176, 0.1)',
+    color: '#2b6cb0',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontSize: '11px',
+    whiteSpace: 'nowrap',
+  },
+  timeStamp: {
+    fontSize: '11px',
+    color: 'var(--text-secondary)',
+    marginTop: '2px',
+  },
+  metadata: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginRight: '10px',
+    fontSize: '11px',
+    color: 'var(--text-secondary)',
+  },
+  metadataItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    whiteSpace: 'nowrap',
+  },
+  sheetTabs: {
+    display: 'flex',
+    gap: '4px',
+    alignItems: 'center',
+    marginLeft: '20px',
+    flexWrap: 'wrap',
+  },
+  sheetTab: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 16px',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '13px',
-    color: 'var(--brand-primary)',
+    fontSize: '15px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+  },
+  addSheetButton: {
+    padding: '10px 16px',
+    backgroundColor: 'var(--bg-surface-2)',
+    color: 'var(--text-primary)',
+    border: '1px dashed var(--border-strong)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: '600',
+    transition: 'all 0.2s',
   },
 };
-
-export default DSRHondaReport;
