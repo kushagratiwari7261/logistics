@@ -167,7 +167,7 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         cargo: formData.cargo || null,
         shipment_terms: formData.shipment_terms || null,
         buy_freight: formData.buy_freight || null,
-        quote_rate: cleanNum(formData.quote_rate),
+        quote_rate: formData.quote_rate || null,
         sell_freight: formData.sell_freight || null,
         shipping_line: formData.shipping_line || null,
         ex_works: formData.ex_works || null,
