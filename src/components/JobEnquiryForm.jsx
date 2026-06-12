@@ -223,7 +223,9 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           p_title: 'New Job Enquiry',
           p_message: `Enquiry ${enquiryData.enquiry_no} created by ${userEmail}.`,
           p_type: 'info'
-        }).catch(err => console.error('Notification error', err));
+        }).then(({ error }) => {
+          if (error) console.error('Notification error', error);
+        });
       }
 
       onClose(formConfig.id);
