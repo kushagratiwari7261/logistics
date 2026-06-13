@@ -467,31 +467,31 @@ function App() {
     };
   }, []);  // Empty deps — run only once on mount
 
+  const triggerGlobalToast = useCallback((data) => {
+    console.log('🔔 New global alert:', data);
+
+    // Play notification sound
+    if (notificationAudio.current) {
+      notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
+    }
+
+    // Add to toast queue
+    const id = Date.now();
+    setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
+
+    // Auto-remove after 6 seconds
+    setTimeout(() => {
+      setInAppNotifications(prev => prev.filter(n => n.id !== id));
+    }, 6000);
+  }, []);
+
   // --- Real-time Notifications Listener ---
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       console.log('🔌 Setting up real-time notification listener for user:', user.id);
 
-      const handleIncomingAlert = (data) => {
-        console.log('🔔 New incoming alert:', data);
-
-        // Play notification sound
-        if (notificationAudio.current) {
-          notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
-        }
-
-        // Add to toast queue
-        const id = Date.now();
-        setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
-
-        // Auto-remove after 6 seconds
-        setTimeout(() => {
-          setInAppNotifications(prev => prev.filter(n => n.id !== id));
-        }, 6000);
-      };
-
       // Listen to backend socket (if available)
-      socket.on('new_notification', handleIncomingAlert);
+      socket.on('new_notification', triggerGlobalToast);
 
       // Listen to Supabase notifications table directly for cross-device floating popups
       const notifChannel = supabase
@@ -503,7 +503,7 @@ function App() {
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
           // Trigger the floating toast
-          handleIncomingAlert({
+          triggerGlobalToast({
              title: payload.new.title || 'Notification',
              message: payload.new.message || '',
              type: payload.new.type || 'info'
@@ -514,11 +514,11 @@ function App() {
         .subscribe();
 
       return () => {
-        socket.off('new_notification', handleIncomingAlert);
+        socket.off('new_notification', triggerGlobalToast);
         supabase.removeChannel(notifChannel);
       };
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, triggerGlobalToast]);
 
   // --- Attendance Reminder System ---
   useEffect(() => {
@@ -628,22 +628,68 @@ function App() {
         .channel('dashboard-global-sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'job_enquiries' }, (payload) => {
           console.log('🔄 Job Enquiry change detected, refreshing dashboard...', payload.eventType);
+          if (payload.eventType === 'INSERT') {
+            triggerGlobalToast({
+              title: 'New Job Enquiry',
+              message: `Enquiry ${payload.new.enquiry_no || ''} was created.`,
+              type: 'info'
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            triggerGlobalToast({
+              title: 'Job Enquiry Updated',
+              message: `Enquiry ${payload.new.enquiry_no || ''} was updated.`,
+              type: 'info'
+            });
+          }
           fetchDashboardData();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
           console.log('🔄 Job change detected, refreshing dashboard...', payload.eventType);
+          if (payload.eventType === 'INSERT') {
+            triggerGlobalToast({
+              title: 'New Job Created',
+              message: `Job ${payload.new.job_no || ''} was created.`,
+              type: 'success'
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            triggerGlobalToast({
+              title: 'Job Updated',
+              message: `Job ${payload.new.job_no || ''} updated to ${payload.new.status || 'new status'}.`,
+              type: 'info'
+            });
+          }
           fetchDashboardData();
+        })
+        .subscribe();
+
+      // --- REAL-TIME MESSAGES SYNC ---
+      const messagesChannel = supabase
+        .channel('global-messages-sync')
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`
+        }, (payload) => {
+          console.log('🔄 New global message detected!');
+          triggerGlobalToast({
+            title: 'New Message Received',
+            message: payload.new.content || 'You have a new message',
+            type: 'success'
+          });
+          fetchDashboardData(); // Update message count on dashboard
         })
         .subscribe();
 
       return () => {
         supabase.removeChannel(dashChannel);
+        supabase.removeChannel(messagesChannel);
         window.removeEventListener('job_data_updated', handleLocalRefresh);
         window.removeEventListener('shipment_data_updated', handleLocalRefresh);
         window.removeEventListener('refresh_customer_list', handleLocalRefresh);
       };
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, triggerGlobalToast, user?.id]);
 
   // Fetch all dashboard data
   const fetchDashboardData = async () => {
