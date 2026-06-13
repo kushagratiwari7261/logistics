@@ -152,7 +152,10 @@ const UserSearch = ({ onUserSelect, selectedUser, currentUserId }) => {
                 <div
                   key={user.id}
                   className="user-option"
-                  onClick={() => handleSelectUser(user)}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur
+                    handleSelectUser(user);
+                  }}
                 >
                   <div className="user-avatar">
                     {user.avatar_url ? (
