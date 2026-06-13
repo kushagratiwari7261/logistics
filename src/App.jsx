@@ -220,6 +220,24 @@ function App() {
     return true;
   }, []);
 
+  const triggerGlobalToast = useCallback((data) => {
+    console.log('🔔 New global alert:', data);
+
+    // Play notification sound
+    if (notificationAudio.current) {
+      notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
+    }
+
+    // Add to toast queue
+    const id = Date.now();
+    setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
+
+    // Auto-remove after 6 seconds
+    setTimeout(() => {
+      setInAppNotifications(prev => prev.filter(n => n.id !== id));
+    }, 6000);
+  }, []);
+
   // Handle Real-time Job Notifications + Global Message Banner via WebSocket
   useEffect(() => {
     if (!user?.id) return
@@ -465,23 +483,6 @@ function App() {
     };
   }, []);  // Empty deps — run only once on mount
 
-  const triggerGlobalToast = useCallback((data) => {
-    console.log('🔔 New global alert:', data);
-
-    // Play notification sound
-    if (notificationAudio.current) {
-      notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e));
-    }
-
-    // Add to toast queue
-    const id = Date.now();
-    setInAppNotifications(prev => [...prev, { ...data, id, timestamp: new Date().toISOString() }]);
-
-    // Auto-remove after 6 seconds
-    setTimeout(() => {
-      setInAppNotifications(prev => prev.filter(n => n.id !== id));
-    }, 6000);
-  }, []);
 
   // --- Real-time Notifications Listener ---
   useEffect(() => {
