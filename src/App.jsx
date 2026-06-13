@@ -121,6 +121,7 @@ function App() {
   const [showAttendanceAlert, setShowAttendanceAlert] = useState(false)
   const [attendanceAlertMessage, setAttendanceAlertMessage] = useState('')
 
+
   // --- Notification System State ---
   const [inAppNotifications, setInAppNotifications] = useState([])
   const notificationAudio = useRef(null)
@@ -205,6 +206,7 @@ function App() {
   const authListenerActiveRef = useRef(false);
   const authInitializedRef = useRef(false);
   const lastRedirectRef = useRef(0);
+  const fetchDashboardDataRef = useRef(null);
 
   const navigate = useNavigate()
 
@@ -255,7 +257,7 @@ function App() {
           type: 'success'
         })
         // Also refresh dashboard stats to update message count
-        fetchDashboardData()
+        if (fetchDashboardDataRef.current) fetchDashboardDataRef.current()
       }
     }
 
@@ -495,17 +497,17 @@ function App() {
       // Listen to Supabase notifications table directly for cross-device floating popups
       const notifChannel = supabase
         .channel(`global-app-notifications-${user.id}`)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
           // Trigger the floating toast
           triggerGlobalToast({
-             title: payload.new.title || 'Notification',
-             message: payload.new.message || '',
-             type: payload.new.type || 'info'
+            title: payload.new.title || 'Notification',
+            message: payload.new.message || '',
+            type: payload.new.type || 'info'
           });
           // Notify the Header bell icon (if it's mounted)
           window.dispatchEvent(new CustomEvent('new_app_notification', { detail: payload.new }));
@@ -612,10 +614,10 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       console.log('User authenticated, fetching dashboard data...');
-      fetchDashboardData();
+      if (fetchDashboardDataRef.current) fetchDashboardDataRef.current();
 
       // Listen for local form saves to update dashboard instantly
-      const handleLocalRefresh = () => fetchDashboardData();
+      const handleLocalRefresh = () => { if (fetchDashboardDataRef.current) fetchDashboardDataRef.current() };
       window.addEventListener('job_data_updated', handleLocalRefresh);
       window.addEventListener('shipment_data_updated', handleLocalRefresh);
       window.addEventListener('refresh_customer_list', handleLocalRefresh);
@@ -640,7 +642,7 @@ function App() {
               type: 'info'
             });
           }
-          fetchDashboardData();
+          if (fetchDashboardDataRef.current) fetchDashboardDataRef.current();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
           console.log('🔄 Job change detected, refreshing dashboard...', payload.eventType);
@@ -657,16 +659,18 @@ function App() {
               type: 'info'
             });
           }
-          fetchDashboardData();
+          if (fetchDashboardDataRef.current) fetchDashboardDataRef.current();
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('📡 Dashboard sync channel status:', status);
+        });
 
       // --- REAL-TIME MESSAGES SYNC ---
       const messagesChannel = supabase
         .channel('global-messages-sync')
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
           table: 'messages',
           filter: `receiver_id=eq.${user.id}`
         }, (payload) => {
@@ -676,9 +680,11 @@ function App() {
             message: payload.new.content || 'You have a new message',
             type: 'success'
           });
-          fetchDashboardData(); // Update message count on dashboard
+          if (fetchDashboardDataRef.current) fetchDashboardDataRef.current(); // Update message count on dashboard
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('📡 Messages sync channel status:', status);
+        });
 
       return () => {
         supabase.removeChannel(dashChannel);
@@ -704,6 +710,10 @@ function App() {
       setError('Failed to load dashboard data. Please try refreshing the page.');
     }
   };
+
+  useEffect(() => {
+    fetchDashboardDataRef.current = fetchDashboardData;
+  });
 
   // Forgot Password function
   const handleForgotPassword = async (email) => {
@@ -1329,7 +1339,7 @@ function App() {
           }
         />
       </Routes>
-      
+
       {/* Global Floating Notifications (WhatsApp-style toast at top-right) */}
       {inAppNotifications.length > 0 && (
         <div className="gnb-toast-container">
