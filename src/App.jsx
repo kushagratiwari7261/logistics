@@ -220,35 +220,33 @@ function App() {
     return true;
   }, []);
 
-  // Handle Real-time Job Notifications
+  // Handle Real-time Job Notifications + Global Message Banner via WebSocket
   useEffect(() => {
     if (!user?.id) return
 
-    const handleNewNotification = (data) => {
-      console.log('🔔 New real-time notification:', data)
+    socket.emit('join', user.id)
 
-      // Play sound
-      if (notificationAudio.current) {
-        notificationAudio.current.play().catch(e => console.warn('Audio play blocked', e))
+    // Show banner when a message arrives via WebSocket (works even if Supabase Realtime is off)
+    const handleReceiveMessage = (msg) => {
+      // Only show banner if the message is for this user and not from this user
+      if (msg.receiver_id === user.id && msg.sender_id !== user.id) {
+        console.log('📩 WebSocket message received, showing banner:', msg)
+        triggerGlobalToast({
+          title: '💬 New Message',
+          message: msg.content || 'You have a new message',
+          type: 'success'
+        })
+        // Also refresh dashboard stats to update message count
+        fetchDashboardData()
       }
-
-      // Add to toast queue
-      const id = Date.now()
-      setInAppNotifications(prev => [...prev, { ...data, id }])
-
-      // Auto-remove after 6 seconds
-      setTimeout(() => {
-        setInAppNotifications(prev => prev.filter(n => n.id !== id))
-      }, 6000)
     }
 
-    socket.emit('join', user.id)
-    socket.on('new_notification', handleNewNotification)
+    socket.on('receive_message', handleReceiveMessage)
 
     return () => {
-      socket.off('new_notification', handleNewNotification)
+      socket.off('receive_message', handleReceiveMessage)
     }
-  }, [user?.id])
+  }, [user?.id, triggerGlobalToast])
 
   // Enhanced local cleanup function
   const performLocalCleanup = useCallback(async () => {
