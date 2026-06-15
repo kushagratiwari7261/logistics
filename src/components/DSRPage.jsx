@@ -78,6 +78,7 @@ export default function DSRPage() {
   const [lastSavedTime, setLastSavedTime] = useState(null);
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [emailDialog, setEmailDialog] = useState(false);
+  const [selectedSheetsForEmail, setSelectedSheetsForEmail] = useState([]);
   const [emailConfig, setEmailConfig] = useState({
     to: '',
     cc: '',
@@ -536,13 +537,129 @@ export default function DSRPage() {
   };
 
   const openEmailDialog = (sheetIndex) => {
-    setEmailDialog(sheetIndex);
+    const selected = [sheetIndex];
+    setSelectedSheetsForEmail(selected);
+    const sheetNames = selected.map(i => workbookData[i]?.name || `Sheet${i + 1}`).join(', ');
+    setEmailConfig(prev => ({
+      ...prev,
+      subject: `DSR Update - ${activeWorkbook?.name || 'DSR'} (${sheetNames})`,
+      body: `Please find the attached DSR update sheet(s): ${sheetNames}.`
+    }));
+    setEmailDialog(true);
+  };
+
+  const toggleSheetForEmail = (index) => {
+    setSelectedSheetsForEmail(prev => {
+      const updated = prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index].sort((a, b) => a - b);
+      // Also update the subject and body with new sheet names
+      const sheetNames = updated.map(i => workbookData[i]?.name || `Sheet${i + 1}`).join(', ');
+      setEmailConfig(cfg => ({
+        ...cfg,
+        subject: `DSR Update - ${activeWorkbook?.name || 'DSR'} (${sheetNames || 'none'})`,
+        body: `Please find the attached DSR update sheet(s): ${sheetNames || 'none'}.`
+      }));
+      return updated;
+    });
+  };
+
+  // Export multiple selected sheets into a single Excel file
+  const exportSelectedSheets = async () => {
+    let sheets = workbookDataRef.current;
+    if (workbookRef.current && typeof workbookRef.current.getAllSheets === 'function') {
+      try {
+        sheets = workbookRef.current.getAllSheets();
+      } catch (err) {
+        console.warn('Could not get sheets for export:', err);
+      }
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    for (const idx of selectedSheetsForEmail) {
+      const sheet = sheets[idx];
+      if (!sheet) continue;
+
+      const dataArray = [];
+      if (sheet.data && Array.isArray(sheet.data) && sheet.data.length > 0) {
+        sheet.data.forEach((row, rIdx) => {
+          if (!row) return;
+          dataArray[rIdx] = [];
+          row.forEach((cell, cIdx) => {
+            dataArray[rIdx][cIdx] = cell ? (cell.m !== undefined ? cell.m : cell.v) : "";
+          });
+        });
+      } else if (sheet.celldata) {
+        const cellMap = {};
+        sheet.celldata.forEach(cell => {
+          if (!cellMap[cell.r]) cellMap[cell.r] = {};
+          cellMap[cell.r][cell.c] = cell.v ? (cell.v.m !== undefined ? cell.v.m : cell.v.v) : "";
+        });
+
+        const maxRow = Math.max(...Object.keys(cellMap).map(Number), 0);
+        let maxCol = 0;
+        Object.values(cellMap).forEach(row => {
+          const cols = Object.keys(row).map(Number);
+          if (cols.length > 0) maxCol = Math.max(maxCol, ...cols);
+        });
+
+        for (let r = 0; r <= maxRow; r++) {
+          dataArray[r] = [];
+          for (let c = 0; c <= maxCol; c++) {
+            dataArray[r][c] = (cellMap[r] && cellMap[r][c] !== undefined) ? cellMap[r][c] : null;
+          }
+        }
+      }
+
+      if (dataArray.length === 0) continue;
+
+      const safeSheetName = (sheet.name || `Sheet${idx + 1}`).substring(0, 31);
+      const worksheet = workbook.addWorksheet(safeSheetName);
+
+      dataArray.forEach((rowData, rowIndex) => {
+        const row = worksheet.addRow(rowData);
+        if (rowIndex === 0) {
+          row.eachCell((cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+            cell.font = { bold: true, color: { argb: 'FF000000' } };
+            cell.border = {
+              top: { style: 'thin' }, left: { style: 'thin' },
+              bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+          });
+        } else {
+          row.eachCell((cell) => {
+            cell.border = {
+              top: { style: 'thin' }, left: { style: 'thin' },
+              bottom: { style: 'thin' }, right: { style: 'thin' }
+            };
+          });
+        }
+      });
+
+      worksheet.columns.forEach(column => {
+        let maxColumnLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+          maxColumnLength = Math.max(maxColumnLength, cell.value ? cell.value.toString().length : 0);
+        });
+        column.width = Math.min(Math.max(maxColumnLength + 2, 10), 50);
+      });
+    }
+
+    const sheetNames = selectedSheetsForEmail.map(i => sheets[i]?.name || `Sheet${i + 1}`).join(', ');
+    const fileName = `${activeWorkbook.name} - ${sheetNames}.xlsx`;
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    return { blob, fileName };
   };
 
   const sendEmailViaAPI = async () => {
+    if (selectedSheetsForEmail.length === 0) {
+      alert('Please select at least one sheet to send.');
+      return;
+    }
     try {
       setSendingEmail(true);
-      const { blob, fileName } = await exportSheet(emailDialog, true);
+      const { blob, fileName } = await exportSelectedSheets();
 
       const reader = new FileReader();
       reader.readAsDataURL(blob);
@@ -562,14 +679,12 @@ export default function DSRPage() {
 
           const baseUrl = window.location.hostname === 'localhost'
             ? 'http://localhost:3001'
-            : ''; // Use relative path for Vercel production
+            : '';
           const apiUrl = baseUrl + '/api/send-email';
 
           const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
 
@@ -580,6 +695,7 @@ export default function DSRPage() {
 
           alert('Email sent successfully!');
           setEmailDialog(false);
+          setSelectedSheetsForEmail([]);
         } catch (err) {
           console.error('Error sending email:', err);
           alert(`Failed to send email: ${err.message}`);
@@ -734,13 +850,50 @@ export default function DSRPage() {
 
           {emailDialog !== false && (
             <div style={styles.dialogOverlay}>
-              <div style={styles.dialog}>
+              <div style={{...styles.dialog, maxWidth: '620px'}}>
                 <div style={styles.dialogHeader}>
-                  <h2 style={styles.dialogTitle}>Do you want to send or fix it again?</h2>
-                  <p style={styles.dialogSubtitle}>Please confirm the email details below before sending.</p>
+                  <h2 style={styles.dialogTitle}>Send DSR Sheet(s) via Email</h2>
+                  <p style={styles.dialogSubtitle}>Select which sheets to attach and confirm email details.</p>
                 </div>
 
                 <div style={styles.emailConfig}>
+                  {/* Sheet selection checkboxes */}
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.formLabel, marginBottom: '8px'}}>Select Sheets to Send:</label>
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', gap: '8px',
+                      padding: '10px', backgroundColor: '#f9fafb', borderRadius: '8px',
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      {workbookData.map((sheet, index) => (
+                        <label
+                          key={sheet.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '6px 12px', borderRadius: '6px', cursor: 'pointer',
+                            fontSize: '13px', fontWeight: '500',
+                            backgroundColor: selectedSheetsForEmail.includes(index) ? '#4f46e5' : '#ffffff',
+                            color: selectedSheetsForEmail.includes(index) ? '#ffffff' : '#374151',
+                            border: selectedSheetsForEmail.includes(index) ? '1px solid #4f46e5' : '1px solid #d1d5db',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSheetsForEmail.includes(index)}
+                            onChange={() => toggleSheetForEmail(index)}
+                            style={{ display: 'none' }}
+                          />
+                          <FileSpreadsheet size={14} />
+                          {sheet.name || `Sheet ${index + 1}`}
+                        </label>
+                      ))}
+                    </div>
+                    {selectedSheetsForEmail.length === 0 && (
+                      <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>Please select at least one sheet.</span>
+                    )}
+                  </div>
+
                   <div style={styles.formGroup}>
                     <label style={styles.formLabel}>To:</label>
                     <input
@@ -787,7 +940,7 @@ export default function DSRPage() {
                     <label style={styles.formLabel}>Message:</label>
                     <textarea
                       placeholder="Body message..."
-                      rows={5}
+                      rows={4}
                       value={emailConfig.body}
                       onChange={(e) => setEmailConfig(prev => ({ ...prev, body: e.target.value }))}
                       style={styles.emailTextarea}
@@ -796,17 +949,21 @@ export default function DSRPage() {
                 </div>
                 <div style={styles.dialogButtons}>
                   <button
-                    onClick={() => setEmailDialog(false)}
+                    onClick={() => { setEmailDialog(false); setSelectedSheetsForEmail([]); }}
                     style={styles.cancelDialogButton}
                   >
-                    Fix it again
+                    Cancel
                   </button>
                   <button
                     onClick={sendEmailViaAPI}
-                    disabled={sendingEmail}
-                    style={styles.sendDialogButton}
+                    disabled={sendingEmail || selectedSheetsForEmail.length === 0}
+                    style={{
+                      ...styles.sendDialogButton,
+                      opacity: selectedSheetsForEmail.length === 0 ? 0.5 : 1,
+                      cursor: selectedSheetsForEmail.length === 0 ? 'not-allowed' : 'pointer'
+                    }}
                   >
-                    {sendingEmail ? 'Sending...' : 'Send Email Now'}
+                    {sendingEmail ? 'Sending...' : `Send ${selectedSheetsForEmail.length} Sheet${selectedSheetsForEmail.length !== 1 ? 's' : ''} Now`}
                   </button>
                 </div>
               </div>
