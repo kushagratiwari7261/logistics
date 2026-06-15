@@ -289,7 +289,7 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
       <aside className="sidebar">
         <div className="sidebar-logo-section">
           <div className="logo-glow">
-            <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}>Seal Logistics</span></div>
+            <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}></span></div>
           </div>
           <div className="sidebar-brand-tag">Logistics Platform</div>
         </div>

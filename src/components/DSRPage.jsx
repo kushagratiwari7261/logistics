@@ -289,7 +289,7 @@ export default function DSRPage() {
       setSaving(true);
 
       let dataToSave = customDataToSave;
-      
+
       if (!dataToSave) {
         dataToSave = workbookDataRef.current;
         if (workbookRef.current) {
@@ -382,7 +382,7 @@ export default function DSRPage() {
 
     setWorkbookData(finalData);
     setActiveSheetIndex(finalData.length - 1);
-    
+
     saveActiveWorkbook(true, finalData);
   };
 
@@ -850,7 +850,7 @@ export default function DSRPage() {
 
           {emailDialog !== false && (
             <div style={styles.dialogOverlay}>
-              <div style={{...styles.dialog, maxWidth: '620px'}}>
+              <div style={{ ...styles.dialog, maxWidth: '620px' }}>
                 <div style={styles.dialogHeader}>
                   <h2 style={styles.dialogTitle}>Send DSR Sheet(s) via Email</h2>
                   <p style={styles.dialogSubtitle}>Select which sheets to attach and confirm email details.</p>
@@ -859,7 +859,7 @@ export default function DSRPage() {
                 <div style={styles.emailConfig}>
                   {/* Sheet selection checkboxes */}
                   <div style={styles.formGroup}>
-                    <label style={{...styles.formLabel, marginBottom: '8px'}}>Select Sheets to Send:</label>
+                    <label style={{ ...styles.formLabel, marginBottom: '8px' }}>Select Sheets to Send:</label>
                     <div style={{
                       display: 'flex', flexWrap: 'wrap', gap: '8px',
                       padding: '10px', backgroundColor: '#f9fafb', borderRadius: '8px',
@@ -1011,7 +1011,7 @@ export default function DSRPage() {
       `}</style>
 
       <div style={styles.header} data-dsr-header>
-        <h1 style={styles.title}>Daily Sales Reports (DSR)</h1>
+        <h1 style={styles.title}>Daily Status Reports (DSR)</h1>
         <div style={styles.controls} data-dsr-controls>
           <div style={styles.buttonGroup}>
             <button
@@ -1105,10 +1105,10 @@ export default function DSRPage() {
 
 const styles = {
   workspace: {
-    display: 'flex', 
-    flexDirection: 'column', 
-    height: '100vh', 
-    width: '100%', 
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    width: '100%',
     backgroundColor: 'var(--bg-base)'
   },
   container: {

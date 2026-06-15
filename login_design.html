@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Elevation | School Portal Login</title>
+<!-- Google Fonts: Inter & Geist -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#00174b",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed": "#0d1c32",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#b9c7e4",
+                        "secondary-fixed-dim": "#b4c5ff",
+                        "on-tertiary-fixed": "#002113",
+                        "on-tertiary-container": "#009668",
+                        "surface-variant": "#e0e3e5",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#b9c7e4",
+                        "on-secondary-container": "#fefcff",
+                        "surface-container-high": "#e6e8ea",
+                        "inverse-on-surface": "#eff1f3",
+                        "secondary": "#0051d5",
+                        "on-primary-container": "#76849f",
+                        "on-surface": "#191c1e",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#515f78",
+                        "on-surface-variant": "#44474d",
+                        "primary-fixed": "#d6e3ff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "background": "#f7f9fb",
+                        "on-error-container": "#93000a",
+                        "on-background": "#191c1e",
+                        "secondary-fixed": "#dbe1ff",
+                        "outline": "#75777e",
+                        "inverse-surface": "#2d3133",
+                        "on-primary-fixed-variant": "#39475f",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "surface-container-low": "#f2f4f6",
+                        "tertiary-container": "#002113",
+                        "secondary-container": "#316bf3",
+                        "primary-container": "#0d1c32",
+                        "on-secondary-fixed-variant": "#003ea8",
+                        "primary": "#000000",
+                        "surface-dim": "#d8dadc",
+                        "surface-container-highest": "#e0e3e5",
+                        "surface-bright": "#f7f9fb",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "outline-variant": "#c5c6cd",
+                        "surface-container": "#eceef0",
+                        "tertiary": "#000000",
+                        "surface": "#f7f9fb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "container-max": "1440px",
+                        "base": "4px",
+                        "gutter": "24px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "mono-data": ["Geist"],
+                        "display-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Geist"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "mono-data": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+                        "display-sm": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .fade-up {
+            animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Role Selector Active State */
+        input[type="radio"]:checked + label {
+            background-color: #316bf3;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(49, 107, 243, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-surface antialiased overflow-x-hidden">
+<main class="min-h-screen flex flex-col md:flex-row">
+<!-- Top Section / Left Section (Visual Anchor) -->
+<section class="relative w-full h-[40vh] md:h-screen md:w-1/2 flex items-center justify-center overflow-hidden">
+<!-- Background Image -->
+<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQLfPaX0pWXn5g7XcLyOicIZYewLl8N_vDTkmBOxYgMPxQlj9GvnlL8o2RaS7ZVLvS5IHZtu0hxB-jVLkzG9kXIt2p0AzEItGoxM6mqMMrp847P9E8YZaipibTlCfju2oy1M9yrhM0KGaITG2Hyp0CiAvmosknttTjLWJvtfj-xHZglpI5qbTOQIP5FoclMcEYcG11199gLoTZNFMWiA_sXaL7XhuQMGk1SouG2XFLo3f7BbIuJ9GSQ8jAsHWlJ15jiVfKFxU3Wk0x');">
+<!-- Dark Overlay -->
+<div class="absolute inset-0 bg-primary-container/60 backdrop-blur-[2px]"></div>
+</div>
+<!-- Animated Logo & Branding -->
+<div class="relative z-10 flex flex-col items-center text-center px-gutter">
+<div class="mb-gutter fade-up">
+<!-- STITCH_SVG_START:ANIMATION_22 class="w-24 h-24 md:w-32 md:h-32" --><div class="w-24 h-24 md:w-32 md:h-32" id="animated-svg-ANIMATION_22" style="display:block;"><svg fill="none" height="200" viewbox="0 0 24 24" width="200" xmlns="http://www.w3.org/2000/svg">
+<style>
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+    .floating { animation: float 3s ease-in-out infinite; }
+    
+    @keyframes pulse-glow {
+      0% { filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.4)); }
+      50% { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8)); }
+      100% { filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.4)); }
+    }
+    .glow { animation: pulse-glow 3s ease-in-out infinite; }
+  </style>
+<g class="floating glow">
+<path d="M12 4L4 12L6 14L12 8L18 14L20 12L12 4Z" fill="#0A192F"></path>
+<path d="M12 10L6 16L8 18L12 14L16 18L18 16L12 10Z" fill="#3B82F6"></path>
+</g>
+</svg></div><!-- STITCH_SVG_END:ANIMATION_22 -->
+</div>
+<h1 class="font-display-sm text-display-sm text-on-primary mb-2 tracking-tight fade-up delay-1">Elevation</h1>
+<p class="font-body-md text-body-md text-on-primary/80 max-w-sm fade-up delay-2">Institutional Intelligence &amp; Performance Management</p>
+</div>
+<!-- Bottom decorative element (Mobile only) -->
+<div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent md:hidden"></div>
+</section>
+<!-- Bottom Section / Right Section (Form) -->
+<section class="flex-1 bg-background md:bg-white flex items-center justify-center p-6 md:p-12 lg:p-24 relative">
+<!-- Shared Component Logic: This page represents a Task-Focused journey, so the Shell (NavBars) is suppressed. -->
+<div class="w-full max-w-md space-y-8 glass-panel md:bg-transparent p-8 md:p-0 rounded-xl md:rounded-none shadow-xl md:shadow-none -mt-12 md:mt-0 relative z-20 fade-up delay-3">
+<!-- Header -->
+<header class="space-y-2">
+<h2 class="font-headline-lg text-headline-lg text-primary">Welcome Back</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Please sign in to your portal</p>
+</header>
+<!-- Login Form -->
+<form class="space-y-6" id="loginForm" onsubmit="event.preventDefault();">
+<!-- Role Selector -->
+<div class="space-y-3 fade-up delay-4">
+<label class="font-label-md text-label-md text-on-surface-variant block uppercase tracking-wider">Select Role</label>
+<div class="grid grid-cols-3 gap-2 p-1 bg-surface-container-low rounded-lg border border-outline-variant">
+<div class="relative">
+<input checked="" class="sr-only peer" id="role-staff" name="role" type="radio" value="staff"/>
+<label class="flex items-center justify-center py-2 px-3 rounded-md font-label-md text-label-md text-on-surface-variant cursor-pointer transition-all duration-200 hover:bg-white/50 peer-checked:bg-secondary-container peer-checked:text-on-secondary-container" for="role-staff">
+                                    Staff
+                                </label>
+</div>
+<div class="relative">
+<input class="sr-only peer" id="role-student" name="role" type="radio" value="student"/>
+<label class="flex items-center justify-center py-2 px-3 rounded-md font-label-md text-label-md text-on-surface-variant cursor-pointer transition-all duration-200 hover:bg-white/50 peer-checked:bg-secondary-container peer-checked:text-on-secondary-container" for="role-student">
+                                    Student
+                                </label>
+</div>
+<div class="relative">
+<input class="sr-only peer" id="role-admin" name="role" type="radio" value="admin"/>
+<label class="flex items-center justify-center py-2 px-3 rounded-md font-label-md text-label-md text-on-surface-variant cursor-pointer transition-all duration-200 hover:bg-white/50 peer-checked:bg-secondary-container peer-checked:text-on-secondary-container" for="role-admin">
+                                    Admin
+                                </label>
+</div>
+</div>
+</div>
+<!-- Email Field -->
+<div class="space-y-2 fade-up delay-5">
+<label class="font-label-md text-label-md text-on-surface-variant block uppercase tracking-wider" for="email">Email Address</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline group-focus-within:text-secondary transition-colors">
+<span class="material-symbols-outlined">alternate_email</span>
+</div>
+<input class="block w-full pl-12 pr-4 py-3 bg-white border border-outline-variant rounded-lg font-body-md text-body-md focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all placeholder:text-outline/50" id="email" placeholder="name@elevation.edu" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2 fade-up delay-5">
+<div class="flex justify-between items-center">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="password">Password</label>
+<a class="font-label-md text-label-md text-secondary hover:text-on-secondary-fixed-variant transition-colors" href="#">Forgot Password?</a>
+</div>
+<div class="relative group" x-data="{ show: false }">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline group-focus-within:text-secondary transition-colors">
+<span class="material-symbols-outlined">lock</span>
+</div>
+<input class="block w-full pl-12 pr-12 py-3 bg-white border border-outline-variant rounded-lg font-body-md text-body-md focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all placeholder:text-outline/50" id="password" placeholder="••••••••" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-4 flex items-center text-outline hover:text-on-surface transition-colors" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="passToggleIcon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Sign In Button -->
+<button class="w-full bg-secondary-container text-on-secondary-container font-headline-md text-headline-md py-4 rounded-lg shadow-sm hover:shadow-md hover:bg-secondary transition-all active:scale-[0.98] duration-150 flex items-center justify-center gap-2 group fade-up delay-5" type="submit">
+                        Sign In
+                        <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</form>
+<!-- Footer -->
+<footer class="pt-8 border-t border-outline-variant text-center fade-up delay-5">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                        New here? <a class="text-secondary font-bold hover:underline" href="#">Contact school administration</a>
+</p>
+</footer>
+</div>
+<!-- Subtle background branding or grid for depth -->
+<div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none hidden md:block">
+<span class="font-headline-lg text-headline-lg font-bold">EST. 2024</span>
+</div>
+</section>
+</main>
+<script>
+        function togglePassword() {
+            const passInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passToggleIcon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                toggleIcon.textContent = 'visibility_off';
+            } else {
+                passInput.type = 'password';
+                toggleIcon.textContent = 'visibility';
+            }
+        }
+
+        // Entrance animation logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.fade-up');
+            elements.forEach((el, index) => {
+                // Ensure visibility after interaction
+                el.style.opacity = '1';
+            });
+        });
+    </script>
+</body></html>
