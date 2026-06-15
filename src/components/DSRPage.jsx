@@ -240,24 +240,13 @@ export default function DSRPage() {
         calcChain: sheet.calcChain || []
       };
 
-      // Handle different data formats
-      if (sheet.celldata && Array.isArray(sheet.celldata)) {
-        validatedSheet.celldata = sheet.celldata.map(cell => ({
-          r: cell.r,
-          c: cell.c,
-          v: {
-            ...(cell.v || { v: '', m: '' }),
-            // FORCE first row (r: 0) always has yellow background and bold (ONLY FOR FIRST SHEET)
-            ...(cell.r === 0 && index === 0 ? { bg: "#FFFF00", bl: 1 } : {})
-          }
-        }));
-      } else if (sheet.data && Array.isArray(sheet.data)) {
-        // Convert data format to celldata format
+      // Prefer sheet.data (which represents latest edits) over celldata
+      if (sheet.data && Array.isArray(sheet.data) && sheet.data.length > 0) {
         validatedSheet.celldata = [];
         sheet.data.forEach((row, rIdx) => {
           if (row && Array.isArray(row)) {
             row.forEach((cell, cIdx) => {
-              if (cell) {
+              if (cell && (cell.v !== null && cell.v !== undefined || cell.m !== null && cell.m !== undefined)) {
                 validatedSheet.celldata.push({
                   r: rIdx,
                   c: cIdx,
@@ -272,6 +261,16 @@ export default function DSRPage() {
             });
           }
         });
+      } else if (sheet.celldata && Array.isArray(sheet.celldata)) {
+        validatedSheet.celldata = sheet.celldata.map(cell => ({
+          r: cell.r,
+          c: cell.c,
+          v: {
+            ...(cell.v || { v: '', m: '' }),
+            // FORCE first row (r: 0) always has yellow background and bold (ONLY FOR FIRST SHEET)
+            ...(cell.r === 0 && index === 0 ? { bg: "#FFFF00", bl: 1 } : {})
+          }
+        }));
       }
 
       // Final safety check - enforce yellow on first row
@@ -348,10 +347,25 @@ export default function DSRPage() {
     }
   };
 
+  const getLatestWorkbookData = () => {
+    let latestData = workbookDataRef.current;
+    if (workbookRef.current) {
+      try {
+        if (typeof workbookRef.current.getAllSheets === 'function') {
+          latestData = workbookRef.current.getAllSheets();
+        }
+      } catch (err) {
+        console.warn('Could not get sheets from FortuneSheet API:', err);
+      }
+    }
+    return validateAndFixWorkbookData(JSON.parse(JSON.stringify(latestData)));
+  };
+
   const addNewSheet = () => {
     if (!activeWorkbook) return;
 
-    const newSheetIndex = workbookData.length + 1;
+    const latestData = getLatestWorkbookData();
+    const newSheetIndex = latestData.length + 1;
 
     const newSheet = {
       name: `Sheet${newSheetIndex}`,
@@ -362,7 +376,7 @@ export default function DSRPage() {
       order: newSheetIndex
     };
 
-    const updatedData = workbookData.map(s => ({ ...s, status: 0 }));
+    const updatedData = latestData.map(s => ({ ...s, status: 0 }));
     const finalData = [...updatedData, newSheet];
 
     setWorkbookData(finalData);
@@ -372,7 +386,8 @@ export default function DSRPage() {
   };
 
   const switchSheet = (sheetIndex) => {
-    const updatedData = workbookData.map((sheet, index) => ({
+    const latestData = getLatestWorkbookData();
+    const updatedData = latestData.map((sheet, index) => ({
       ...sheet,
       status: index === sheetIndex ? 1 : 0
     }));
