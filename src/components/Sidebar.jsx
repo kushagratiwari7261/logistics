@@ -19,7 +19,9 @@ import {
   ClipboardCheck,
   Fingerprint,
   ShieldCheck,
-  Search
+  Search,
+  Menu,
+  ChevronLeft
 } from 'lucide-react'
 import { useState } from 'react'
 import sealLogo from '../seal.png'
@@ -89,6 +91,7 @@ const menuSections = [
         to: '/messages',
         label: 'Messages',
         icon: <MessageSquare size={20} />,
+        badge: 5,
       },
       {
         to: '/reports',
@@ -158,6 +161,8 @@ const menuSections = [
 const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
   const location = useLocation()
   const [expandedItems, setExpandedItems] = useState(['Business Partner'])
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState(null)
 
   const handleLogoutClick = async () => { await onLogout() }
   const handleLinkClick = () => { if (mobileMenuOpen) toggleMobileMenu() }
@@ -184,19 +189,31 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
 
     if (hasChildren) {
       return (
-        <div className={`nav-item-group ${isExpanded ? 'active-group' : ''}`}>
+        <div 
+          className={`nav-item-group ${isExpanded ? 'active-group' : ''}`}
+          onMouseEnter={(e) => {
+            if (!isCollapsed) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            setHoveredItem({ item, top: rect.top });
+          }}
+          onMouseLeave={() => isCollapsed && setHoveredItem(null)}
+        >
           <button
             className={`nav-link ${active ? 'active' : ''}`}
             onClick={() => toggleExpand(item.label)}
             type="button"
+            title={item.label}
           >
-            <span className="nav-icon">{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
+            <div className="nav-link-content">
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </div>
+            {item.badge && <span className="nav-badge">{item.badge}</span>}
             <span className="expand-icon">
               {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </span>
           </button>
-          {isExpanded && (
+          {(!isCollapsed && isExpanded) && (
             <div className="sub-menu">
               {item.children.map((child) => (
                 <NavItem key={child.to} item={child} onClick={onClick} isSubItem={true} />
@@ -212,10 +229,13 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
         to={item.to}
         className={`nav-link ${isActive(item.to) ? 'active' : ''} ${isSubItem ? 'sub-nav-link' : ''}`}
         onClick={onClick}
+        title={item.label}
       >
-        <span className="nav-icon">{item.icon}</span>
-        <span className="nav-label">{item.label}</span>
-        {isActive(item.to) && <span className="active-indicator" />}
+        <div className="nav-link-content">
+          <span className="nav-icon">{item.icon}</span>
+          <span className="nav-label">{item.label}</span>
+        </div>
+        {item.badge && <span className="nav-badge">{item.badge}</span>}
       </Link>
     )
   }
@@ -286,10 +306,21 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-logo-section">
-          <div className="logo-glow">
-            <div style={{ display: 'flex', alignItems: 'center' }}><img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: '10px' }} /><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4f46e5' }}></span></div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div className="logo-glow">
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: isCollapsed ? '0' : '10px' }} />
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)} 
+              className="sidebar-toggle-btn"
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {isCollapsed ? <Menu size={24} /> : <ChevronLeft size={24} />}
+            </button>
           </div>
           <div className="sidebar-brand-tag">Logistics Platform</div>
         </div>
@@ -320,6 +351,25 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
 
         <UserFooter />
       </aside>
+
+      {/* Flyout Menu for Compact Mode */}
+      {isCollapsed && hoveredItem && (
+        <div 
+          className="sidebar-flyout"
+          style={{ top: hoveredItem.top }}
+          onMouseEnter={() => setHoveredItem(hoveredItem)}
+          onMouseLeave={() => setHoveredItem(null)}
+        >
+          {hoveredItem.item.children.map(child => (
+            <Link key={child.to} to={child.to} className="nav-link sub-nav-link" onClick={handleLinkClick}>
+              <div className="nav-link-content">
+                <span className="nav-icon">{child.icon}</span>
+                <span className="nav-label">{child.label}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </>
   )
 }

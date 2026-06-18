@@ -37,23 +37,27 @@ function StatCard({ label, value, iconType = 'blue', id, onClick, trend }) {
 
   return (
     <div
-      className={`stat-card ${iconType}`}
+      className={`premium-stat-card`}
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
       id={id}
     >
-      <div className={`stat-icon ${iconType}`}>
-        {iconMap[iconType] ?? iconMap.blue}
+      <div className="stat-bubble"></div>
+      
+      <div className="stat-card-header">
+        <div className={`stat-card-icon-wrapper ${iconType}`}>
+          {iconMap[iconType] ?? iconMap.blue}
+        </div>
+        <p className="stat-card-label">{label}</p>
       </div>
 
-      <div className="stat-info">
-        <div className="stat-label">{label}</div>
-        <div className="stat-value" ref={valueRef}>{value}</div>
+      <div className="stat-card-body">
+        <h3 className="stat-card-value" ref={valueRef}>{value}</h3>
         {trend !== undefined && (
-          <div className="stat-trend" style={{ color: trendColor[iconType] }}>
-            <TrendingUp size={12} style={{ marginRight: 4 }} />
+          <div className="stat-trend" style={{ color: trendColor[iconType], fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
+            <TrendingUp size={14} style={{ marginRight: 4 }} />
             {trend}
           </div>
         )}

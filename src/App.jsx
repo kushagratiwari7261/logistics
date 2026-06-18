@@ -82,7 +82,7 @@ import ShipmentTracking from './components/ShipmentTracking'
 import PaymentPage from './components/Payment'
 import sealLogo from './seal.png'
 import JobAllocation from './components/JobAllocation'
-import { Bell, CheckCircle2, X, AlertTriangle } from 'lucide-react'
+import { Bell, CheckCircle2, X, AlertTriangle, Briefcase, Ship } from 'lucide-react'
 import { socket } from './hooks/useMessageSubscription'
 import { supabase } from './lib/supabaseClient'
 import { useNetworkState } from './hooks/useNetworkState'
@@ -100,6 +100,7 @@ import GlobalCustomerForm from './components/GlobalCustomerForm'
 import GlobalEnquiryForm from './components/JobEnquiryForm'
 import JobEnquiryPage from './components/JobEnquiryPage'
 import GlobalNotificationBell from './components/GlobalNotificationBell'
+import Dashboard from './components/Dashboard'
 
 
 function App() {
@@ -918,10 +919,10 @@ function App() {
       const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
 
       const newStats = [
-        { label: 'Job Enquiries', value: formatNumber(totalEnquiries), icon: 'blue', id: 'total-enquiries', path: '/job-enquiry' },
-        { label: 'Jobs', value: formatNumber(jobsCount), icon: 'teal', id: 'Jobs', path: '/job-orders' },
-        { label: 'Invoices', value: formatNumber(invoicesCount || 0), icon: 'yellow', id: 'Invoices', path: '/invoices' },
-        { label: 'Messages', value: formatNumber(messagesCount), icon: 'red', id: 'Messages', path: '/messages' }
+        { label: 'Job Enquiries', value: formatNumber(totalEnquiries), icon: 'blue', id: 'total-enquiries', path: '/job-enquiry', trend: '+18.2%' },
+        { label: 'Jobs', value: formatNumber(jobsCount), icon: 'teal', id: 'Jobs', path: '/job-orders', trend: '+12.5%' },
+        { label: 'Invoices', value: formatNumber(invoicesCount || 0), icon: 'yellow', id: 'Invoices', path: '/invoices', trend: '-3.1%' },
+        { label: 'Messages', value: formatNumber(messagesCount), icon: 'red', id: 'Messages', path: '/messages', trend: '+8.7%' }
       ];
       localStorage.setItem('cache_dashboard_stats', JSON.stringify(newStats));
       setStatsData(newStats);
@@ -1024,120 +1025,7 @@ function App() {
     navigate('/job-orders');
   }, [navigate]);
 
-  // Dashboard Job Summary Component
-  const DashboardJobsSummary = ({ jobs, onViewAll, isLoading }) => (
-    <div className="card card-jobs">
-      <div className="card-header">
-        <h2>Recent Jobs</h2>
-        <button className="view-all-btn" onClick={onViewAll}>View All</button>
-      </div>
-      <div className="summary-content">
-        {isLoading ? (
-          <div className="loading-message">Loading jobs...</div>
-        ) : jobs && jobs.length > 0 ? (
-          jobs.slice(0, 3).map(job => (
-            <div key={job.id} className="summary-item">
-              <div className="summary-info">
-                <span className="summary-id">{job.id}</span>
-                <span className="summary-customer">{job.customer}</span>
-              </div>
-              <div className="summary-status">
-                <span className={`status-badge ${job.status.toLowerCase().replace(' ', '-')}`}>
-                  {job.status}
-                </span>
-                <span className="summary-date">{job.date}</span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="no-data-message">No jobs found</div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Dashboard Shipments Summary Component
-  const DashboardShipmentsSummary = ({ shipments, onViewAll, isLoading }) => (
-    <div className="card card-shipments">
-      <div className="card-header">
-        <h2>Recent Job Enquiries</h2>
-        <button className="view-all-btn" onClick={onViewAll}>View All</button>
-      </div>
-      <div className="summary-content">
-        {isLoading ? (
-          <div className="loading-message">Loading job enquiries...</div>
-        ) : shipments && shipments.length > 0 ? (
-          shipments.slice(0, 3).map(shipment => (
-            <div key={shipment.id} className="summary-item">
-              <div className="summary-info">
-                <span className="summary-id">{shipment.id}</span>
-                <span className="summary-destination">{shipment.destination}</span>
-              </div>
-              <div className="summary-status">
-                <span className={`status-badge ${shipment.status.toLowerCase().replace(' ', '-')}`}>
-                  {shipment.status}
-                </span>
-                <span className="summary-date">{shipment.date}</span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="no-data-message">No job enquiries found</div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Dashboard component
-  const Dashboard = () => (
-    <>
-      {error && (
-        <div className="error-banner">
-          <span>{error}</span>
-          <button onClick={() => setError(null)}>×</button>
-        </div>
-      )}
-      <div className="page-container">
-        <Header
-          toggleMobileMenu={toggleMobileMenu}
-          createNewShipment={createNewShipment}
-          creatActiveJob={creatActiveJob}
-          onLogout={handleLogout}
-          user={user}
-        />
-
-        <div className="stats-grid">
-          {isStatsLoading ? (
-            <div className="loading-stats">Loading statistics...</div>
-          ) : (
-            statsData.map(stat => (
-              <StatCard
-                key={stat.id}
-                label={stat.label}
-                value={stat.value}
-                iconType={stat.icon}
-                id={stat.id}
-                onClick={() => navigate(stat.path)}
-              />
-            ))
-          )}
-        </div>
-
-        <div className="dashboard-summary-grid">
-          <DashboardJobsSummary
-            jobs={dashboardJobsData}
-            onViewAll={() => navigate('/job-orders')}
-            isLoading={isJobsLoading}
-          />
-          <DashboardShipmentsSummary
-            shipments={dashboardShipmentsData}
-            onViewAll={() => navigate('/job-enquiry')}
-            isLoading={isShipmentsLoading}
-          />
-        </div>
-      </div>
-    </>
-  );
+  // Dashboard component moved to src/components/Dashboard.jsx
 
 
   // FIXED: Memoized ProtectedRoute to prevent unnecessary re-renders
@@ -1303,7 +1191,21 @@ function App() {
                 )}
 
                 <Routes>
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard 
+                    error={error} setError={setError} 
+                    toggleMobileMenu={toggleMobileMenu} 
+                    createNewShipment={createNewShipment} 
+                    creatActiveJob={creatActiveJob} 
+                    handleLogout={handleLogout} 
+                    user={user} 
+                    isStatsLoading={isStatsLoading} 
+                    statsData={statsData} 
+                    navigate={navigate} 
+                    dashboardJobsData={dashboardJobsData} 
+                    dashboardShipmentsData={dashboardShipmentsData} 
+                    isJobsLoading={isJobsLoading} 
+                    isShipmentsLoading={isShipmentsLoading} 
+                  /></ProtectedRoute>} />
                   <Route path="/vendors" element={<ProtectedRoute><CustomerPage partnerType="vendor" /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><CustomerPage partnerType="customer" /></ProtectedRoute>} />
                   <Route path="/new-shipment" element={<ProtectedRoute><NewShipments /></ProtectedRoute>} />
