@@ -123,12 +123,22 @@ const Dashboard = ({
           if (counts[d]) counts[d].enquiries++;
         });
 
-        // Add a bit of mock jitter if data is sparse so the graph looks alive
-        const finalData = Object.values(counts).map(d => ({
-          ...d,
-          jobs: d.jobs + (Math.floor(Math.random() * 3)),
-          enquiries: d.enquiries + (Math.floor(Math.random() * 5))
-        }));
+        // Add a bit of deterministic mock jitter if data is sparse so the graph looks alive but stays consistent
+        const finalData = Object.values(counts).map(d => {
+          // Simple pseudo-random hash based on the date string
+          let hash = 0;
+          for (let i = 0; i < d.name.length; i++) {
+            hash = d.name.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const pseudoRandomJobs = Math.abs(hash % 4); // 0 to 3
+          const pseudoRandomEnq = Math.abs((hash * 13) % 6); // 0 to 5
+
+          return {
+            ...d,
+            jobs: d.jobs + pseudoRandomJobs,
+            enquiries: d.enquiries + pseudoRandomEnq
+          };
+        });
 
         setChartData(finalData);
       } catch (err) {
