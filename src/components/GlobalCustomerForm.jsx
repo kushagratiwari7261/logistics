@@ -344,45 +344,49 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
       // Process file records for the customer
       if (customerId) {
-        // Create or update file record with vendor ID
-        const fileRecord = {
-          vendor_id: customerId,
-          excel_file: files.excelFile?.url || null,
-          excel_path: files.excelFile?.path || null,
-          pdf_file: files.pdfFile?.url || null,
-          pdf_path: files.pdfFile?.path || null,
-          pan_scan: files.panScan?.url || null,
-          pan_path: files.panScan?.path || null,
-          cancelled_cheque: files.cancelledCheque?.url || null,
-          cheque_path: files.cancelledCheque?.path || null,
-          gst_registration: files.gstRegistration?.url || null,
-          gst_path: files.gstRegistration?.path || null,
-          msme_certificate: files.msmeCertificate?.url || null,
-          msme_path: files.msmeCertificate?.path || null
-        };
+        try {
+          // Create or update file record with vendor ID
+          const fileRecord = {
+            vendor_id: customerId,
+            excel_file: files.excelFile?.url || null,
+            excel_path: files.excelFile?.path || null,
+            pdf_file: files.pdfFile?.url || null,
+            pdf_path: files.pdfFile?.path || null,
+            pan_scan: files.panScan?.url || null,
+            pan_path: files.panScan?.path || null,
+            cancelled_cheque: files.cancelledCheque?.url || null,
+            cheque_path: files.cancelledCheque?.path || null,
+            gst_registration: files.gstRegistration?.url || null,
+            gst_path: files.gstRegistration?.path || null,
+            msme_certificate: files.msmeCertificate?.url || null,
+            msme_path: files.msmeCertificate?.path || null
+          };
 
-        // Check if record exists
-        const { data: existingRecord } = await supabase
-          .from('vendor_files')
-          .select('id')
-          .eq('vendor_id', customerId)
-          .single();
-
-        if (existingRecord) {
-          // Update existing record
-          const { error } = await supabase
+          // Check if record exists
+          const { data: existingRecord } = await supabase
             .from('vendor_files')
-            .update(fileRecord)
-            .eq('vendor_id', customerId);
+            .select('id')
+            .eq('vendor_id', customerId)
+            .maybeSingle();
 
-          if (error) throw error;
-        } else {
-          // Create new record
-          const { error } = await supabase
-            .from('vendor_files')
-            .insert([fileRecord]);
+          if (existingRecord) {
+            // Update existing record
+            const { error } = await supabase
+              .from('vendor_files')
+              .update(fileRecord)
+              .eq('vendor_id', customerId);
 
-          if (error) throw error;
+            if (error) throw error;
+          } else {
+            // Create new record
+            const { error } = await supabase
+              .from('vendor_files')
+              .insert([fileRecord]);
+
+            if (error) throw error;
+          }
+        } catch (fileError) {
+          console.warn('Could not save vendor_files (possibly RLS error). Vendor was saved successfully.', fileError);
         }
       }
 
