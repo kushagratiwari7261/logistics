@@ -1077,7 +1077,9 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
       setShowDeleteModal(false);
       setJobToDelete(null);
-      setSuccess('Job deleted successfully!');
+      window.dispatchEvent(new CustomEvent('show_global_toast', { 
+        detail: { title: 'Success', message: 'Job deleted successfully!', type: 'success' } 
+      }));
 
       // Refresh the jobs list
       fetchJobs();

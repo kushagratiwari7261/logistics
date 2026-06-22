@@ -924,7 +924,9 @@ const NewShipments = () => {
       
       setShowDeleteModal(false);
       setShipmentToDelete(null);
-      setSuccess('Shipment deleted successfully!');
+      window.dispatchEvent(new CustomEvent('show_global_toast', { 
+        detail: { title: 'Success', message: 'Shipment deleted successfully!', type: 'success' } 
+      }));
       fetchShipments();
     } catch (error) {
       console.error('Error deleting shipment:', error);

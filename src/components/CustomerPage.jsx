@@ -485,6 +485,9 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
         if (error) throw error;
 
         // Refresh the customer list
+        window.dispatchEvent(new CustomEvent('show_global_toast', { 
+          detail: { title: 'Success', message: `${displayType} deleted successfully!`, type: 'success' } 
+        }));
         fetchCustomers();
       } catch (error) {
         console.error("Error deleting vendor:", error);
