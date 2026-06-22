@@ -932,7 +932,9 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
       }
 
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
-      alert(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
+      window.dispatchEvent(new CustomEvent('show_global_toast', { 
+        detail: { title: 'Success', message: editingJob ? 'Job updated successfully!' : 'Job created successfully!', type: 'success' } 
+      }));
       onClose(formConfig.id);
       setNewPods([{ podNo: '', file: null }]);
       window.dispatchEvent(new Event('job_data_updated'));

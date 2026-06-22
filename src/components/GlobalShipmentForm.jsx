@@ -869,7 +869,9 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         setPdfShipmentData(preparedPDFData);
         setGeneratePDF(true);
         
-        alert(editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!');
+        window.dispatchEvent(new CustomEvent('show_global_toast', { 
+          detail: { title: 'Success', message: editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!', type: 'success' } 
+        }));
         
         handleCancel();
         sessionStorage.removeItem('editing_shipment');

@@ -228,7 +228,9 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         });
       }
 
-      alert(editingEnquiry ? 'Enquiry updated!' : 'Enquiry created!');
+      window.dispatchEvent(new CustomEvent('show_global_toast', { 
+        detail: { title: 'Success', message: editingEnquiry ? 'Enquiry updated!' : 'Enquiry created!', type: 'success' } 
+      }));
       onClose(formConfig.id);
       window.dispatchEvent(new Event('enquiry_data_updated'));
     } catch (err) {

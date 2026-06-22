@@ -241,6 +241,15 @@ function App() {
     }, 6000);
   }, []);
 
+  // Listen for custom toast events from anywhere in the app
+  useEffect(() => {
+    const handleCustomToast = (event) => {
+      triggerGlobalToast(event.detail);
+    };
+    window.addEventListener('show_global_toast', handleCustomToast);
+    return () => window.removeEventListener('show_global_toast', handleCustomToast);
+  }, [triggerGlobalToast]);
+
   // Handle Real-time Job Notifications + Global Message Banner via WebSocket
   useEffect(() => {
     if (!user?.id) return

@@ -439,7 +439,9 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
 
       // Refresh the list
-      alert(editingCustomer ? `${displayType} updated successfully!` : `${displayType} saved successfully!`);
+      window.dispatchEvent(new CustomEvent('show_global_toast', { 
+        detail: { title: 'Success', message: editingCustomer ? `${displayType} updated successfully!` : `${displayType} saved successfully!`, type: 'success' } 
+      }));
       window.dispatchEvent(new Event('refresh_customer_list')); 
       onClose(id);
     } catch (error) {
