@@ -228,9 +228,9 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         });
       }
 
+      alert(editingEnquiry ? 'Enquiry updated!' : 'Enquiry created!');
       onClose(formConfig.id);
       window.dispatchEvent(new Event('enquiry_data_updated'));
-      setSuccess(editingEnquiry ? 'Enquiry updated!' : 'Enquiry created!');
     } catch (err) {
       console.error('Error saving enquiry:', err);
       setError(err.message || String(err));

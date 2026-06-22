@@ -869,13 +869,13 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         setPdfShipmentData(preparedPDFData);
         setGeneratePDF(true);
         
+        alert(editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!');
+        
         handleCancel();
         sessionStorage.removeItem('editing_shipment');
         sessionStorage.removeItem('creating_shipment');
         onClose(formConfig.id);
         window.dispatchEvent(new Event('shipment_data_updated'));
-        
-        setSuccess(editingShipment ? 'Shipment updated successfully!' : 'Shipment created successfully!');
         fetchShipments();
       } catch (error) {
         console.error('Error saving shipment:', error);

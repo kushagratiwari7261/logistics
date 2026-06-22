@@ -932,13 +932,11 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
       }
 
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
+      alert(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
       onClose(formConfig.id);
       setNewPods([{ podNo: '', file: null }]);
       window.dispatchEvent(new Event('job_data_updated'));
 
-      setSuccess(editingJob ? 'Job updated successfully!' : 'Job created successfully!');
-
-      // Refresh the jobs list immediately after creating/updating a job
       fetchJobs();
     } catch (error) {
       console.error('Error saving job:', error);

@@ -435,7 +435,9 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
 
 
       // Refresh the list
-      window.dispatchEvent(new Event('refresh_customer_list')); onClose(id);
+      alert(editingCustomer ? `${displayType} updated successfully!` : `${displayType} saved successfully!`);
+      window.dispatchEvent(new Event('refresh_customer_list')); 
+      onClose(id);
     } catch (error) {
       console.error(`Error saving ${partnerType}:`, error);
       setError(error.message);
