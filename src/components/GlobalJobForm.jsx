@@ -175,6 +175,7 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const [activeStep, setActiveStep] = useState(formConfig.initialState?.activeStep || 1);
   const [jobType, setJobType] = useState(formConfig.initialState?.jobType || '');
   const [tradeDirection, setTradeDirection] = useState(formConfig.initialState?.tradeDirection || '');
+  const [sourceEnquiryId] = useState(formConfig.initialState?.sourceEnquiryId || null);
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -929,6 +930,23 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         }).then(({ error }) => {
           if (error) console.error('Notification error', error);
         });
+
+        // If this job originated from an enquiry, mark that enquiry as migrated
+        if (sourceEnquiryId) {
+          try {
+            await supabase
+              .from('job_enquiries')
+              .update({ 
+                status: 'migrated', 
+                migrated_job_no: jobData.job_no, 
+                updated_at: new Date().toISOString() 
+              })
+              .eq('id', sourceEnquiryId);
+            window.dispatchEvent(new Event('enquiry_data_updated'));
+          } catch (enqErr) {
+            console.error('Error updating linked enquiry status:', enqErr);
+          }
+        }
       }
 
       // ============ FIX 5: CLEAR STORAGE AFTER SAVE ============
@@ -2346,7 +2364,8 @@ const GlobalJobForm = () => {
               tradeDirection: jobToEdit._tradeDirection || '',
               formData: { ...INITIAL_FORM_DATA, ...jobToEdit._formData },
               activeStep: jobToEdit._activeStep || 3,
-              maxStepReached: jobToEdit._activeStep || 4
+              maxStepReached: jobToEdit._activeStep || 4,
+              sourceEnquiryId: jobToEdit._enquiryId || null
             }
           };
           return [...prev.map(f => ({ ...f, isMinimized: true })), newForm];

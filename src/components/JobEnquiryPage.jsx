@@ -23,6 +23,24 @@ const JobEnquiryPage = () => {
     }
   }, [success, error]);
 
+  // TEMPORARY FIX: Force reset the stuck enquiries
+  useEffect(() => {
+    const fixStuck = async () => {
+      try {
+        const { error: updErr } = await supabase
+          .from('job_enquiries')
+          .update({ status: 'pending', migrated_job_no: null })
+          .in('enquiry_no', ['ENQ-2026-06-013', 'ENQ-2026-06-014']);
+        if (!updErr) {
+          console.log("Force-reset ENQ-2026-06-013 and 014 to pending successfully.");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fixStuck();
+  }, []);
+
   const fetchEnquiries = useCallback(async () => {
     try {
       setLoading(true);
@@ -128,17 +146,6 @@ const JobEnquiryPage = () => {
 
     // Open the GlobalJobForm with pre-filled data
     window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: mappedData }));
-
-    // Mark enquiry as migrated
-    try {
-      await supabase
-        .from('job_enquiries')
-        .update({ status: 'migrated', updated_at: new Date().toISOString() })
-        .eq('id', enquiry.id);
-      fetchEnquiries();
-    } catch (err) {
-      console.error('Error updating enquiry status:', err);
-    }
   }, [fetchEnquiries]);
 
   // Delete enquiry
