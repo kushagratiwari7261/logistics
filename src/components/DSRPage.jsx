@@ -5,7 +5,8 @@ import '@fortune-sheet/react/dist/index.css';
 import { v4 as uuidv4 } from 'uuid';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { UserPlus, Clock, FileSpreadsheet } from 'lucide-react';
+import { UserPlus, Clock, FileSpreadsheet, Search, Plus, PenLine, Trash2, FolderOpen } from 'lucide-react';
+import './JobEnquiryForm.css';
 
 // default headers requested by user
 const defaultHeaders = [
@@ -1145,7 +1146,7 @@ export default function DSRPage() {
   }
 
   return (
-    <div style={styles.container}>
+    <div className="enquiry-page-container">
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         /* ── DSRPage Responsive (@media screen) ── */
@@ -1180,101 +1181,137 @@ export default function DSRPage() {
         }
       `}</style>
 
-      <div style={styles.header} data-dsr-header>
-        <h1 style={styles.title}>Daily Status Reports (DSR)</h1>
-        <div style={styles.controls} data-dsr-controls>
-          <div style={styles.buttonGroup}>
-            <button
-              style={styles.exportAllButton}
-              onClick={createWorkbook}
-              disabled={saving}
+      {(() => {
+        const filteredWorkbooks = workbooks.filter(wb => {
+          if (!searchQuery) return true;
+          const query = searchQuery.toLowerCase();
+          return (
+            (wb.name && wb.name.toLowerCase().includes(query)) ||
+            (wb.created_by && wb.created_by.toLowerCase().includes(query))
+          );
+        });
+
+        return (
+          <>
+            {/* Header */}
+            <div className="enquiry-page-header">
+              <h1>
+                <span className="header-icon"><FileSpreadsheet size={20} /></span>
+                Daily Status Reports (DSR)
+              </h1>
+              <button className="enquiry-new-btn" onClick={createWorkbook} disabled={saving}>
+                <Plus size={18} /> {saving ? 'Creating...' : 'New DSR'}
+              </button>
+            </div>
+
+            {saving && (
+              <div style={styles.savingIndicator}>
+                Creating new DSR workbook...
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="enquiry-search-bar">
+              <input
+                type="text"
+                className="enquiry-search-input"
+                placeholder="Search DSR workbooks by name, author..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Table */}
+            <div
+              className="enquiry-table-wrapper"
+              style={{ flex: 1, overflowY: 'auto' }}
             >
-              {saving ? 'Creating...' : '+ Create New DSR'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {saving && (
-        <div style={styles.savingIndicator}>
-          Creating new DSR workbook...
-        </div>
-      )}
-
-      <div style={styles.tableContainer} data-dsr-table-wrap>
-        {workbooks.length === 0 && !loading ? (
-          <div style={styles.noData}>
-            No DSR Workbooks found. Create one to get started!
-          </div>
-        ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.headerRow}>
-                <th style={{ ...styles.cell, width: '250px' }}>Name</th>
-                <th style={styles.cell}>Author</th>
-                <th style={styles.cell}>Created</th>
-                <th style={styles.cell}>Updated</th>
-                <th style={{ ...styles.cell, textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workbooks.map((wb, index) => (
-                <tr
-                  key={wb.id}
-                  style={index % 2 === 0 ? styles.evenRow : styles.oddRow}
-                >
-                  <td style={styles.cell}><strong>{wb.name}</strong></td>
-                  <td style={styles.cell}>
-                    {wb.created_by && (
-                      <div style={styles.authorBadge}>
-                        <UserPlus size={11} /> {wb.created_by}
-                      </div>
+              {workbooks.length === 0 && !loading ? (
+                <div style={styles.noData}>
+                  No DSR Workbooks found. Create one to get started!
+                </div>
+              ) : (
+                <table className="enquiry-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '35%' }}>Name</th>
+                      <th>Author</th>
+                      <th>Created</th>
+                      <th>Updated</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredWorkbooks.length > 0 ? (
+                      filteredWorkbooks.map((wb, index) => (
+                        <tr key={wb.id}>
+                          <td><strong>{wb.name}</strong></td>
+                          <td>
+                            {wb.created_by && (
+                              <div className="audit-badge" title={`Created By: ${wb.created_by}`}>
+                                <UserPlus size={12} /> {wb.created_by.split('@')[0]}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{new Date(wb.created_at).toLocaleDateString()}</span>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {new Date(wb.created_at).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{new Date(wb.updated_at).toLocaleDateString()}</span>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {new Date(wb.updated_at).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <div className="enquiry-actions">
+                              <button 
+                                className="enquiry-action-btn migrate"
+                                onClick={() => openWorkbook(wb.id, wb.name)}
+                                title="Open DSR"
+                              >
+                                <FolderOpen size={14} />
+                              </button>
+                              <button 
+                                className="enquiry-action-btn edit"
+                                onClick={() => renameWorkbook(wb.id, wb.name)}
+                                title="Rename DSR"
+                              >
+                                <PenLine size={14} />
+                              </button>
+                              <button 
+                                className="enquiry-action-btn delete"
+                                onClick={() => deleteWorkbook(wb.id)}
+                                title="Delete DSR"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px' }}>
+                          <div style={{ color: 'var(--text-muted)' }}>
+                            No DSR workbooks found matching your search.
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td style={styles.cell}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span>{new Date(wb.created_at).toLocaleDateString()}</span>
-                      <span style={styles.timeStamp}>
-                        {new Date(wb.created_at).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={styles.cell}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span>{new Date(wb.updated_at).toLocaleDateString()}</span>
-                      <span style={styles.timeStamp}>
-                        {new Date(wb.updated_at).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={{ ...styles.cell, textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '10px' }}>
-                      <button
-                        onClick={() => openWorkbook(wb.id, wb.name)}
-                        style={styles.actionButton}
-                      >
-                        Open
-                      </button>
-                      <button
-                        onClick={() => renameWorkbook(wb.id, wb.name)}
-                        style={styles.actionButton}
-                      >
-                        Rename
-                      </button>
-                      <button
-                        onClick={() => deleteWorkbook(wb.id)}
-                        style={styles.deleteButton}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {nameDialog.isOpen && (
         <div style={styles.dialogOverlay}>

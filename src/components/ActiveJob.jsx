@@ -1,8 +1,9 @@
 // src/components/ActiveJob.jsx
 import './ActivityTable.css';
+import './JobEnquiryForm.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText, Search, Plus, Trash2, Eye } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
 
@@ -1608,29 +1609,36 @@ const ActiveJob = () => {
         </div>
       )}
       
-      <div className="card expandable-card">
-        <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <h2>Current Active Jobs</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <input 
-              type="text" 
-              placeholder="Search jobs..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', minWidth: '250px' }}
-            />
-            <button className="add-shipment-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: null }))}>
-              <span className="plus-icon">+</span>
-              Add Job
-            </button>
-          </div>
+      <div className="enquiry-page-container">
+        {/* Header */}
+        <div className="enquiry-page-header">
+          <h1>
+            <span className="header-icon"><Search size={20} /></span>
+            Job Orders
+          </h1>
+          <button className="enquiry-new-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_job_form', { detail: null }))}>
+            <Plus size={18} /> New Job
+          </button>
         </div>
+
+        {/* Search */}
+        <div className="enquiry-search-bar">
+          <input
+            type="text"
+            className="enquiry-search-input"
+            placeholder="Search jobs by number, client, type..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Table */}
         <div 
-          className="table-container" 
+          className="enquiry-table-wrapper" 
           ref={tableContainerRef}
-          style={{ maxHeight: 'calc(100vh - 250px)', minHeight: '500px', overflowY: 'auto' }}
+          style={{ flex: 1, overflowY: 'auto' }}
         >
-          <table className="activity-table">
+          <table className="enquiry-table">
             <thead>
               <tr>
                 <th>Job No.</th>
@@ -1693,27 +1701,29 @@ const ActiveJob = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className="actions-cell">
-                      <button 
-                        className="edit-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditJob(job);
-                        }}
-                        title="Edit Job"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirmDelete(job);
-                        }}
-                        title="Delete Job"
-                      >
-                        Delete
-                      </button>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="enquiry-actions">
+                        <button 
+                          className="enquiry-action-btn edit"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditJob(job);
+                          }}
+                          title="Edit Job"
+                        >
+                          <PenLine size={14} />
+                        </button>
+                        <button 
+                          className="enquiry-action-btn delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDelete(job);
+                          }}
+                          title="Delete Job"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

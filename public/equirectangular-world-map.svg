@@ -1,0 +1,37 @@
+<svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .country {
+      fill: #8B7BC0;
+      fill-opacity: 0.22;
+      stroke: #9D8ED4;
+      stroke-width: 0.5;
+      stroke-opacity: 0.4;
+    }
+  </style>
+  <g class="country">
+    <!-- North America -->
+    <path d="M100,50 L150,40 L250,50 L320,120 L280,220 L180,200 L80,120 Z" /> <!-- Canada/Arctic -->
+    <path d="M180,200 L280,220 L300,280 L220,300 L150,250 Z" /> <!-- US/Mexico -->
+    <!-- South America -->
+    <path d="M280,280 L350,300 L380,450 L300,480 L250,400 Z" /> <!-- Brazil/Southern Cone -->
+    <path d="M250,280 L280,280 L250,400 L220,350 Z" /> <!-- Andes Region -->
+    <!-- Europe -->
+    <path d="M480,100 L530,90 L560,130 L520,160 L470,140 Z" /> <!-- Western Europe -->
+    <path d="M530,90 L600,80 L620,150 L560,130 Z" /> <!-- Eastern Europe -->
+    <!-- Africa -->
+    <path d="M470,180 L580,170 L550,250 L480,240 Z" /> <!-- North Africa -->
+    <path d="M480,240 L550,250 L600,350 L540,420 L480,380 Z" /> <!-- Sub-Saharan Africa -->
+    <path d="M550,250 L620,280 L600,350 Z" /> <!-- East Africa -->
+    <!-- Asia -->
+    <path d="M600,50 L850,40 L950,120 L900,250 L750,280 L650,250 L600,150 Z" /> <!-- Northern/Central Asia -->
+    <path d="M650,250 L750,280 L780,350 L700,380 L620,320 Z" /> <!-- South/Southeast Asia -->
+    <path d="M750,280 L880,320 L850,380 L780,350 Z" /> <!-- East Asia -->
+    <!-- Oceania -->
+    <path d="M780,380 L880,370 L920,440 L850,480 L780,450 Z" /> <!-- Australia -->
+    <path d="M900,400 L930,410 L920,430 L890,420 Z" /> <!-- NZ/Islands -->
+    <!-- Greenland -->
+    <path d="M380,40 L480,30 L520,80 L420,90 Z" />
+    <!-- Antarctica -->
+    <path d="M0,485 L1000,485 L1000,500 L0,500 Z" />
+  </g>
+</svg>

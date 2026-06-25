@@ -3,7 +3,7 @@ import './ActivityTable.css';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { UserPlus, PenLine, FileUp, ExternalLink, FileText, ArrowLeft, ArrowRight, Minus, X, Maximize2 } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText, ArrowLeft, ArrowRight, Minus, X, Maximize2, Plane, Ship, Truck, Package } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
 
@@ -17,11 +17,25 @@ const TRADE_DIRECTIONS = {
   'TRANSPORT': ['EXPORT', 'IMPORT', 'LOCAL'],
   'OTHERS': ['EXPORT', 'IMPORT']
 };
-const STEPS = ['Create Job', 'Trade Direction', 'Port Details', 'Summary'];
+const STEPS = ['Job Type Definition', 'Origin & Destination', 'Port Details & Handling', 'Final Summary'];
 const CATEGORIES = [
   'AGENT', 'ARLINE', 'BANK', 'BIKE', 'BIOKER', 'BUYER',
   'CAREER', 'CAREER AGENT'
 ];
+
+const JOB_TYPE_IMAGES = {
+  'AIR FREIGHT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAfEp12ssHJHjPGZbb-2MwENsvs8vCxqliFyo-up01eOBuQ9Dy8EUEL4xOjK2DTi5O27C4jyQIrpbsaDav1zc8yQgnJPfKibFRLiK-ruLGeg5hXY5uoEFkSbA53ExGcS01jtW6xBnZp-PiuWUJTQYGY1iG0Oc1-b-GIOZssL3zbD3D0XV4M8Od2XdiBkV3ZMziOkY32mx15Mv945SVRdWvQWgkxbBp5oCv2FCDUMBvThqyKcCbfK0hXMER_UCpsUTLqp2qSpXT2DEs',
+  'SEA FREIGHT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAJy7IMnj8PPQzu3O3An_AGLLTmfPdyvx2gi-Y_ebIBOqeVgh6nQ29cirfa0zNvwcH98uASd278NI4wS0eFghh0cD402SdKwDgwzaHvy3mM5pw27bzISH8z2TAJ3nQfFd3qBCVNuGU4AY7qHr6P7S3d0oShmo4V33AJAmx0paq-L87hk9e7b0OrzPRPkzXVAAVrqJiBkpex0RDdniYWqB6yj0IlGl0AmXreP3D7d17AYUMRfYaOy7kXb-uvaXPeV8o7VNrYkh3LP-c',
+  'TRANSPORT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXKeKt_8J3V7RQ0W9uyPOb-f1p6KhvG8tUrRV4O-BJJuFAEC3bsVcGLKuNQ7iNRC0dkR341oczjiXHs9T7ngoSYSVVWMeG0BX2mj7aLFLmTeO-dZsooPKBkGCjqNzSchN4dShUUctKiKdsQ9O2v5KDw297ac0F6DLx2t3tPRmbFFg7GFLdyo979rme99G2AZPMRUEuSA1Q9P4zYmP838Hsm22KgecE_xLq6qhjFw70K0qDtibjdaC1QEtQvLF9F46We670k8j1EBQ',
+  'OTHERS': 'https://lh3.googleusercontent.com/aida-public/AB6AXuA2Hh_Fs4cN8w3E5TfSIdJJ9ng0zfURtLYOQ738Vae2SqHkxYCSjfReTv18GGk0NhFg3JIihI3LhzLE53XMp1hNw6igbJ2vb0naQcYBmOspJ4DsewkS8XQ36Uh3FU4Foonzh08KUAyu0VqGOrZwWBV6pz2fz7xHURL_KcqXYR-Ucur9sgriEzYyEkMnBe7rLnTO9k7XHbFxSI6kcxN2UZg2r0XQTOo7ruXkOPDhW7I_SXEFNsbIkv397H5ZHQcS1jZZ5aZrMcK_BwA'
+};
+
+const JOB_TYPE_SUBTITLES = {
+  'AIR FREIGHT': 'Express global delivery',
+  'SEA FREIGHT': 'High volume maritime shipping',
+  'TRANSPORT': 'Domestic road & rail freight',
+  'OTHERS': 'Custom multi-modal logistics'
+};
 
 // Initial form data
 const INITIAL_FORM_DATA = {
@@ -1949,15 +1963,17 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
         <div className="modal-overlay">
           <div className="modal-content job-modal full-screen-modal">
             <div className="new-shipment-card full-height-card">
-              <div className="new-shipment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div className="new-shipment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#2d3748', borderBottom: 'none', color: 'white' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button className="window-btn" onClick={handleBack} disabled={activeStep === 1} title="Back" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: activeStep === 1 ? 'not-allowed' : 'pointer', opacity: activeStep === 1 ? 0.4 : 1, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
-                    <ArrowLeft size={16} />
-                  </button>
-                  <button className="window-btn" onClick={handleNext} disabled={activeStep >= Math.max(maxStepReached, STEPS.length)} title="Forward" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: activeStep >= Math.min(maxStepReached, STEPS.length) ? 'not-allowed' : 'pointer', opacity: activeStep >= Math.min(maxStepReached, STEPS.length) ? 0.4 : 1, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
-                    <ArrowRight size={16} />
-                  </button>
-                  <h1 style={{ margin: 0, fontSize: '1.2rem' }}>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={handleBack} disabled={activeStep === 1} title="Back" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(85,95,113,0.4)', border: 'none', cursor: activeStep === 1 ? 'not-allowed' : 'pointer', opacity: activeStep === 1 ? 0.4 : 1, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                      <ArrowLeft size={14} />
+                    </button>
+                    <button onClick={handleNext} disabled={activeStep >= Math.min(maxStepReached, STEPS.length)} title="Forward" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(85,95,113,0.4)', border: 'none', cursor: activeStep >= Math.min(maxStepReached, STEPS.length) ? 'not-allowed' : 'pointer', opacity: activeStep >= Math.min(maxStepReached, STEPS.length) ? 0.4 : 1, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                  <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>{editingJob ? 'Edit Job' : 'Create Job'}</h1>
                   {editingJob && (
                     <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
                       {editingJob.created_by && <span className="audit-badge"><UserPlus size={12} /> {editingJob.created_by.split('@')[0]}</span>}
@@ -1965,33 +1981,38 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingJob })} title="Minimize" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
-                    <Minus size={16} />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingJob })} title="Minimize" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <Minus size={18} />
                   </button>
-                  <button onClick={handleCancel} title="Close" style={{ background: '#e74c3c', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}>
-                    <X size={16} />
+                  <button onClick={() => {
+                    const el = document.querySelector('.job-modal');
+                    if (el) el.classList.toggle('full-screen-modal');
+                  }} title="Maximize/Restore" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <Maximize2 size={16} />
+                  </button>
+                  <button onClick={handleCancel} title="Close" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <X size={18} />
                   </button>
                 </div>
               </div>
 
-              {/* Progress Steps */}
-              <div className="progress-steps">
+              {/* Progress Steps - Chevron Stepper */}
+              <div className="progress-steps stitch-stepper">
                 {STEPS.map((step, index) => (
                   <div
                     key={`step-${index}`}
-                    className={`step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''}`}
+                    className={`stitch-step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''} ${index === 0 ? 'first' : ''} ${index === STEPS.length - 1 ? 'last' : ''}`}
                   >
-                    <div className="step-number">{index + 1}</div>
-                    <div className="step-label">{step}</div>
+                    <div className="stitch-step-inner">
+                      <div className="stitch-step-number">{index + 1}</div>
+                      <div className="stitch-step-info">
+                        <span className="stitch-step-label">{`${index + 1}. ${step}`}</span>
+                        {index + 1 === activeStep && <span className="stitch-step-active-tag">(ACTIVE)</span>}
+                      </div>
+                    </div>
                   </div>
                 ))}
-                <div className="progress-bar">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%` }}
-                  ></div>
-                </div>
               </div>
 
               {/* Step Content */}
@@ -2009,7 +2030,14 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                           className={`shipment-type-card ${jobType === type ? 'selected' : ''}`}
                           onClick={() => handleJobTypeSelect(type)}
                         >
-                          {type}
+                          <div className="shipment-card-img-wrap">
+                            <img src={JOB_TYPE_IMAGES[type]} alt={type} className="shipment-card-img" />
+                          </div>
+                          <div className="shipment-card-info">
+                            <span className="shipment-type-text">{type}</span>
+                            <span className="shipment-type-subtitle">{JOB_TYPE_SUBTITLES[type]}</span>
+                          </div>
+                          {jobType === type && <div className="shipment-card-check">✓</div>}
                         </div>
                       ))}
                     </div>

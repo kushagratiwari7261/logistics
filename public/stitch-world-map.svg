@@ -1,0 +1,31 @@
+<svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .map-path { fill: #CBD5E1; }
+  </style>
+  <!-- Simplified stylized world map paths -->
+  <g class="map-path">
+    <!-- North America -->
+    <path d="M120,80 L180,70 L220,100 L250,150 L200,220 L150,200 L100,150 Z" />
+    <path d="M220,100 L280,80 L320,120 L300,180 L250,150 Z" />
+    <!-- South America -->
+    <path d="M280,250 L350,260 L380,320 L340,420 L280,450 L250,350 Z" />
+    <!-- Europe -->
+    <path d="M480,80 L550,70 L580,120 L540,160 L490,140 Z" />
+    <!-- Africa -->
+    <path d="M480,180 L580,170 L620,250 L600,350 L540,380 L480,280 Z" />
+    <!-- Asia -->
+    <path d="M600,60 L750,50 L850,100 L880,250 L800,350 L650,300 L620,150 Z" />
+    <!-- Australia -->
+    <path d="M780,380 L850,370 L880,420 L840,460 L780,440 Z" />
+    <!-- Greenland -->
+    <path d="M380,30 L450,20 L480,60 L420,70 Z" />
+    
+    <!-- Stylized Dot patterns to add texture/detail -->
+    <circle cx="150" cy="120" r="3" />
+    <circle cx="280" cy="350" r="3" />
+    <circle cx="550" cy="110" r="3" />
+    <circle cx="550" cy="280" r="3" />
+    <circle cx="750" cy="180" r="3" />
+    <circle cx="830" cy="420" r="3" />
+  </g>
+</svg>

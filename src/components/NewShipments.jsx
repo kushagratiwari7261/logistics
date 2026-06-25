@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
+import { UserPlus, PenLine, FileUp, ExternalLink, FileText, Search, Plus, Trash2, Eye } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
 import './NewShipments.css';
+import './JobEnquiryForm.css';
 
 // Lazy load PDFGenerator to reduce initial bundle size
 const PDFGenerator = lazy(() => import('./PDFGenerator.jsx'));
@@ -139,6 +140,7 @@ const NewShipments = () => {
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [shipments, setShipments] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [editingShipment, setEditingShipment] = useState(null);
@@ -1183,114 +1185,140 @@ const NewShipments = () => {
         </div>
       )}
       
-      <div className="card expandable-card">
-        <div className="table-header">
-          <h2>Current Shipments</h2>
-          <button className="add-shipment-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_shipment_form'))}>
-            <span className="plus-icon">+</span>
-            Add Shipment
-          </button>
-        </div>
-        <div
-          className="table-container"
-          ref={tableContainerRef}
-          style={{ maxHeight: 'calc(100vh - 250px)', minHeight: '500px', overflowY: 'auto' }}
-        >
-          <table className="activity-table">
-            <thead>
-              <tr>
-                <th>Shipment No.</th>
-                <th>Client</th>
-                <th>Job No.</th>
-                <th>POR</th>
-                <th>POF</th>
-                <th>Author</th>
-                <th>POD</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shipments.length > 0 ? (
-                shipments.map((shipment, index) => (
-                  <tr key={index}>
-                    <td>{shipment.shipmentNo}</td>
-                    <td>{shipment.client}</td>
-                    <td>{shipment.jobNo}</td>
-                    <td>{shipment.por}</td>
-                    <td>{shipment.pof}</td>
-                    <td>
-                      {shipment.created_by && <div className="audit-badge" title={`Created By: ${shipment.created_by}`}><UserPlus size={12} /> {shipment.created_by.split('@')[0]}</div>}
-                      {shipment.updated_by && <div className="audit-badge edit" title={`Updated By: ${shipment.updated_by}`}><PenLine size={12} /> {shipment.updated_by.split('@')[0]}</div>}
-                    </td>
-                    <td>
-                      {shipment.pod_documents && shipment.pod_documents.length > 0 ? (
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {shipment.pod_documents.map((doc, idx) => (
-                            <a 
-                              key={idx}
-                              href={getFileUrl(doc.path, 'pod-attachments')} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="pod-table-link"
-                              title={`View POD: ${doc.name || 'Document ' + (idx + 1)}`}
-                            >
-                              <FileText size={18} />
-                            </a>
-                          ))}
-                        </div>
-                      ) : '—'}
-                    </td>
-                    <td className="actions-cell">
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEditShipment(shipment)}
-                        title="Edit Shipment"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={() => confirmDelete(shipment)}
-                        title="Delete Shipment"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        className="pdf-btn"
-                        onClick={() => {
-                          setPdfShipmentData(shipment);
-                          setGeneratePDF(true);
-                        }}
-                        style={{
-                          display: 'inline-block',
-                          padding: '4px 12px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          textDecoration: 'none',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          marginLeft: '5px'
-                        }}
-                      >
-                        PDF
-                      </button>
-                    </td>
+      {/* Search filtering for the table */}
+      {(() => {
+        const filteredShipments = shipments.filter(shipment => {
+          if (!searchQuery) return true;
+          const query = searchQuery.toLowerCase();
+          return (
+            (shipment.shipmentNo && shipment.shipmentNo.toLowerCase().includes(query)) ||
+            (shipment.client && shipment.client.toLowerCase().includes(query)) ||
+            (shipment.jobNo && shipment.jobNo.toLowerCase().includes(query)) ||
+            (shipment.por && shipment.por.toLowerCase().includes(query)) ||
+            (shipment.pof && shipment.pof.toLowerCase().includes(query)) ||
+            (shipment.created_by && shipment.created_by.toLowerCase().includes(query))
+          );
+        });
+
+        return (
+          <div className="enquiry-page-container">
+            {/* Header */}
+            <div className="enquiry-page-header">
+              <h1>
+                <span className="header-icon"><Search size={20} /></span>
+                Current Shipments
+              </h1>
+              <button className="enquiry-new-btn" onClick={() => window.dispatchEvent(new CustomEvent('open_global_shipment_form'))}>
+                <Plus size={18} /> New Shipment
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="enquiry-search-bar">
+              <input
+                type="text"
+                className="enquiry-search-input"
+                placeholder="Search shipments by number, client, job..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div
+              className="enquiry-table-wrapper"
+              ref={tableContainerRef}
+              style={{ flex: 1, overflowY: 'auto' }}
+            >
+              <table className="enquiry-table">
+                <thead>
+                  <tr>
+                    <th>Shipment No.</th>
+                    <th>Client</th>
+                    <th>Job No.</th>
+                    <th>POR</th>
+                    <th>POF</th>
+                    <th>Author</th>
+                    <th>POD</th>
+                    <th>Actions</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" style={{textAlign: 'center', padding: '20px'}}>
-                    No shipments found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  {filteredShipments.length > 0 ? (
+                    filteredShipments.map((shipment, index) => (
+                      <tr key={index}>
+                        <td>{shipment.shipmentNo}</td>
+                        <td>{shipment.client}</td>
+                        <td>{shipment.jobNo}</td>
+                        <td>{shipment.por}</td>
+                        <td>{shipment.pof}</td>
+                        <td>
+                          {shipment.created_by && <div className="audit-badge" title={`Created By: ${shipment.created_by}`}><UserPlus size={12} /> {shipment.created_by.split('@')[0]}</div>}
+                          {shipment.updated_by && <div className="audit-badge edit" title={`Updated By: ${shipment.updated_by}`}><PenLine size={12} /> {shipment.updated_by.split('@')[0]}</div>}
+                        </td>
+                        <td>
+                          {shipment.pod_documents && shipment.pod_documents.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {shipment.pod_documents.map((doc, idx) => (
+                                <a 
+                                  key={idx}
+                                  href={getFileUrl(doc.path, 'pod-attachments')} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="pod-table-link"
+                                  title={`View POD: ${doc.name || 'Document ' + (idx + 1)}`}
+                                >
+                                  <FileText size={18} />
+                                </a>
+                              ))}
+                            </div>
+                          ) : '—'}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="enquiry-actions">
+                            <button 
+                              className="enquiry-action-btn edit"
+                              onClick={() => handleEditShipment(shipment)}
+                              title="Edit Shipment"
+                            >
+                              <PenLine size={14} />
+                            </button>
+                            <button 
+                              className="enquiry-action-btn delete"
+                              onClick={() => confirmDelete(shipment)}
+                              title="Delete Shipment"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                            <button
+                              className="enquiry-action-btn migrate"
+                              onClick={() => {
+                                setPdfShipmentData(shipment);
+                                setGeneratePDF(true);
+                              }}
+                              title="Generate PDF"
+                            >
+                              <FileText size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" style={{textAlign: 'center', padding: '40px'}}>
+                        <div style={{ color: 'var(--text-muted)' }}>
+                          No shipments found matching your search.
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       </div>
   );

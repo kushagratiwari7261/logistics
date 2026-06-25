@@ -2,7 +2,7 @@
 import './JobEnquiryForm.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2 } from 'lucide-react';
+import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2, Plane, Ship, Truck, Package } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchNextEnquiryNumber } from '../utils/enquiryUtils';
 
@@ -32,6 +32,16 @@ const INITIAL_ENQUIRY_DATA = {
   gr_wt: '',
   dimension: '',
   remarks: '',
+};
+
+const getJobIcon = (type) => {
+  switch(type) {
+    case 'AIR FREIGHT': return <Plane size={48} strokeWidth={1.5} />;
+    case 'SEA FREIGHT': return <Ship size={48} strokeWidth={1.5} />;
+    case 'TRANSPORT': return <Truck size={48} strokeWidth={1.5} />;
+    case 'OTHERS': return <Package size={48} strokeWidth={1.5} />;
+    default: return <Package size={48} strokeWidth={1.5} />;
+  }
 };
 
 // ─── Single Enquiry Form Window ───
@@ -464,13 +474,14 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
           <div className="enquiry-body">
             {activeStep === 1 && (
               <div className="enquiry-type-selection">
-                <h2>Select Enquiry Type</h2>
+                <h2>What type of Job would you like to create?</h2>
                 {validationErrors.jobType && <div style={{ color: '#ef4444', marginBottom: 16, fontWeight: 600 }}>{validationErrors.jobType}</div>}
                 <div className="enquiry-type-grid">
                   {ENQUIRY_JOB_TYPES.map((type, idx) => (
                     <div key={idx} className={`enquiry-type-card ${jobType === type ? 'selected' : ''}`}
                       onClick={() => { setJobType(type); setValidationErrors(p => { const n = { ...p }; delete n.jobType; return n; }); }}>
-                      {type}
+                      <div className="enquiry-type-icon">{getJobIcon(type)}</div>
+                      <div className="enquiry-type-text">{type}</div>
                     </div>
                   ))}
                 </div>

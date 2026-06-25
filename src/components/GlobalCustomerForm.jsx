@@ -3,6 +3,7 @@ import { Minus, X, Maximize2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { supabase } from '../lib/supabaseClient';
 import './CustomerManagement.css';
+import './JobEnquiryForm.css';
 
 const INITIAL_FORM_DATA = {
   vendorName: "", country: "", address1: "", address2: "", city: "", state: "", postalCode: "",
@@ -509,53 +510,53 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   );
 
   if (isMinimized) {
-                    return (
-                      <div className="minimized-job-bar" onClick={() => onRestore(id)}>
-                        <div className="minimized-job-content">
-                          <span className="minimized-job-title">
-                            {editingCustomer ? `Editing ${displayType}` : `Creating ${displayType}`} - {formData.vendorName || 'Draft'}
-                          </span>
-                          <div className="minimized-actions">
-                            <button type="button" className="window-btn" title="Restore"><Maximize2 size={14} /></button>
-                            <button
-                              type="button"
-                              className="window-btn close-btn"
-                              onClick={(e) => { e.stopPropagation(); onClose(id); }}
-                              title="Close"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
+    return (
+      <div className="enquiry-minimized-bar" onClick={() => onRestore(id)}>
+        <span className="enquiry-minimized-title">
+          {editingCustomer ? `Editing ${displayType}` : `Creating ${displayType}`} - {formData.vendorName || 'Draft'}
+        </span>
+        <div className="enquiry-minimized-actions">
+          <button type="button" title="Restore"><Maximize2 size={14} /></button>
+          <button
+            type="button"
+            className="close-btn"
+            onClick={(e) => { e.stopPropagation(); onClose(id); }}
+            title="Close"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-                  return (
-<div className="modal-overlay">
-                      <div className="modal large-modal" style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
-                          <h2 style={{ margin: 0 }}>{editingCustomer ? `Edit ${displayType}` : `Add New ${displayType}`}</h2>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => onMinimize(id)}
-                              title="Minimize"
-                              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
-                            >
-                              <Minus size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onClose(id)}
-                              title="Close"
-                              style={{ background: '#e74c3c', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center' }}
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+  return (
+    <div className="enquiry-modal-overlay">
+      <div className="enquiry-modal-content">
+        <div className="enquiry-header">
+          <div className="enquiry-header-left">
+            <h1>{editingCustomer ? `Edit ${displayType}` : `Add New ${displayType}`}</h1>
+          </div>
+          <div className="enquiry-header-right">
+            <button
+              type="button"
+              className="enquiry-window-btn"
+              onClick={() => onMinimize(id)}
+              title="Minimize"
+            >
+              <Minus size={16} />
+            </button>
+            <button
+              type="button"
+              className="enquiry-window-btn close-btn"
+              onClick={() => onClose(id)}
+              title="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="enquiry-body">
 <form onSubmit={handleSave} className="vendor-form">
               <div className="form-section">
                 <h3>Basic Information</h3>
@@ -1008,26 +1009,26 @@ const CustomerFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                 />
               </div>
 
-              <div className="modal-actions">
+              <div className="enquiry-footer" style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button
                   type="button"
                   onClick={() => onClose(id)}
-                  className="btn btn-secondary"
+                  style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
                   disabled={uploading}
+                  style={{ padding: '10px 20px', background: 'var(--brand-primary, #3b82f6)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
                 >
-                  {editingCustomer ? "Update Vendor" : "Save Vendor"}
+                  {editingCustomer ? `Update ${displayType}` : `Save ${displayType}`}
                 </button>
               </div>
             </form>
-                        </div>
-                      </div>
-                    </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

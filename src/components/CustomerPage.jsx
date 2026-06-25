@@ -1,6 +1,7 @@
 import './CustomerManagement.css';
+import './JobEnquiryForm.css';
 import React, { useState, useEffect } from "react";
-import { X } from 'lucide-react';
+import { X, Plus, PenLine, Trash2, Eye, Building2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const CustomerPage = ({ partnerType = 'customer' }) => {
@@ -697,81 +698,101 @@ const CustomerPage = ({ partnerType = 'customer' }) => {
   if (error) return <div className="error">Error: {error}</div>;
 
   return (
-    <div className="customer-management">
-      <div className="page-header">
-        <h1>{displayType} Management</h1>
-        <button className="btn btn-primary" onClick={handleAddNew}>
-          Add New {displayType}
+    <div className="enquiry-page-container">
+      {/* Header */}
+      <div className="enquiry-page-header">
+        <h1>
+          <span className="header-icon"><Building2 size={20} /></span>
+          {displayType} Management
+        </h1>
+        <button className="enquiry-new-btn" onClick={handleAddNew}>
+          <Plus size={18} /> New {displayType}
         </button>
       </div>
 
-      <div className="search-bar-sticky">
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder={`Search ${partnerType}s by number, name, city, email, or contact person...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      {/* Search */}
+      <div className="enquiry-search-bar">
+        <input
+          type="text"
+          className="enquiry-search-input"
+          placeholder={`Search ${partnerType}s by number, name, city, email...`}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
 
-      <div className="customers-table-container">
-        <table className="customers-table">
-          <thead>
-            <tr>
-              <th>{displayType} Number</th>
-              <th>{displayType} Name</th>
-              <th>Contact Person</th>
-              <th>Email</th>
-              <th>Mobile</th>
-              <th>City</th>
-              <th>Country</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer, index) => (
-                <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer', animationDelay: `${index * 0.03}s` }} className="row-animate">
-                  <td>{customer.vendor_no || 'N/A'}</td>
-                  <td>{customer.vendorName}</td>
-                  <td>{customer.contactPerson}</td>
-                  <td>{customer.email}</td>
-                  <td>{customer.mobile}</td>
-                  <td>{customer.city}</td>
-                  <td>{customer.country}</td>
-                  <td className="actions-cell">
-                    <button
-                      className="btn btn-sm btn-outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(customer);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(customer.id);
-                      }}
-                    >
-                      Delete
-                    </button>
+      {/* Table */}
+      <div className="enquiry-table-wrapper" style={{ flex: 1, overflowY: 'auto' }}>
+        {customers.length === 0 && !loading && !searchTerm ? (
+          <div className="enquiry-empty-state">
+            <div className="empty-icon"><Building2 size={28} /></div>
+            <h3>No {displayType}s Found</h3>
+            <p>Click "New {displayType}" to get started</p>
+          </div>
+        ) : (
+          <table className="enquiry-table">
+            <thead>
+              <tr>
+                <th>{displayType} No.</th>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>City</th>
+                <th>Country</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCustomers.length > 0 ? (
+                filteredCustomers.map((customer, index) => (
+                  <tr key={customer.id} onClick={() => handleView(customer)} style={{ cursor: 'pointer' }}>
+                    <td><strong>{customer.vendor_no || 'N/A'}</strong></td>
+                    <td>{customer.vendorName}</td>
+                    <td>{customer.contactPerson}</td>
+                    <td>{customer.email}</td>
+                    <td>{customer.mobile}</td>
+                    <td>{customer.city}</td>
+                    <td>{customer.country}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="enquiry-actions">
+                        <button
+                          className="enquiry-action-btn pdf"
+                          onClick={(e) => { e.stopPropagation(); handleView(customer); }}
+                          title={`View ${displayType}`}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          className="enquiry-action-btn edit"
+                          onClick={(e) => { e.stopPropagation(); handleEdit(customer); }}
+                          title={`Edit ${displayType}`}
+                        >
+                          <PenLine size={14} />
+                        </button>
+                        <button
+                          className="enquiry-action-btn delete"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(customer.id); }}
+                          title={`Delete ${displayType}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      No {partnerType}s found matching your search.
+                    </div>
                   </td>
                 </tr>
-              ))
-            ) : (<tr>
-              <td colSpan="8" className="no-data">
-                No {partnerType}s found. {searchTerm ? "Try a different search." : `Add a new ${partnerType} to get started.`}
-              </td>
-            </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
       {/* View Details Modal */}
       {viewModal && viewingCustomer && (

@@ -123,9 +123,12 @@
 
 /* Windows App Style Modal */
 .job-modal.full-screen-modal {
-  max-width: 95vw;
-  width: 100%;
-  height: 90vh;
+  max-width: 100vw;
+  width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
 }
@@ -218,7 +221,9 @@
 .content-scrollable {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 80px;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .minimized-taskbar-container {
@@ -279,110 +284,291 @@
   background: var(--bg-surface-2);
   border-color: var(--border);
 }
-.progress-steps {
-  display: flex;
-  justify-content: space-between;
+/* ====== STITCH MCP DESIGN — Chevron Stepper ====== */
+.stitch-stepper {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: stretch !important;
+  align-items: stretch !important;
+  height: 56px;
+  padding: 0 !important;
+  margin: 0;
+  gap: 0 !important;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(45, 55, 72, 0.08);
+  border: 1px solid rgba(197, 198, 205, 0.3);
+  background: #f1f4f6;
   position: relative;
-  padding: 30px 40px 20px;
-  margin-bottom: 20px;
 }
 
-.progress-bar {
+.stitch-step {
+  flex: 1;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  padding: 0 20px 0 28px;
+  background: #e5e9eb;
+  position: relative;
+  z-index: 1;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%);
+  margin-left: -4px;
+  opacity: 0.6;
+}
+
+.stitch-step.first {
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%);
+  margin-left: 0;
+  padding-left: 20px;
+}
+
+.stitch-step.last {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%);
+}
+
+.stitch-step.active {
+  background: #fff;
+  opacity: 1;
+  z-index: 4;
+  box-shadow: inset 0 0 0 2px rgba(139, 92, 246, 0.4);
+}
+
+.stitch-step.active::after {
+  content: '';
   position: absolute;
-  top: 45px;
-  left: 40px;
-  right: 40px;
-  height: 4px;
-  background-color: var(--bg-inset);
+  inset: 0;
+  background: rgba(139, 92, 246, 0.04);
+  pointer-events: none;
+}
+
+.stitch-step.completed {
+  opacity: 0.75;
+  background: #cbd5e1;
+}
+
+.stitch-step-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  min-width: 0;
+}
+
+.stitch-step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #555f71;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.stitch-step.active .stitch-step-number {
+  background: #8b5cf6;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.35);
+}
+
+.stitch-step.completed .stitch-step-number {
+  background: #27ae60;
+}
+
+.stitch-step-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stitch-step-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted, #718096);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stitch-step.active .stitch-step-label {
+  color: #8b5cf6;
+  font-weight: 700;
+}
+
+.stitch-step-active-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  letter-spacing: 0.08em;
+  margin-top: 1px;
+}
+
+/* ====== STITCH MCP DESIGN — Step Content (White + Black World Map) ====== */
+.step-content {
+  padding: 40px 32px 80px;
+  background: #ffffff;
+  position: relative;
+  min-height: calc(100% - 56px);
+}
+
+/* World Map SVG Watermark */
+.step-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/world-map.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.step-content > * {
+  position: relative;
   z-index: 1;
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(to right, #6c5ce7, #8e44ad);
-  transition: width 0.3s ease;
+/* Form areas (steps 2-4) should have a white card background */
+.port-details-form,
+.trade-direction-selection,
+.summary-step,
+.planned-consignment {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(45, 55, 72, 0.08);
+  backdrop-filter: blur(4px);
 }
 
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  z-index: 2;
-}
-
-.step-number {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: var(--bg-inset);
-  color: var(--text-muted);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: 600;
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-.step.active .step-number {
-  background: linear-gradient(135deg, #6c5ce7, #8e44ad);
-  color: white;
-  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.2);
-}
-
-.step.completed .step-number {
-  background: #27ae60;
-  color: white;
-}
-
-.step-label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-align: center;
-  max-width: 100px;
-}
-
-.step.active .step-label {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* Step Content */
-.step-content {
-  padding: 0 25px 20px;
-}
-
+/* ====== STITCH MCP DESIGN — Shipment Type Selection ====== */
 .shipment-type-selection h2 {
   text-align: center;
-  color: var(--text-primary);
-  margin-bottom: 25px;
+  color: #182232;
+  margin-bottom: 30px;
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .shipment-type-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .shipment-type-card {
-  border: 2px solid var(--border);
-  border-radius: 6px;
-  padding: 15px;
-  text-align: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 140px;
+  padding: 16px;
+  border: 1px solid rgba(197, 198, 205, 0.2);
+  border-radius: 12px;
   cursor: pointer;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(45, 55, 72, 0.08);
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .shipment-type-card:hover {
-  border-color: #6c5ce7;
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(45, 55, 72, 0.12);
 }
 
 .shipment-type-card.selected {
-  border-color: #6c5ce7;
-  background-color: var(--nav-active-bg);
+  border-left: 4px solid #2563eb;
+  background: rgba(37, 99, 235, 0.04);
+  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.15);
+  outline: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+.shipment-card-img-wrap {
+  width: 33%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.shipment-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.9;
+  transition: transform 0.3s ease;
+}
+
+.shipment-type-card:hover .shipment-card-img {
+  transform: scale(1.05);
+}
+
+.shipment-type-card.selected .shipment-card-img {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.shipment-card-info {
+  flex: 1;
+  padding-left: 16px;
+  border-left: 1px solid rgba(197, 198, 205, 0.2);
+  height: 75%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.shipment-type-text {
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #182232;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: Inter, sans-serif;
+}
+
+.shipment-type-subtitle {
+  font-size: 0.75rem;
+  color: #718096;
+  margin-top: 4px;
+}
+
+.shipment-type-card.selected .shipment-type-text {
+  color: #1e40af;
+  font-weight: 800;
+}
+
+.shipment-type-card.selected .shipment-card-info {
+  border-left-color: rgba(37, 99, 235, 0.2);
+}
+
+.shipment-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Trade Direction Selection Styles */
@@ -398,28 +584,35 @@
 }
 
 .trade-direction-card {
-  padding: 30px 20px;
-  border: 2px solid var(--border);
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  padding: 20px;
+  border: 2px solid transparent;
+  border-radius: 16px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background-color: var(--bg-surface-2);
-  font-weight: 600;
-  font-size: 16px;
+  background: var(--bg-surface, #fff);
+  box-shadow: 0 10px 30px rgba(30, 64, 175, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary, #334155);
 }
 
 .trade-direction-card:hover {
-  border-color: #007bff;
-  background-color: var(--nav-active-bg);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: 0 15px 40px rgba(30, 64, 175, 0.1);
+  border-color: rgba(30, 64, 175, 0.2);
 }
 
 .trade-direction-card.selected {
-  border-color: #007bff;
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+  border-color: var(--brand-primary, #1e40af);
+  background: linear-gradient(135deg, rgba(230, 240, 255, 0.8), rgba(240, 245, 255, 0.8));
+  color: var(--brand-primary, #1e40af);
+  box-shadow: 0 15px 40px rgba(30, 64, 175, 0.15);
 }
 
 /* Form Styles */
@@ -792,15 +985,17 @@
 .navigation-buttons {
   display: flex;
   justify-content: flex-end;
-  padding: 20px 25px;
-  background: transparent !important;
-  border-top: none !important;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-top: 1px solid rgba(45, 55, 72, 0.08) !important;
   border-radius: 0 0 8px 8px;
-  position: absolute;
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
-  pointer-events: none;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 -2px 10px rgba(45, 55, 72, 0.06);
 }
 
 .navigation-buttons > * {
@@ -851,12 +1046,19 @@
 }
 
 .next-button {
-  background: var(--brand-primary);
+  background: #2563eb;
   color: white;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  transition: all 0.15s ease;
 }
 
 .next-button:hover {
-  background: var(--brand-secondary);
+  background: #1d4ed8;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
 }
 
 .confirm-button {
@@ -994,21 +1196,68 @@
     grid-template-columns: 1fr;
   }
   
-  .progress-steps {
-    padding: 30px 20px 20px;
+  /* Stitch stepper mobile */
+  .stitch-stepper {
+    height: auto !important;
+    min-height: 44px;
+    flex-wrap: nowrap;
   }
-  
-  .progress-bar {
-    left: 20px;
-    right: 20px;
+
+  .stitch-step {
+    clip-path: none !important;
+    margin-left: 0 !important;
+    padding: 6px 8px !important;
+    border-right: 1px solid rgba(197, 198, 205, 0.3);
   }
-  
-  .step-label {
+
+  .stitch-step.first {
+    clip-path: none !important;
+    padding-left: 8px !important;
+  }
+
+  .stitch-step.last {
+    clip-path: none !important;
+    border-right: none;
+  }
+
+  .stitch-step-inner {
+    gap: 6px;
+  }
+
+  .stitch-step-number {
+    width: 22px;
+    height: 22px;
     font-size: 0.7rem;
   }
-  
+
+  .stitch-step-label {
+    font-size: 0.65rem;
+  }
+
+  .stitch-step-active-tag {
+    font-size: 0.55rem;
+  }
+
+  /* Cards mobile */
   .shipment-type-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-width: 100%;
+  }
+
+  .shipment-type-card {
+    height: 110px;
+  }
+
+  .step-content {
+    padding: 20px 16px 80px;
+  }
+
+  .port-details-form,
+  .trade-direction-selection,
+  .summary-step,
+  .planned-consignment {
+    padding: 16px;
   }
   
   .client-branch-section {
@@ -1025,14 +1274,18 @@
   }
   
   .navigation-buttons {
-    flex-direction: column;
-    gap: 15px;
+    padding: 12px 16px;
   }
   
   .step-buttons {
     justify-content: flex-end;
   }
-  
+
+  .shipment-type-selection h2 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+  }
+
   .modal-content {
     margin: 20px;
     width: calc(100% - 40px);
@@ -1959,11 +2212,120 @@
     border-radius: 0;
   }
   .new-shipment-header {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 10px;
+    flex-direction: row !important;
+    align-items: center;
+    padding: 8px 12px !important;
+    gap: 8px;
   }
-  .window-controls-left h1 {
-    font-size: 1.2rem;
-  }
+}
+
+/* ====== STITCH — Dark Mode Support ====== */
+[data-theme="dark"] .step-content {
+  background: linear-gradient(135deg, #1e1b3a, #1a2740);
+}
+
+[data-theme="dark"] .step-content::before {
+  opacity: 0.3;
+}
+
+[data-theme="dark"] .shipment-type-card {
+  background: var(--bg-surface, #1e1e2e);
+  border-color: var(--border, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .shipment-type-card.selected {
+  background: linear-gradient(to right, rgba(121, 247, 234, 0.08), rgba(30, 30, 46, 0.9));
+  border-left-color: #5adace;
+}
+
+[data-theme="dark"] .shipment-type-text {
+  color: var(--text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .shipment-type-subtitle {
+  color: var(--text-secondary, #94a3b8);
+}
+
+[data-theme="dark"] .shipment-type-selection h2 {
+  color: var(--text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .shipment-card-info {
+  border-left-color: var(--border, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .shipment-card-check {
+  background: #5adace;
+  color: #00201d;
+}
+
+[data-theme="dark"] .stitch-stepper {
+  background: var(--bg-inset, #1a1a2e);
+  border-color: var(--border, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .stitch-step {
+  background: var(--bg-surface-2, #252538);
+}
+
+[data-theme="dark"] .stitch-step.active {
+  background: var(--bg-surface, #1e1e2e);
+}
+
+[data-theme="dark"] .stitch-step.completed {
+  background: var(--bg-inset, #2a2a3e);
+}
+
+[data-theme="dark"] .stitch-step-label {
+  color: var(--text-muted, #94a3b8);
+}
+
+[data-theme="dark"] .port-details-form,
+[data-theme="dark"] .trade-direction-selection,
+[data-theme="dark"] .summary-step,
+[data-theme="dark"] .planned-consignment {
+  background: rgba(30, 30, 46, 0.92);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .trade-direction-card {
+  background: var(--bg-surface, #1e1e2e);
+  color: var(--text-primary, #e2e8f0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .trade-direction-card.selected {
+  background: linear-gradient(135deg, rgba(121, 247, 234, 0.08), rgba(30, 30, 46, 0.9));
+  border-color: #5adace;
+  color: #5adace;
+}
+
+[data-theme="dark"] .navigation-buttons {
+  background: rgba(30, 30, 46, 0.95) !important;
+  border-top-color: var(--border, rgba(255, 255, 255, 0.08)) !important;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .next-button {
+  background: #4a5568;
+}
+
+[data-theme="dark"] .next-button:hover {
+  background: #5a6a80;
+}
+
+/* ====== Form Input Focus — Light Blue Selection ====== */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group select:focus,
+[data-theme="dark"] .form-group textarea:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15) !important;
 }
