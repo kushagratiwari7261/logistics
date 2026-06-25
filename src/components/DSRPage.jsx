@@ -87,6 +87,8 @@ export default function DSRPage() {
     body: 'Please find the attached DSR update sheet.'
   });
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [nameDialog, setNameDialog] = useState({ isOpen: false, type: 'create', defaultName: '', id: null });
+  const [nameInput, setNameInput] = useState('');
   const workbookDataRef = useRef([]);
   const workbookRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -148,12 +150,14 @@ export default function DSRPage() {
     }
   };
 
-  const createWorkbook = async () => {
+  const createWorkbook = () => {
     const defaultName = `DSR - ${new Date().toLocaleDateString()}`;
-    const promptedName = window.prompt("Enter a name for the new DSR:", defaultName);
-    if (promptedName === null) return; // User cancelled
-    
-    const newName = promptedName.trim() || defaultName;
+    setNameInput(defaultName);
+    setNameDialog({ isOpen: true, type: 'create', defaultName, id: null });
+  };
+
+  const executeCreateWorkbook = async (newName) => {
+    const finalName = newName.trim() || nameDialog.defaultName;
     const newId = uuidv4();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -168,7 +172,7 @@ export default function DSRPage() {
         .from('dsr_workbooks')
         .insert({
           id: newId,
-          name: newName,
+          name: finalName,
           workbook_data: initialData,
           created_by: createdBy,
           created_at: currentTime,
@@ -184,12 +188,13 @@ export default function DSRPage() {
       }
 
       await fetchWorkbooks();
-      openWorkbook(newId, newName, initialData);
+      openWorkbook(newId, finalName, initialData);
     } catch (err) {
       console.error('Error creating workbook:', err);
       alert('Failed to create workbook: ' + err.message);
     } finally {
       setSaving(false);
+      setNameDialog({ isOpen: false, type: 'create', defaultName: '', id: null });
     }
   };
 
@@ -424,11 +429,19 @@ export default function DSRPage() {
     }
   };
 
-  const renameWorkbook = async (id, currentName) => {
-    const newName = window.prompt("Enter new name for the DSR:", currentName);
-    if (!newName || newName.trim() === "" || newName === currentName) return;
+  const renameWorkbook = (id, currentName) => {
+    setNameInput(currentName);
+    setNameDialog({ isOpen: true, type: 'rename', defaultName: currentName, id });
+  };
+
+  const executeRenameWorkbook = async (id, newName) => {
+    if (!newName || newName.trim() === "" || newName === nameDialog.defaultName) {
+      setNameDialog({ isOpen: false, type: 'rename', defaultName: '', id: null });
+      return;
+    }
 
     try {
+      setSaving(true);
       const { error } = await supabase
         .from('dsr_workbooks')
         .update({ name: newName.trim(), updated_at: new Date().toISOString() })
@@ -439,6 +452,17 @@ export default function DSRPage() {
     } catch (err) {
       console.error('Error renaming workbook:', err);
       alert('Failed to rename workbook: ' + err.message);
+    } finally {
+      setSaving(false);
+      setNameDialog({ isOpen: false, type: 'rename', defaultName: '', id: null });
+    }
+  };
+
+  const handleNameDialogSubmit = () => {
+    if (nameDialog.type === 'create') {
+      executeCreateWorkbook(nameInput);
+    } else {
+      executeRenameWorkbook(nameDialog.id, nameInput);
     }
   };
 
@@ -1127,6 +1151,51 @@ export default function DSRPage() {
           </table>
         )}
       </div>
+
+      {nameDialog.isOpen && (
+        <div style={styles.dialogOverlay}>
+          <div style={{ ...styles.dialog, maxWidth: '400px' }}>
+            <div style={styles.dialogHeader}>
+              <h2 style={styles.dialogTitle}>
+                {nameDialog.type === 'create' ? 'Create New DSR' : 'Rename DSR'}
+              </h2>
+              <p style={styles.dialogSubtitle}>
+                {nameDialog.type === 'create' ? 'Enter a name for your new DSR workbook.' : 'Enter a new name for this DSR workbook.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>DSR Name:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. DSR - 2026-06-25"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  style={styles.emailInput}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div style={styles.dialogButtons}>
+              <button
+                onClick={() => setNameDialog({ isOpen: false, type: 'create', defaultName: '', id: null })}
+                style={styles.cancelDialogButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNameDialogSubmit}
+                disabled={saving}
+                style={styles.sendDialogButton}
+              >
+                {saving ? 'Saving...' : (nameDialog.type === 'create' ? 'Create' : 'Rename')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
