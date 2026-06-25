@@ -76,7 +76,7 @@ const Login = ({ onLogin }) => {
           localStorage.setItem('userEmail', email);
         }
         await supabase.auth.getSession();
-        setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        setTimeout(() => { navigate('/dashboard'); }, 1000);
       } else {
         throw new Error('No session data received');
       }
@@ -97,10 +97,6 @@ const Login = ({ onLogin }) => {
     } finally {
       setIsLoggingIn(false);
     }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !isLoggingIn) handleSubmit(e);
   };
 
   // ── Loading screen ────────────────────────────────────────────
@@ -152,7 +148,7 @@ const Login = ({ onLogin }) => {
             </div>
           )}
 
-          <form className="lf-form" onSubmit={handleSubmit} onKeyPress={handleKeyPress}>
+          <form className="lf-form" onSubmit={handleSubmit}>
             {/* Email */}
             <div className="lf-group">
               <label htmlFor="email" className="lf-label">Email Address</label>
@@ -237,7 +233,7 @@ const Login = ({ onLogin }) => {
               <a
                 href="#"
                 className="lf-forgot"
-                onClick={(e) => { e.preventDefault(); window.location.href = '/forgot-password'; }}
+                onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}
               >
                 Forgot Password?
               </a>
