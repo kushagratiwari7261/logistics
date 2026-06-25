@@ -89,6 +89,7 @@ export default function DSRPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [nameDialog, setNameDialog] = useState({ isOpen: false, type: 'create', defaultName: '', id: null });
   const [nameInput, setNameInput] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, id: null });
   const workbookDataRef = useRef([]);
   const workbookRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -413,21 +414,31 @@ export default function DSRPage() {
     fetchWorkbooks();
   };
 
-  const deleteWorkbook = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this DSR?")) return;
+  const openDeleteDialog = (id) => {
+    setDeleteDialog({ isOpen: true, id });
+  };
 
+  const executeDeleteWorkbook = async () => {
+    if (!deleteDialog.id) return;
     try {
+      setSaving(true);
       const { error } = await supabase
         .from('dsr_workbooks')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteDialog.id);
 
       if (error) throw error;
       fetchWorkbooks();
     } catch (err) {
       console.error('Error deleting workbook:', err);
+      alert('Failed to delete workbook: ' + err.message);
+    } finally {
+      setSaving(false);
+      setDeleteDialog({ isOpen: false, id: null });
     }
   };
+
+  const deleteWorkbook = openDeleteDialog;
 
   const renameWorkbook = (id, currentName) => {
     setNameInput(currentName);
@@ -1191,6 +1202,35 @@ export default function DSRPage() {
                 style={styles.sendDialogButton}
               >
                 {saving ? 'Saving...' : (nameDialog.type === 'create' ? 'Create' : 'Rename')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteDialog.isOpen && (
+        <div style={styles.dialogOverlay}>
+          <div style={{ ...styles.dialog, maxWidth: '400px' }}>
+            <div style={styles.dialogHeader}>
+              <h2 style={{ ...styles.dialogTitle, color: '#ef4444' }}>Delete DSR</h2>
+              <p style={styles.dialogSubtitle}>
+                Are you sure you want to delete this DSR workbook? This action cannot be undone.
+              </p>
+            </div>
+
+            <div style={styles.dialogButtons}>
+              <button
+                onClick={() => setDeleteDialog({ isOpen: false, id: null })}
+                style={styles.cancelDialogButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDeleteWorkbook}
+                disabled={saving}
+                style={{ ...styles.sendDialogButton, backgroundColor: '#ef4444' }}
+              >
+                {saving ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
