@@ -90,6 +90,9 @@ export default function DSRPage() {
   const [nameDialog, setNameDialog] = useState({ isOpen: false, type: 'create', defaultName: '', id: null });
   const [nameInput, setNameInput] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, id: null });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchIndex, setSearchIndex] = useState(-1);
   const workbookDataRef = useRef([]);
   const workbookRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -231,6 +234,9 @@ export default function DSRPage() {
     console.log('Opening workbook with data:', validatedData);
     setWorkbookData(validatedData);
     setActiveSheetIndex(0);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchIndex(-1);
     setLoading(false);
   };
 
@@ -372,6 +378,83 @@ export default function DSRPage() {
     return validateAndFixWorkbookData(JSON.parse(JSON.stringify(latestData)));
   };
 
+  const highlightSearchResult = (coord) => {
+    if (!coord) return;
+    if (workbookRef.current && typeof workbookRef.current.setSelection === 'function') {
+      try {
+        workbookRef.current.setSelection([{ row: [coord.r, coord.r], column: [coord.c, coord.c] }]);
+      } catch (e) {
+        console.warn('setSelection failed', e);
+      }
+    }
+  };
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchIndex(-1);
+      return;
+    }
+    
+    let sheets = workbookDataRef.current;
+    if (workbookRef.current && typeof workbookRef.current.getAllSheets === 'function') {
+      try {
+        sheets = workbookRef.current.getAllSheets();
+      } catch (err) {}
+    }
+    const sheet = sheets[activeSheetIndex];
+    if (!sheet) return;
+
+    const results = [];
+    const query = searchQuery.toLowerCase();
+
+    if (sheet.data && Array.isArray(sheet.data) && sheet.data.length > 0) {
+      sheet.data.forEach((row, rIdx) => {
+        if (!row) return;
+        row.forEach((cell, cIdx) => {
+          const val = cell ? (cell.m !== undefined ? cell.m : cell.v) : "";
+          if (val && String(val).toLowerCase().includes(query)) {
+            results.push({ r: rIdx, c: cIdx });
+          }
+        });
+      });
+    } else if (sheet.celldata) {
+      sheet.celldata.forEach(cell => {
+        const val = cell.v ? (cell.v.m !== undefined ? cell.v.m : cell.v.v) : "";
+        if (val && String(val).toLowerCase().includes(query)) {
+          results.push({ r: cell.r, c: cell.c });
+        }
+      });
+      results.sort((a, b) => {
+        if (a.r !== b.r) return a.r - b.r;
+        return a.c - b.c;
+      });
+    }
+
+    setSearchResults(results);
+    if (results.length > 0) {
+      setSearchIndex(0);
+      highlightSearchResult(results[0]);
+    } else {
+      setSearchIndex(-1);
+      alert('No matches found.');
+    }
+  };
+
+  const findNext = () => {
+    if (searchResults.length === 0) return;
+    const nextIndex = (searchIndex + 1) % searchResults.length;
+    setSearchIndex(nextIndex);
+    highlightSearchResult(searchResults[nextIndex]);
+  };
+
+  const findPrev = () => {
+    if (searchResults.length === 0) return;
+    const prevIndex = (searchIndex - 1 + searchResults.length) % searchResults.length;
+    setSearchIndex(prevIndex);
+    highlightSearchResult(searchResults[prevIndex]);
+  };
+
   const addNewSheet = () => {
     if (!activeWorkbook) return;
 
@@ -405,12 +488,18 @@ export default function DSRPage() {
 
     setWorkbookData(updatedData);
     setActiveSheetIndex(sheetIndex);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchIndex(-1);
   };
 
   const closeWorkbook = () => {
     setActiveWorkbook(null);
     setWorkbookData([]);
     setActiveSheetIndex(0);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchIndex(-1);
     fetchWorkbooks();
   };
 
@@ -854,6 +943,30 @@ export default function DSRPage() {
             </div>
 
             <div style={styles.buttonGroup}>
+              {/* Search Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-surface-2)', marginRight: '10px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search in sheet..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (e.shiftKey) findPrev();
+                      else if (searchResults.length > 0 && searchQuery === e.target.value) findNext();
+                      else handleSearch();
+                    }
+                  }}
+                  style={{ border: 'none', outline: 'none', padding: '8px 12px', fontSize: '13px', background: 'transparent', width: '160px', color: 'var(--text-primary)' }}
+                />
+                <span style={{ fontSize: '12px', padding: '0 8px', color: 'var(--text-secondary)', minWidth: '45px', textAlign: 'center' }}>
+                  {searchResults.length > 0 ? `${searchIndex + 1}/${searchResults.length}` : '0/0'}
+                </span>
+                <button onClick={findPrev} title="Previous (Shift+Enter)" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 10px', borderLeft: '1px solid var(--border)', color: 'var(--text-primary)' }}>&uarr;</button>
+                <button onClick={findNext} title="Next (Enter)" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '6px 10px', borderLeft: '1px solid var(--border)', color: 'var(--text-primary)' }}>&darr;</button>
+                <button onClick={handleSearch} style={{ border: 'none', background: 'var(--brand-primary)', color: '#fff', cursor: 'pointer', padding: '8px 14px', fontSize: '13px', fontWeight: '600' }}>Find</button>
+              </div>
+
               {/* Metadata Display */}
               <div style={styles.metadata}>
                 <div style={styles.metadataItem}>
