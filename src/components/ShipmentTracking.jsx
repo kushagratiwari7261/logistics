@@ -28,6 +28,7 @@ import StatusTimeline from './StatusTimeline';
 import LocationPicker from './LocationPicker';
 import { openRazorpay } from '../utils/paymentUtils';
 import './ShipmentTracking.css';
+import './ActivityTable.css';
 
 /* ─── Status Update Form ─────────────────────────────── */
 function StatusUpdateForm({ shipment, onUpdated }) {
@@ -437,34 +438,59 @@ function ShipmentList({ onSelect }) {
             </div>
 
             {/* Stats row */}
-            <div className="st-stat-row">
-                {STATUS_STEPS.map(step => {
+            <div className="progress-steps stitch-stepper" style={{ marginBottom: '24px', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '8px' }}>
+                <div 
+                    className={`stitch-step first ${statusFilter === '' ? 'active' : ''}`}
+                    onClick={() => setStatusFilter('')}
+                    style={{ cursor: 'pointer', flex: '1 1 0', minWidth: 0, overflow: 'hidden' }}
+                >
+                    <div className="stitch-step-inner" style={{ padding: '8px 12px' }}>
+                        <div className="stitch-step-number" style={{ width: '28px', height: '28px', background: '#6366f1', flexShrink: 0 }}>
+                            <FileText size={14} color="#fff" />
+                        </div>
+                        <div className="stitch-step-info" style={{ overflow: 'hidden' }}>
+                            <span className="stitch-step-label" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>All Statuses ({shipments.length})</span>
+                        </div>
+                    </div>
+                </div>
+
+                {STATUS_STEPS.map((step) => {
                     const count = shipments.filter(s => s.status === step.key).length;
                     const Icon = IconMap[step.icon] || FileText;
                     return (
-                        <button
+                        <div
                             key={step.key}
-                            className={`st-stat-chip ${statusFilter === step.key ? 'active' : ''}`}
-                            style={{ '--chip-color': STATUS_COLORS[step.key] }}
+                            className={`stitch-step ${statusFilter === step.key ? 'active' : ''}`}
                             onClick={() => setStatusFilter(p => p === step.key ? '' : step.key)}
+                            style={{ cursor: 'pointer', flex: '1 1 0', minWidth: 0, overflow: 'hidden' }}
                         >
-                            <span><Icon size={18} /></span>
-                            {count > 0 && <span>{count}</span>}
-                            <small>{step.label}</small>
-                        </button>
+                            <div className="stitch-step-inner" style={{ padding: '8px 12px' }}>
+                                <div className="stitch-step-number" style={{ width: '28px', height: '28px', background: STATUS_COLORS[step.key] || '#6366f1', flexShrink: 0 }}>
+                                    <Icon size={14} color="#fff" />
+                                </div>
+                                <div className="stitch-step-info" style={{ overflow: 'hidden' }}>
+                                    <span className="stitch-step-label" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{step.label} {count > 0 && `(${count})`}</span>
+                                </div>
+                            </div>
+                        </div>
                     );
                 })}
                 
                 {/* Total Customers Stat */}
-                <button 
-                    className={`st-stat-chip ${statusFilter === 'CUSTOMERS' ? 'active' : ''}`}
-                    style={{ '--chip-color': '#000000' }}
+                <div 
+                    className={`stitch-step last ${statusFilter === 'CUSTOMERS' ? 'active' : ''}`}
                     onClick={() => setStatusFilter('')}
+                    style={{ cursor: 'pointer', flex: '1 1 0', minWidth: 0, overflow: 'hidden' }}
                 >
-                    <span><Users size={18} /></span>
-                    <span>{new Set(shipments.map(s => s.client).filter(Boolean)).size}</span>
-                    <small>Customers</small>
-                </button>
+                    <div className="stitch-step-inner" style={{ padding: '8px 12px' }}>
+                        <div className="stitch-step-number" style={{ width: '28px', height: '28px', background: '#000', flexShrink: 0 }}>
+                            <Users size={14} color="#fff" />
+                        </div>
+                        <div className="stitch-step-info" style={{ overflow: 'hidden' }}>
+                            <span className="stitch-step-label" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>Customers ({new Set(shipments.map(s => s.client).filter(Boolean)).size})</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Table */}

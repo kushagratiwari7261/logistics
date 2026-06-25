@@ -194,10 +194,10 @@ function App() {
       }
 
       try {
-        console.log(`🔥 Warming up messaging server at: ${serverUrl}`);
-        if (serverUrl) await fetch(`${serverUrl}/api/health`);
+        // console.log(`🔥 Messaging server at: ${serverUrl}`);
+        // if (serverUrl) await fetch(`${serverUrl}/api/health`);
       } catch (err) {
-        console.warn('⚠️ Server warmup ping failed (it might still be starting up)');
+        console.warn('⚠️ Server warmup ping failed');
       }
     };
     warmupServer();

@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { 
-    Check, 
-    User, 
-    Lock, 
-    Moon, 
-    Sun, 
-    Monitor, 
-    Bell, 
-    Shield, 
-    AlertTriangle, 
-    Trash2 
+import {
+    Check,
+    User,
+    Lock,
+    Moon,
+    Sun,
+    Monitor,
+    Bell,
+    Shield,
+    AlertTriangle,
+    Trash2
 } from 'lucide-react'
 
 import { ACCENTS, applyColorMode, applyAccent } from '../utils/themeUtils'
@@ -29,16 +29,17 @@ const Settings = ({ user }) => {
     const [saving, setSaving] = useState(false)
     const [savedMsg, setSavedMsg] = useState('')
     const [loading, setLoading] = useState(true)
+    const [customName, setCustomName] = useState('')
 
     const loadPrefs = useCallback(async () => {
         // First try to load from Supabase (Primary Source)
         if (supabase && user?.id) {
             console.log('Fetching preferences from user_settings for:', user.id);
             const { data, error } = await supabase
-              .from('user_settings')
-              .select('*')
-              .eq('user_id', user.id)
-              .maybeSingle()
+                .from('user_settings')
+                .select('*')
+                .eq('user_id', user.id)
+                .maybeSingle()
 
             if (error) {
                 console.warn('Error loading remote prefs:', error);
@@ -48,14 +49,14 @@ const Settings = ({ user }) => {
                 setAccentColor(data.accent_color ?? 'indigo');
                 setEmailNotif(data.email_notifications ?? true);
                 setPushNotif(data.push_notifications ?? false);
-                
+
                 applyColorMode(data.theme ?? 'light');
                 applyAccent(data.accent_color ?? 'indigo');
-                
+
                 // Keep local storage in sync
                 localStorage.setItem('sf_color_mode', data.theme ?? 'light');
                 localStorage.setItem('sf_accent_color', data.accent_color ?? 'indigo');
-                
+
                 setLoading(false);
                 return;
             }
@@ -68,11 +69,15 @@ const Settings = ({ user }) => {
         const lsc = localStorage.getItem('sf_sidebar_compact') === 'true'
         const le = localStorage.getItem('sf_email_notif') !== 'false'
         const lp = localStorage.getItem('sf_push_notif') === 'true'
-        
+
         setColorMode(lm); setAccentColor(la); setSidebarCompact(lsc)
         setEmailNotif(le); setPushNotif(lp)
         applyColorMode(lm); applyAccent(la)
         
+        if (user?.id) {
+            setCustomName(localStorage.getItem('sf_custom_name_' + user.id) || '')
+        }
+
         setLoading(false)
     }, [user])
 
@@ -87,6 +92,10 @@ const Settings = ({ user }) => {
         localStorage.setItem('sf_sidebar_compact', String(sidebarCompact))
         localStorage.setItem('sf_email_notif', String(emailNotif))
         localStorage.setItem('sf_push_notif', String(pushNotif))
+        
+        if (user?.id) {
+            localStorage.setItem('sf_custom_name_' + user.id, customName)
+        }
 
         if (supabase && user?.id) {
             const { error } = await supabase.from('user_settings').upsert({
@@ -133,7 +142,7 @@ const Settings = ({ user }) => {
 
             // 6. Force sign out and clear local storage
             await supabase.auth.signOut();
-            
+
             // Clean local storage fully
             const storageKeys = Object.keys(localStorage);
             storageKeys.forEach(key => {
@@ -141,7 +150,7 @@ const Settings = ({ user }) => {
                     localStorage.removeItem(key);
                 }
             });
-            
+
             window.location.href = '/login';
 
         } catch (error) {
@@ -193,12 +202,27 @@ const Settings = ({ user }) => {
                         </div>
                         <div className="s-profile-row">
                             <div className="s-avatar" style={{ background: currentAccent.gradient }}>{initials}</div>
-                            <div>
-                                <p className="s-profile-email">{user?.email ?? '—'}</p>
-                                <p className="s-profile-role">Freight Administrator</p>
+                            <div style={{ flex: 1 }}>
+                                <p className="s-profile-email" style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-color)', marginBottom: '4px' }}>
+                                    {customName || (user?.email ? user.email.split('@')[0] : '—')}
+                                </p>
+                                <p className="s-profile-role" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user?.email ?? '—'}</p>
                             </div>
                         </div>
-                        <Link to="/change-password" className="s-link-btn"><Lock size={16} /> Change Password</Link>
+                        <div className="s-toggle-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', borderBottom: 'none', padding: '0 20px 20px 20px' }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Display Name</label>
+                            <input 
+                                type="text" 
+                                value={customName} 
+                                onChange={(e) => setCustomName(e.target.value)}
+                                placeholder="Enter your name" 
+                                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(197, 198, 205, 0.4)', background: 'var(--bg-surface)', color: 'var(--text-color)', fontSize: '0.95rem', transition: 'border-color 0.2s, box-shadow 0.2s', outline: 'none' }}
+                                onFocus={(e) => e.target.style.borderColor = 'var(--brand-primary)'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(197, 198, 205, 0.4)'}
+                            />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>This name will be displayed on your dashboard.</span>
+                        </div>
+                        <Link to="/change-password" className="s-link-btn" style={{ margin: '0 20px 20px 20px', display: 'flex', justifyContent: 'center' }}><Lock size={16} /> Change Password</Link>
 
                     </div>
 
@@ -299,7 +323,7 @@ const Settings = ({ user }) => {
                             <div><h3 className="s-card-title" style={{ color: 'var(--danger)' }}>Danger Zone</h3><p className="s-card-desc">These actions cannot be undone</p></div>
                         </div>
                         <button className="s-danger-btn" onClick={handleDeleteAccount} disabled={saving}>
-                            {saving ? <span className="settings-btn-spinner" /> : <Trash2 size={16} />} 
+                            {saving ? <span className="settings-btn-spinner" /> : <Trash2 size={16} />}
                             {saving ? 'Deleting...' : 'Delete Account'}
                         </button>
                     </div>

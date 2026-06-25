@@ -8,7 +8,7 @@
   position: fixed;
   top: 18px;
   right: 24px;
-  z-index: 9990;
+  z-index: 99999;
 }
 
 /* --- Bell Container (Inline Header Mode) --- */
@@ -84,7 +84,7 @@
 .gnb-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9991;
+  z-index: 99998;
   background: transparent;
 }
 
@@ -95,7 +95,7 @@
   right: 20px;
   width: 380px;
   max-height: 520px;
-  z-index: 9992;
+  z-index: 99999;
   background: var(--bg-surface, #fff);
   border-radius: 16px;
   border: 1px solid var(--border, #e2e8f0);
@@ -267,6 +267,7 @@
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

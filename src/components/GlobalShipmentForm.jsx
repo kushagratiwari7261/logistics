@@ -1277,15 +1277,20 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     {shipmentType && TRADE_DIRECTIONS[shipmentType] && (
                       <div className="form-group">
                         <label>Trade Direction</label>
-                        <select 
-                          name="tradeDirection"
-                          value={formData.tradeDirection}
-                          onChange={handleInputChange}
-                        >
+                        <div className="trade-image-grid" style={{ marginTop: '8px' }}>
                           {TRADE_DIRECTIONS[shipmentType].map((direction, index) => (
-                            <option key={index} value={direction}>{direction}</option>
+                            <div
+                              key={`direction-${index}`}
+                              className={`trade-image-card ${formData.tradeDirection === direction ? 'selected' : ''}`}
+                              data-direction={direction}
+                              onClick={() => {
+                                handleInputChange({ target: { name: 'tradeDirection', value: direction } })
+                              }}
+                            >
+                              <span>{direction}</span>
+                            </div>
                           ))}
-                        </select>
+                        </div>
                       </div>
                     )}
                     

@@ -528,11 +528,12 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
               <div className="enquiry-direction-selection">
                 <h2>Is this an Export, Import{jobType === 'TRANSPORT' ? ', or Local' : ''} enquiry?</h2>
                 {validationErrors.tradeDirection && <div style={{ color: '#ef4444', marginBottom: 16, fontWeight: 600 }}>{validationErrors.tradeDirection}</div>}
-                <div className="enquiry-direction-grid">
+                <div className="trade-image-grid">
                   {(ENQUIRY_TRADE_DIRECTIONS[jobType] || ['EXPORT', 'IMPORT']).map((dir, idx) => (
-                    <div key={idx} className={`enquiry-direction-card ${tradeDirection === dir ? 'selected' : ''}`}
+                    <div key={idx} className={`trade-image-card ${tradeDirection === dir ? 'selected' : ''}`}
+                      data-direction={dir}
                       onClick={() => { setTradeDirection(dir); setValidationErrors(p => { const n = { ...p }; delete n.tradeDirection; return n; }); }}>
-                      {dir}
+                      <span>{dir}</span>
                     </div>
                   ))}
                 </div>

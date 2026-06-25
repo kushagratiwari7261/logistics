@@ -6,6 +6,14 @@ import GlobalNotificationBell from './GlobalNotificationBell'
 const Header = ({ createNewShipment, creatActiveJob, user }) => {
   const navigate = useNavigate()
   const [now, setNow] = useState(new Date())
+  const [customName, setCustomName] = useState('')
+
+  // Read custom settings on mount
+  useEffect(() => {
+    if (user?.id) {
+      setCustomName(localStorage.getItem('sf_custom_name_' + user.id) || '')
+    }
+  }, [user])
 
   // Live clock
   useEffect(() => {
@@ -23,10 +31,10 @@ const Header = ({ createNewShipment, creatActiveJob, user }) => {
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-  const firstName = user?.email
+  const firstName = customName || (user?.email
     ? user.email.split('@')[0].replace(/[._]/g, ' ')
-    : ''
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'SF'
+    : '')
+  const initials = customName ? customName.slice(0, 2).toUpperCase() : (user?.email ? user.email.slice(0, 2).toUpperCase() : 'SF')
 
   return (
     <div className="header-section">

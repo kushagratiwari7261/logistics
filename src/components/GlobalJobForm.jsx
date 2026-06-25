@@ -2050,14 +2050,15 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
                     {validationErrors.tradeDirection && (
                       <div className="validation-error">{validationErrors.tradeDirection}</div>
                     )}
-                    <div className="trade-direction-grid">
+                    <div className="trade-image-grid">
                       {(TRADE_DIRECTIONS[jobType] || ['EXPORT', 'IMPORT']).map((direction, index) => (
                         <div
                           key={`direction-${index}`}
-                          className={`trade-direction-card ${tradeDirection === direction ? 'selected' : ''}`}
+                          className={`trade-image-card ${tradeDirection === direction ? 'selected' : ''}`}
+                          data-direction={direction}
                           onClick={() => handleTradeDirectionSelect(direction)}
                         >
-                          {direction}
+                          <span>{direction}</span>
                         </div>
                       ))}
                     </div>

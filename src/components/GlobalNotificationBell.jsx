@@ -100,17 +100,38 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
 
   // Total badge count
   useEffect(() => {
-    const unreadNotifs = notifications.filter(n => !n.is_read).length
-    const total = unreadNotifs + pendingTasks.length + unreadMessages.length
-    setUnreadCount(total)
-  }, [notifications, pendingTasks, unreadMessages])
+    const clearTimeStr = localStorage.getItem(`gnb_cleared_at_${user?.id}`)
+    const clearTime = clearTimeStr ? new Date(clearTimeStr).getTime() : 0
+    const clearedIds = JSON.parse(localStorage.getItem(`gnb_cleared_items_${user?.id}`) || '[]')
+
+    const filterValid = (arr, idPrefix) => arr.filter(item => {
+      if (clearedIds.includes(`${idPrefix}-${item.id}`)) return false
+      if (new Date(item.created_at).getTime() <= clearTime) return false
+      return true
+    })
+
+    const validNotifs = filterValid(notifications, 'notif').filter(n => !n.is_read)
+    const validTasks = filterValid(pendingTasks, 'task')
+    const validMsgs = filterValid(unreadMessages, 'msg')
+
+    setUnreadCount(validNotifs.length + validTasks.length + validMsgs.length)
+  }, [notifications, pendingTasks, unreadMessages, user?.id])
 
   // All feeds combined for "All" tab
   const allFeedItems = useCallback(() => {
     const items = []
+    const clearTimeStr = localStorage.getItem(`gnb_cleared_at_${user?.id}`)
+    const clearTime = clearTimeStr ? new Date(clearTimeStr).getTime() : 0
+    const clearedIds = JSON.parse(localStorage.getItem(`gnb_cleared_items_${user?.id}`) || '[]')
+
+    const addIfValid = (item) => {
+      if (clearedIds.includes(item.id)) return
+      if (new Date(item.time).getTime() <= clearTime) return
+      items.push(item)
+    }
 
     // Pending tasks
-    pendingTasks.forEach(t => items.push({
+    pendingTasks.forEach(t => addIfValid({
       id: `task-${t.id}`,
       type: 'task',
       title: t.title,
@@ -123,7 +144,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
     }))
 
     // Unread messages
-    unreadMessages.forEach(m => items.push({
+    unreadMessages.forEach(m => addIfValid({
       id: `msg-${m.id}`,
       type: 'message',
       title: `Message from ${m.sender?.full_name || 'Unknown'}`,
@@ -133,7 +154,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
     }))
 
     // Recent enquiries
-    recentEnquiries.forEach(e => items.push({
+    recentEnquiries.forEach(e => addIfValid({
       id: `enq-${e.id}`,
       type: 'enquiry',
       title: `New Enquiry: ${e.enquiry_no || 'N/A'}`,
@@ -143,7 +164,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
     }))
 
     // Recent payments
-    recentPayments.forEach(p => items.push({
+    recentPayments.forEach(p => addIfValid({
       id: `pay-${p.id}`,
       type: 'payment',
       title: `Payment: ₹${p.amount?.toLocaleString() || '0'}`,
@@ -153,7 +174,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
     }))
 
     // Unread notifications
-    notifications.filter(n => !n.is_read).forEach(n => items.push({
+    notifications.filter(n => !n.is_read).forEach(n => addIfValid({
       id: `notif-${n.id}`,
       type: 'notification',
       title: n.title,
@@ -165,7 +186,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
     // Sort by time descending
     items.sort((a, b) => new Date(b.time) - new Date(a.time))
     return items
-  }, [pendingTasks, unreadMessages, recentEnquiries, recentPayments, notifications])
+  }, [pendingTasks, unreadMessages, recentEnquiries, recentPayments, notifications, user?.id])
 
   // Fetch all data
   const fetchAll = useCallback(() => {
@@ -229,8 +250,15 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
       .eq('receiver_id', user.id)
       .eq('is_read', false)
 
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    // Save a clear timestamp to permanently hide older fetched items
+    localStorage.setItem(`gnb_cleared_at_${user.id}`, new Date().toISOString())
+
+    // Clear all from local state to visually clear the panel instantly
+    setNotifications([])
     setUnreadMessages([])
+    setPendingTasks([])
+    setRecentEnquiries([])
+    setRecentPayments([])
   }
 
   // --- Drag Handlers ---
@@ -358,7 +386,7 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
             <div className="gnb-panel-header">
               <h3>Activity Center</h3>
               <div className="gnb-header-actions">
-                <button className="gnb-mark-read" onClick={markAllAsRead}>Mark all read</button>
+                <button className="gnb-mark-read" onClick={markAllAsRead}>Clear all</button>
                 <button className="gnb-close-panel" onClick={() => setShowPanel(false)}>
                   <X size={18} />
                 </button>
@@ -407,9 +435,25 @@ const GlobalNotificationBell = ({ user, inline = false }) => {
                     <div
                       key={item.id}
                       className="gnb-item gnb-unread"
-                      onClick={() => {
-                        navigate(item.path)
+                      onClick={async () => {
                         setShowPanel(false)
+                        
+                        // Save this specific item as permanently cleared
+                        const clearedIds = JSON.parse(localStorage.getItem(`gnb_cleared_items_${user?.id}`) || '[]')
+                        if (!clearedIds.includes(item.id)) {
+                          clearedIds.push(item.id)
+                          localStorage.setItem(`gnb_cleared_items_${user?.id}`, JSON.stringify(clearedIds))
+                        }
+                        
+                        // If it's a notification or message, mark it as read immediately
+                        if (item.type === 'notification') {
+                          await supabase.from('notifications').update({is_read: true}).eq('id', item.id.replace('notif-', ''))
+                        } else if (item.type === 'message') {
+                          await supabase.from('messages').update({is_read: true}).eq('id', item.id.replace('msg-', ''))
+                        }
+                        
+                        // Force a hard refresh to the destination page (as requested)
+                        window.location.href = item.path
                       }}
                     >
                       <div className="gnb-item-icon" style={{ background: `${color}15` }}>
