@@ -149,8 +149,12 @@ export default function DSRPage() {
   };
 
   const createWorkbook = async () => {
+    const defaultName = `DSR - ${new Date().toLocaleDateString()}`;
+    const promptedName = window.prompt("Enter a name for the new DSR:", defaultName);
+    if (promptedName === null) return; // User cancelled
+    
+    const newName = promptedName.trim() || defaultName;
     const newId = uuidv4();
-    const newName = `DSR - ${new Date().toLocaleDateString()}`;
 
     const { data: { user } } = await supabase.auth.getUser();
     const createdBy = user ? user.email : 'Unknown';
@@ -417,6 +421,24 @@ export default function DSRPage() {
       fetchWorkbooks();
     } catch (err) {
       console.error('Error deleting workbook:', err);
+    }
+  };
+
+  const renameWorkbook = async (id, currentName) => {
+    const newName = window.prompt("Enter new name for the DSR:", currentName);
+    if (!newName || newName.trim() === "" || newName === currentName) return;
+
+    try {
+      const { error } = await supabase
+        .from('dsr_workbooks')
+        .update({ name: newName.trim(), updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchWorkbooks();
+    } catch (err) {
+      console.error('Error renaming workbook:', err);
+      alert('Failed to rename workbook: ' + err.message);
     }
   };
 
@@ -1084,6 +1106,12 @@ export default function DSRPage() {
                         style={styles.actionButton}
                       >
                         Open
+                      </button>
+                      <button
+                        onClick={() => renameWorkbook(wb.id, wb.name)}
+                        style={styles.actionButton}
+                      >
+                        Rename
                       </button>
                       <button
                         onClick={() => deleteWorkbook(wb.id)}
