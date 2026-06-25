@@ -1092,7 +1092,7 @@ const NewShipments = () => {
   }, [shipmentType, formData.tradeDirection, formData.mtdRegistrationNo, formData.lclFcl, handleInputChange]);
 
   return (
-    <div className="new-shipment-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="new-shipment-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'stretch' }}>
       {showDeleteModal && (
         <div className="modal-overlay" style={{ zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="modal-content" style={{ background: 'white', padding: '24px', borderRadius: '8px', maxWidth: '400px', width: '100%' }}>

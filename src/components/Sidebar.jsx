@@ -308,10 +308,26 @@ const Sidebar = ({ mobileMenuOpen, toggleMobileMenu, onLogout, user }) => {
       {/* Desktop Sidebar */}
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-logo-section">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isCollapsed ? 'column' : 'row', 
+            alignItems: 'center', 
+            justifyContent: isCollapsed ? 'center' : 'space-between', 
+            width: '100%',
+            gap: isCollapsed ? '24px' : '0'
+          }}>
             <div className="logo-glow">
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <img src={sealLogo} alt='Seal Logistics Logo' style={{ height: '30px', marginRight: isCollapsed ? '0' : '10px' }} />
+                <img 
+                  src={sealLogo} 
+                  alt='Seal Logistics Logo' 
+                  style={{ 
+                    height: isCollapsed ? '24px' : '30px',
+                    maxWidth: isCollapsed ? '60px' : '200px',
+                    objectFit: 'contain',
+                    marginRight: isCollapsed ? '0' : '10px' 
+                  }} 
+                />
               </div>
             </div>
             <button 

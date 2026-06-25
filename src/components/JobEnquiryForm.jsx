@@ -1,8 +1,9 @@
 // src/components/JobEnquiryForm.jsx
 import './JobEnquiryForm.css';
+import './ActivityTable.css';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2, Plane, Ship, Truck, Package } from 'lucide-react';
+import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2, Plane, Ship, Truck, Package, UserPlus, PenLine } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchNextEnquiryNumber } from '../utils/enquiryUtils';
 
@@ -14,6 +15,20 @@ const ENQUIRY_TRADE_DIRECTIONS = {
   'OTHERS': ['EXPORT', 'IMPORT']
 };
 const ENQUIRY_STEPS = ['Job Type', 'Direction', 'Enquiry Details', 'Review'];
+
+const ENQUIRY_TYPE_IMAGES = {
+  'AIR FREIGHT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAfEp12ssHJHjPGZbb-2MwENsvs8vCxqliFyo-up01eOBuQ9Dy8EUEL4xOjK2DTi5O27C4jyQIrpbsaDav1zc8yQgnJPfKibFRLiK-ruLGeg5hXY5uoEFkSbA53ExGcS01jtW6xBnZp-PiuWUJTQYGY1iG0Oc1-b-GIOZssL3zbD3D0XV4M8Od2XdiBkV3ZMziOkY32mx15Mv945SVRdWvQWgkxbBp5oCv2FCDUMBvThqyKcCbfK0hXMER_UCpsUTLqp2qSpXT2DEs',
+  'SEA FREIGHT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAJy7IMnj8PPQzu3O3An_AGLLTmfPdyvx2gi-Y_ebIBOqeVgh6nQ29cirfa0zNvwcH98uASd278NI4wS0eFghh0cD402SdKwDgwzaHvy3mM5pw27bzISH8z2TAJ3nQfFd3qBCVNuGU4AY7qHr6P7S3d0oShmo4V33AJAmx0paq-L87hk9e7b0OrzPRPkzXVAAVrqJiBkpex0RDdniYWqB6yj0IlGl0AmXreP3D7d17AYUMRfYaOy7kXb-uvaXPeV8o7VNrYkh3LP-c',
+  'TRANSPORT': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXKeKt_8J3V7RQ0W9uyPOb-f1p6KhvG8tUrRV4O-BJJuFAEC3bsVcGLKuNQ7iNRC0dkR341oczjiXHs9T7ngoSYSVVWMeG0BX2mj7aLFLmTeO-dZsooPKBkGCjqNzSchN4dShUUctKiKdsQ9O2v5KDw297ac0F6DLx2t3tPRmbFFg7GFLdyo979rme99G2AZPMRUEuSA1Q9P4zYmP838Hsm22KgecE_xLq6qhjFw70K0qDtibjdaC1QEtQvLF9F46We670k8j1EBQ',
+  'OTHERS': 'https://lh3.googleusercontent.com/aida-public/AB6AXuA2Hh_Fs4cN8w3E5TfSIdJJ9ng0zfURtLYOQ738Vae2SqHkxYCSjfReTv18GGk0NhFg3JIihI3LhzLE53XMp1hNw6igbJ2vb0naQcYBmOspJ4DsewkS8XQ36Uh3FU4Foonzh08KUAyu0VqGOrZwWBV6pz2fz7xHURL_KcqXYR-Ucur9sgriEzYyEkMnBe7rLnTO9k7XHbFxSI6kcxN2UZg2r0XQTOo7ruXkOPDhW7I_SXEFNsbIkv397H5ZHQcS1jZZ5aZrMcK_BwA'
+};
+
+const ENQUIRY_TYPE_SUBTITLES = {
+  'AIR FREIGHT': 'Express global delivery',
+  'SEA FREIGHT': 'High volume maritime shipping',
+  'TRANSPORT': 'Domestic road & rail freight',
+  'OTHERS': 'Custom multi-modal logistics'
+};
 
 const INITIAL_ENQUIRY_DATA = {
   enquiry_no: '',
@@ -428,65 +443,86 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   // ─── Full Form Window ───
   return (
     <>
-      <div className="enquiry-modal-overlay">
-        <div className="enquiry-modal-content">
-          {/* Header */}
-          <div className="enquiry-header">
-            <div className="enquiry-header-left">
-              <button className="enquiry-window-btn" onClick={handleBack} disabled={activeStep === 1} title="Back"
-                style={{ opacity: activeStep === 1 ? 0.4 : 1, cursor: activeStep === 1 ? 'not-allowed' : 'pointer' }}>
-                <ArrowLeft size={16} />
-              </button>
-              <button className="enquiry-window-btn" onClick={handleNext}
-                disabled={activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length)} title="Forward"
-                style={{ opacity: activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length) ? 0.4 : 1,
-                  cursor: activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length) ? 'not-allowed' : 'pointer' }}>
-                <ArrowRight size={16} />
-              </button>
-              <h1>{editingEnquiry ? 'Edit Enquiry' : 'New Enquiry'}</h1>
-            </div>
-            <div className="enquiry-header-right">
-              <button className="enquiry-window-btn" onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingEnquiry })} title="Minimize">
-                <Minus size={16} />
-              </button>
-              <button className="enquiry-window-btn close-btn" onClick={handleCancel} title="Close">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="enquiry-progress-steps">
-            {ENQUIRY_STEPS.map((step, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center' }}>
-                <div className={`enquiry-step ${idx + 1 === activeStep ? 'active' : ''} ${idx + 1 < activeStep ? 'completed' : ''}`}>
-                  <div className="enquiry-step-number">{idx + 1}</div>
-                  <div className="enquiry-step-label">{step}</div>
+      <div className="modal-overlay">
+        <div className="modal-content job-modal full-screen-modal">
+          <div className="new-shipment-card full-height-card">
+            <div className="new-shipment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#2d3748', borderBottom: 'none', color: 'white' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={handleBack} disabled={activeStep === 1} title="Back" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(85,95,113,0.4)', border: 'none', cursor: activeStep === 1 ? 'not-allowed' : 'pointer', opacity: activeStep === 1 ? 0.4 : 1, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <ArrowLeft size={14} />
+                  </button>
+                  <button onClick={handleNext} disabled={activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length)} title="Forward" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(85,95,113,0.4)', border: 'none', cursor: activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length) ? 'not-allowed' : 'pointer', opacity: activeStep >= Math.min(maxStepReached, ENQUIRY_STEPS.length) ? 0.4 : 1, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                    <ArrowRight size={14} />
+                  </button>
                 </div>
-                {idx < ENQUIRY_STEPS.length - 1 && (
-                  <div className={`enquiry-step-connector ${idx + 1 < activeStep ? 'completed' : ''}`} />
+                <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>{editingEnquiry ? 'Edit Enquiry' : 'New Enquiry'}</h1>
+                {editingEnquiry && (
+                  <div className="modal-author-info" style={{ display: 'flex', gap: '10px' }}>
+                    {editingEnquiry.created_by && <span className="audit-badge" style={{ color: 'white', background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}><UserPlus size={12} /> {editingEnquiry.created_by.split('@')[0]}</span>}
+                    {editingEnquiry.updated_by && <span className="audit-badge edit" style={{ color: 'white', background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}><PenLine size={12} /> {editingEnquiry.updated_by.split('@')[0]}</span>}
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-
-          {/* Body */}
-          <div className="enquiry-body">
-            {activeStep === 1 && (
-              <div className="enquiry-type-selection">
-                <h2>What type of Job would you like to create?</h2>
-                {validationErrors.jobType && <div style={{ color: '#ef4444', marginBottom: 16, fontWeight: 600 }}>{validationErrors.jobType}</div>}
-                <div className="enquiry-type-grid">
-                  {ENQUIRY_JOB_TYPES.map((type, idx) => (
-                    <div key={idx} className={`enquiry-type-card ${jobType === type ? 'selected' : ''}`}
-                      onClick={() => { setJobType(type); setValidationErrors(p => { const n = { ...p }; delete n.jobType; return n; }); }}>
-                      <div className="enquiry-type-icon">{getJobIcon(type)}</div>
-                      <div className="enquiry-type-text">{type}</div>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button onClick={() => onMinimize(formConfig.id, { activeStep, maxStepReached, jobType, tradeDirection, formData, editingEnquiry })} title="Minimize" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                  <Minus size={18} />
+                </button>
+                <button onClick={() => {
+                  const el = document.querySelector('.job-modal');
+                  if (el) el.classList.toggle('full-screen-modal');
+                }} title="Maximize/Restore" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                  <Maximize2 size={16} />
+                </button>
+                <button onClick={handleCancel} title="Close" style={{ width: 32, height: 32, background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}>
+                  <X size={18} />
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Progress Steps - Chevron Stepper */}
+            <div className="progress-steps stitch-stepper">
+              {ENQUIRY_STEPS.map((step, index) => (
+                <div
+                  key={`step-${index}`}
+                  className={`stitch-step ${index + 1 === activeStep ? 'active' : ''} ${index + 1 < activeStep ? 'completed' : ''} ${index === 0 ? 'first' : ''} ${index === ENQUIRY_STEPS.length - 1 ? 'last' : ''}`}
+                >
+                  <div className="stitch-step-inner">
+                    <div className="stitch-step-number">{index + 1}</div>
+                    <div className="stitch-step-info">
+                      <span className="stitch-step-label">{`${index + 1}. ${step}`}</span>
+                      {index + 1 === activeStep && <span className="stitch-step-active-tag">(ACTIVE)</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="step-content content-scrollable">
+              {activeStep === 1 && (
+                <div className="shipment-type-selection">
+                  <h2>What type of Job would you like to create?</h2>
+                  {validationErrors.jobType && <div className="validation-error">{validationErrors.jobType}</div>}
+                  <div className="shipment-type-grid">
+                    {ENQUIRY_JOB_TYPES.map((type, index) => (
+                      <div
+                        key={`type-${index}`}
+                        className={`shipment-type-card ${jobType === type ? 'selected' : ''}`}
+                        onClick={() => { setJobType(type); setValidationErrors(p => { const n = { ...p }; delete n.jobType; return n; }); }}
+                      >
+                        <div className="shipment-card-img-wrap">
+                          <img src={ENQUIRY_TYPE_IMAGES[type]} alt={type} className="shipment-card-img" />
+                        </div>
+                        <div className="shipment-card-info">
+                          <span className="shipment-type-text">{type}</span>
+                          <span className="shipment-type-subtitle">{ENQUIRY_TYPE_SUBTITLES[type]}</span>
+                        </div>
+                        {jobType === type && <div className="shipment-card-check">✓</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
             {activeStep === 2 && (
               <div className="enquiry-direction-selection">
@@ -507,18 +543,21 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
             {activeStep === 4 && renderSummary()}
           </div>
 
-          {/* Footer */}
-          <div className="enquiry-footer">
-            {activeStep < ENQUIRY_STEPS.length && (
-              <button className="enquiry-btn enquiry-btn-primary" onClick={handleNext}>
-                Next <ArrowRight size={16} />
-              </button>
-            )}
-            {activeStep === ENQUIRY_STEPS.length && (
-              <button className="enquiry-btn enquiry-btn-confirm" onClick={handleSaveEnquiry} disabled={loading || isOffline}>
-                {isOffline ? 'Offline - Reconnect to Save' : (loading ? 'Saving...' : (editingEnquiry ? 'Update Enquiry' : 'Confirm & Create Enquiry'))}
-              </button>
-            )}
+            {/* Navigation Buttons */}
+            <div className="navigation-buttons">
+              <div className="step-buttons">
+                {activeStep < ENQUIRY_STEPS.length && (
+                  <button className="next-button" onClick={handleNext}>
+                    Next
+                  </button>
+                )}
+                {activeStep === ENQUIRY_STEPS.length && (
+                  <button className="confirm-button" onClick={handleSaveEnquiry} disabled={loading || isOffline} style={{ padding: '8px 24px', fontWeight: 'bold' }}>
+                    {isOffline ? 'Offline - Reconnect to Save' : (loading ? 'Saving...' : (editingEnquiry ? 'Update Enquiry' : 'Confirm & Create Enquiry'))}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
