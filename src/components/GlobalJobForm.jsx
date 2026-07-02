@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { UserPlus, PenLine, FileUp, ExternalLink, FileText, ArrowLeft, ArrowRight, Minus, X, Maximize2, Plane, Ship, Truck, Package } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
+import { getServerDateString } from '../utils/serverDate';
 
 import { fetchNextJobNumber } from '../utils/jobUtils';
 
@@ -41,7 +42,7 @@ const JOB_TYPE_SUBTITLES = {
 const INITIAL_FORM_DATA = {
   branch: '',
   department: '',
-  jobDate: new Date().toISOString().split('T')[0],
+  jobDate: '',
   client: '',
   shipper: '',
   consignee: '',
@@ -240,14 +241,17 @@ const JobFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
     }
   }, []);
 
-  // Fetch next sequential job number on load if creating new job
+  // Fetch next sequential job number and server date on load if creating new job
   useEffect(() => {
     let isMounted = true;
     if (!editingJob && !formData.jobNo) {
       const initJobNo = async () => {
-        const nextNo = await fetchNextJobNumber();
+        const [nextNo, serverDate] = await Promise.all([
+          fetchNextJobNumber(),
+          getServerDateString()
+        ]);
         if (isMounted) {
-          setFormData(prev => ({ ...prev, jobNo: nextNo }));
+          setFormData(prev => ({ ...prev, jobNo: nextNo, jobDate: prev.jobDate || serverDate }));
         }
       };
       initJobNo();

@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { UserPlus, PenLine, FileUp, ExternalLink, FileText, Search, Plus, Trash2, Eye } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
+import { getServerDateString } from '../utils/serverDate';
 
 // Constants for better maintainability
 const JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT',  'TRANSPORT', 'OTHERS'];
@@ -27,7 +28,7 @@ const CATEGORIES = [
 const INITIAL_FORM_DATA = {
   branch: '',
   department: '',
-  jobDate: new Date().toISOString().split('T')[0],
+  jobDate: '',
   client: '',
   shipper: '',
   consignee: '',
@@ -206,6 +207,19 @@ const ActiveJob = () => {
       }
     }
   }, []); // Empty dependency array - run only once on mount
+
+  // Fetch server date for new jobs
+  useEffect(() => {
+    let isMounted = true;
+    if (!editingJob && !formData.jobDate) {
+      getServerDateString().then(serverDate => {
+        if (isMounted) {
+          setFormData(prev => ({ ...prev, jobDate: prev.jobDate || serverDate }));
+        }
+      });
+    }
+    return () => { isMounted = false; };
+  }, [editingJob]);
 
   // ============ FIX 2: AUTO-SAVE STATE TO SESSIONSTORAGE ============
   useEffect(() => {
@@ -545,7 +559,11 @@ const ActiveJob = () => {
     setShowJobForm(false);
     setEditingJob(null);
     setValidationErrors({});
-    setFormData({...INITIAL_FORM_DATA, jobNo: ''});
+    setFormData({...INITIAL_FORM_DATA, jobNo: '', jobDate: ''});
+    // Fetch fresh server date for next form open
+    getServerDateString().then(serverDate => {
+      setFormData(prev => ({ ...prev, jobDate: serverDate }));
+    });
     
     // Clear sessionStorage
     sessionStorage.removeItem('editing_job');

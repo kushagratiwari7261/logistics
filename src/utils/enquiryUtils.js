@@ -1,12 +1,14 @@
 import { supabase } from '../lib/supabaseClient';
+import { getServerDate } from './serverDate';
 
 /**
  * Fetches the next sequential enquiry number globally.
  * Format: ENQ-YYYY-MM-XXX (e.g. ENQ-2026-05-001)
  * The sequence (XXX) continuously increments across months.
+ * Uses server time (internet date) instead of local system clock.
  */
 export const fetchNextEnquiryNumber = async () => {
-  const date = new Date();
+  const date = await getServerDate();
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const prefix = `ENQ-${year}-${month}-`;

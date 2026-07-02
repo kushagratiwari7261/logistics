@@ -6,6 +6,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { UserPlus, PenLine, FileUp, ExternalLink, FileText } from 'lucide-react';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { supabase } from '../lib/supabaseClient';
+import { getServerDateString } from '../utils/serverDate';
 import './NewShipments.css';
 import './ActivityTable.css';
 
@@ -47,7 +48,7 @@ const TRADE_DIRECTIONS = {
 const INITIAL_FORM_DATA = {
   branch: '',
   department: '',
-  shipmentDate: new Date().toISOString().split('T')[0],
+  shipmentDate: '',
   client: '',
   client_email: '',
   shipper: '',
@@ -196,6 +197,19 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
   const [orgFormData, setOrgFormData] = useState(INITIAL_ORG_FORM_DATA);
   const { uploadFile, getFileUrl, uploading, progress: uploadProgress } = useFileUpload();
   const [selectedFiles, setSelectedFiles] = useState([]);
+
+  // Fetch server date for new shipments
+  useEffect(() => {
+    let isMounted = true;
+    if (!editingShipment && !formData.shipmentDate) {
+      getServerDateString().then(serverDate => {
+        if (isMounted) {
+          setFormData(prev => ({ ...prev, shipmentDate: prev.shipmentDate || serverDate }));
+        }
+      });
+    }
+    return () => { isMounted = false; };
+  }, [editingShipment]);
 
   const handleFileSelect = (e) => {
     if (e.target.files) {
@@ -669,7 +683,7 @@ const ShipmentFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
       packages: shipmentData.no_of_res ? `${shipmentData.no_of_res} (${shipmentData.no_of_res} BOXES ONLY)` : '15 (FIFTEEN BOXES ONLY)',
       description: shipmentData.description || 'CI CASTING (SIDE COVER R, SIDE COVER C, BALANCE WEIGHT,',
       place_of_issue: shipmentData.branch || 'New Delhi',
-      date_of_issue: shipmentData.shipment_date || new Date().toLocaleDateString('en-GB'),
+      date_of_issue: shipmentData.shipment_date || formData.shipmentDate || '',
       number_of_originals: 'THREE (03)',
       delivery_agent: shipmentData.carrier || '',
       delivery_agent_address: '',

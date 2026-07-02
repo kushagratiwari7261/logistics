@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { Minus, X, Maximize2, ArrowLeft, ArrowRight, Search, ArrowRightCircle, CheckCircle2, Plane, Ship, Truck, Package, UserPlus, PenLine } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchNextEnquiryNumber } from '../utils/enquiryUtils';
+import { getServerDateString } from '../utils/serverDate';
 
 const ENQUIRY_JOB_TYPES = ['AIR FREIGHT', 'SEA FREIGHT', 'TRANSPORT', 'OTHERS'];
 const ENQUIRY_TRADE_DIRECTIONS = {
@@ -32,7 +33,7 @@ const ENQUIRY_TYPE_SUBTITLES = {
 
 const INITIAL_ENQUIRY_DATA = {
   enquiry_no: '',
-  enquiry_date: new Date().toISOString().split('T')[0],
+  enquiry_date: '',
   customer_name: '',
   pol: '',
   pod: '',
@@ -112,13 +113,16 @@ const EnquiryFormWindow = ({ formConfig, onClose, onMinimize, onRestore }) => {
     return () => { isMounted = false; };
   }, []);
 
-  // Auto-fetch next enquiry number for new enquiries
+  // Auto-fetch next enquiry number and server date for new enquiries
   useEffect(() => {
     let isMounted = true;
     if (!editingEnquiry && !formData.enquiry_no) {
       const init = async () => {
-        const nextNo = await fetchNextEnquiryNumber();
-        if (isMounted) setFormData(prev => ({ ...prev, enquiry_no: nextNo }));
+        const [nextNo, serverDate] = await Promise.all([
+          fetchNextEnquiryNumber(),
+          getServerDateString()
+        ]);
+        if (isMounted) setFormData(prev => ({ ...prev, enquiry_no: nextNo, enquiry_date: prev.enquiry_date || serverDate }));
       };
       init();
     }
